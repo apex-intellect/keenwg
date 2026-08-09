@@ -1,0 +1,34 @@
+{
+  "custom_top_level": {"preserve": true},
+  "outbounds": [
+    {
+      "tag": "vless-reality",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [{
+          "address": "203.0.113.10",
+          "port": 443,
+          "users": [{
+            "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "encryption": "none",
+            "flow": "xtls-rprx-vision",
+            "level": 0
+          }]
+        }]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "publicKey": "OLD_SYNTHETIC_KEY",
+          "fingerprint": "firefox",
+          "serverName": "old.example.test",
+          "shortId": "0011223344556677",
+          "spiderX": "/"
+        }
+      }
+    },
+    {"protocol":"freedom","tag":"direct","settings":{"domainStrategy":"UseIP"}},
+    {"protocol":"blackhole","tag":"block"}
+  ]
+}

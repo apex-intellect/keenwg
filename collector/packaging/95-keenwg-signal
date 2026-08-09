@@ -1,0 +1,50 @@
+#!/bin/sh
+PID_FILE=${KEENWG_PID_FILE:-/tmp/keenwg.pid}
+IDENTITY_FILE=${KEENWG_IDENTITY_FILE:-$PID_FILE.start}
+PROC_ROOT=${KEENWG_PROC_ROOT:-/proc}
+KILL_CMD=${KEENWG_KILL:-kill}
+INIT=${KEENWG_INIT:-/opt/etc/init.d/S95keenwg}
+
+start_collector() {
+    "$INIT" start >/dev/null 2>&1 || true
+    exit 0
+}
+
+read_start_time() {
+    stat_line=$(cat "$PROC_ROOT/$1/stat" 2>/dev/null || true)
+    stat_tail=${stat_line##*) }
+    [ -n "$stat_line" ] && [ "$stat_tail" != "$stat_line" ] || return 1
+    set -- $stat_tail
+    [ "$#" -ge 20 ] || return 1
+    shift 19
+    case "$1" in ''|*[!0-9]*) return 1;; esac
+    observed_start_time=$1
+}
+
+[ -f "$PID_FILE" ] && [ ! -L "$PID_FILE" ] || start_collector
+pid=$(cat "$PID_FILE" 2>/dev/null || true)
+case "$pid" in ''|*[!0-9]*) start_collector;; esac
+
+raw_exe=$(readlink "$PROC_ROOT/$pid/exe" 2>/dev/null || true)
+case "$raw_exe" in *' (deleted)') exe=${raw_exe%' (deleted)'};; *) exe=$raw_exe;; esac
+case "$exe" in
+    /opt/keenwg/current/keenwg-collector) ;;
+    /opt/keenwg/releases/*/keenwg-collector)
+        release_id=${exe#/opt/keenwg/releases/}
+        release_id=${release_id%/keenwg-collector}
+        case "$release_id" in ''|.|..|*/*|*[!A-Za-z0-9._-]*) start_collector;; esac
+        ;;
+    *) start_collector ;;
+esac
+
+[ -f "$IDENTITY_FILE" ] && [ ! -L "$IDENTITY_FILE" ] || start_collector
+tracked_extra=
+IFS=' ' read -r tracked_pid tracked_start tracked_extra <"$IDENTITY_FILE" || start_collector
+[ -z "$tracked_extra" ] || start_collector
+case "$tracked_pid:$tracked_start" in *[!0-9:]*|:*|*:) start_collector;; esac
+[ "$tracked_pid" = "$pid" ] || start_collector
+read_start_time "$pid" || start_collector
+[ "$observed_start_time" = "$tracked_start" ] || start_collector
+
+"$KILL_CMD" -HUP "$pid" 2>/dev/null || start_collector
+exit 0

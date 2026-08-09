@@ -1,0 +1,10 @@
+{
+  "interface_id": "Wireguard0",
+  "listen_address": "10.8.0.1:18777",
+  "token": "REPLACE_WITH_BASE64_ENCODED_32_BYTE_TOKEN",
+  "database_path": "/opt/var/lib/keenwg/history.db",
+  "raw_retention_days": 7,
+  "five_minute_retention_days": 90,
+  "hourly_retention_days": 400,
+  "max_database_bytes": 100663296
+}

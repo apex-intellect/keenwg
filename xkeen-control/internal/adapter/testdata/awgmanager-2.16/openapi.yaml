@@ -1,0 +1,16 @@
+swagger: "2.0"
+basePath: /api
+x-upstream-version: 2.16.5
+securityDefinitions:
+  CookieAuth:
+    type: apiKey
+    in: cookie
+    name: awg_session
+paths:
+  /auth/login: {post: {responses: {"200": {description: OK}}}}
+  /auth/logout: {post: {responses: {"200": {description: OK}}}}
+  /singbox/subscriptions: {get: {responses: {"200": {description: OK}}}}
+  /singbox/subscriptions/refresh: {post: {responses: {"200": {description: OK}}}}
+  /singbox/subscriptions/active-member: {post: {responses: {"200": {description: OK}}}}
+  /singbox/subscriptions/active-now: {get: {responses: {"200": {description: OK}}}}
+  /singbox/router/proxies/test: {post: {responses: {"200": {description: OK}}}}

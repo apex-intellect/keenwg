@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "release": "1.0.0",
+  "generated_at": "2026-08-09T08:58:11Z",
+  "device": {
+    "evidence_id": "netcraze-nc3812-5-01c1",
+    "model": "Netcraze Hopper SE (NC-3812)",
+    "keenetic_os": "5.01.C.1.0-0",
+    "architecture": "arm64",
+    "entware": "present",
+    "engines": {
+      "xkeen": "2.0",
+      "xray": "26.3.27",
+      "sing_box": null,
+      "awg_manager": null
+    }
+  },
+  "stages": [
+    { "name": "install", "status": "pass", "code": "secure_health_verified", "observed_at": "2026-08-09T08:58:11Z" },
+    { "name": "migration", "status": "pass", "code": "legacy_route_preserved", "observed_at": "2026-08-09T08:58:11Z" },
+    { "name": "route_apply", "status": "pass", "code": "alternate_route_restored", "observed_at": "2026-08-09T08:58:11Z" },
+    { "name": "restart", "status": "pass", "code": "route_stable_after_restart", "observed_at": "2026-08-09T08:58:11Z" },
+    { "name": "update", "status": "pass", "code": "transactional_reinstall_preserved", "observed_at": "2026-08-09T08:58:11Z" },
+    { "name": "rollback", "status": "pass", "code": "injected_failure_rolled_back", "observed_at": "2026-08-09T08:58:11Z" },
+    { "name": "uninstall", "status": "pass", "code": "legacy_fallback_reinstall_verified", "observed_at": "2026-08-09T08:58:11Z" }
+  ],
+  "sanitization": {
+    "credentials": false,
+    "subscription_urls": false,
+    "connection_keys": false,
+    "full_ips": false,
+    "mac_addresses": false,
+    "hostnames": false
+  },
+  "support_status": "supported",
+  "notes": [
+    "Physical inventory reported the exact model, firmware, ARM64 architecture, Entware, XKeen and Xray versions.",
+    "Install migrated the preserved legacy controller without changing the active route; secure and legacy health checks passed.",
+    "A reviewed alternate XKeen node was applied and the original node restored with exact route and policy hash read-back.",
+    "Service restart, transactional reinstall, injected rollback and uninstall/reinstall preserved route and identity.",
+    "The access credential was provided only through ephemeral stdin and excluded from the repository, evidence and artifacts."
+  ]
+}

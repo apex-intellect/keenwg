@@ -1,0 +1,32 @@
+<response>
+  <id>Wireguard0</id>
+  <interface-name>Wireguard0</interface-name>
+  <type>Wireguard</type>
+  <wireguard>
+    <public-key>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</public-key>
+    <listen-port>51820</listen-port>
+    <status>up</status>
+    <peer>
+      <public-key>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</public-key>
+      <description>phone</description>
+      <rxbytes>269297884</rxbytes>
+      <txbytes>3309709420</txbytes>
+      <last-handshake>108</last-handshake>
+      <online>yes</online>
+      <enabled>yes</enabled>
+    </peer>
+    <peer>
+      <public-key>AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=</public-key>
+      <description>tablet</description>
+      <rxbytes>176641696</rxbytes>
+      <txbytes>529856244</txbytes>
+      <last-handshake>2147483647</last-handshake>
+      <online>no</online>
+      <enabled>no</enabled>
+    </peer>
+  </wireguard>
+  <summary>
+    <layer><conf>running</conf></layer>
+  </summary>
+  <prompt>(config)&gt;</prompt>
+</response>

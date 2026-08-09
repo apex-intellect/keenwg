@@ -1,0 +1,54 @@
+// Routing rules
+{
+  "routing": {
+    "rules": [
+      // Anthropic / Claude — force via VPS
+      {
+        "domain": ["domain:anthropic.com", "domain:claude.ai"],
+        "outboundTag": "vless-reality",
+        "type": "field"
+      },
+
+      // 1C ecosystem — direct
+      {
+        "domain": ["domain:1c.ru", "domain:1cfresh.com"],
+        "outboundTag": "direct",
+        "type": "field"
+      },
+
+      // Direct: specific domains (Russian services on non-RU TLDs)
+      {
+        "domain": ["domain:okko.sport", "domain:okko.tv", "domain:okko.ru", "domain:gitea.com"],
+        "outboundTag": "direct",
+        "type": "field"
+      },
+
+      // Direct: Russian TLDs + .info + .tv
+      {
+        "domain": [
+          "regexp:^([\\w\\-\\.]+\\.)info$",
+          "regexp:^([\\w\\-\\.]+\\.)tv$",
+          "regexp:^([\\w\\-\\.]+\\.)ru$",
+          "regexp:^([\\w\\-\\.]+\\.)su$",
+          "regexp:^([\\w\\-\\.]+\\.)xn--p1ai$",
+          "regexp:^([\\w\\-\\.]+\\.)moscow$"
+        ],
+        "outboundTag": "direct",
+        "type": "field"
+      },
+
+      // Direct: Russian IP ranges, including IP-only traffic and non-RU domains
+      {
+        "ip": ["ext:geoip_v2fly.dat:ru"],
+        "outboundTag": "direct",
+        "type": "field"
+      },
+
+      // Default — via VPS
+      {
+        "outboundTag": "vless-reality",
+        "type": "field"
+      }
+    ]
+  }
+}

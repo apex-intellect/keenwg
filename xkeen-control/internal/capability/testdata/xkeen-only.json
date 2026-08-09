@@ -1,0 +1,12 @@
+[
+  {"id":"access.wireguard","schema_version":1,"access":"none","available":false,"transport":"companion","reason":"asc_not_found"},
+  {"id":"connections.awg","schema_version":1,"access":"none","available":false,"transport":"companion","reason":"awg_not_configured"},
+  {"id":"connections.catalog","schema_version":1,"access":"write","available":true,"transport":"companion"},
+  {"id":"connections.singbox","schema_version":1,"access":"none","available":false,"transport":"companion","reason":"singbox_not_configured"},
+  {"id":"connections.xkeen","schema_version":1,"access":"write","available":true,"transport":"companion"},
+  {"id":"history.wireguard","schema_version":1,"access":"none","available":false,"transport":"companion","reason":"collector_not_found"},
+  {"id":"overview.health","schema_version":1,"access":"read","available":true,"transport":"companion"},
+  {"id":"routes.domains","schema_version":1,"access":"write","available":true,"transport":"companion"},
+  {"id":"routes.exclusions","schema_version":1,"access":"write","available":true,"transport":"companion"},
+  {"id":"system.devices","schema_version":1,"access":"write","available":true,"transport":"companion"}
+]

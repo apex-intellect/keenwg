@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keenwg.example/schema/router-evidence-v1.json",
+  "title": "KeenWG physical router evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release", "generated_at", "device", "stages", "sanitization", "support_status", "notes"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "release": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "model", "keenetic_os", "architecture", "entware", "engines"],
+      "properties": {
+        "evidence_id": { "type": "string", "pattern": "^[a-z0-9-]{8,64}$" },
+        "model": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "keenetic_os": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "architecture": { "enum": ["arm64", "mips", "mipsel", "unverified"] },
+        "entware": { "enum": ["present", "absent", "unverified"] },
+        "engines": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["xkeen", "xray", "sing_box", "awg_manager"],
+          "properties": {
+            "xkeen": { "type": ["string", "null"], "maxLength": 40 },
+            "xray": { "type": ["string", "null"], "maxLength": 40 },
+            "sing_box": { "type": ["string", "null"], "maxLength": 40 },
+            "awg_manager": { "type": ["string", "null"], "maxLength": 40 }
+          }
+        }
+      }
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "code", "observed_at"],
+        "properties": {
+          "name": { "enum": ["install", "migration", "route_apply", "restart", "update", "rollback", "uninstall"] },
+          "status": { "enum": ["pass", "fail", "not_run"] },
+          "code": { "type": "string", "pattern": "^[a-z0-9._-]{1,64}$" },
+          "observed_at": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    },
+    "sanitization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["credentials", "subscription_urls", "connection_keys", "full_ips", "mac_addresses", "hostnames"],
+      "properties": {
+        "credentials": { "const": false },
+        "subscription_urls": { "const": false },
+        "connection_keys": { "const": false },
+        "full_ips": { "const": false },
+        "mac_addresses": { "const": false },
+        "hostnames": { "const": false }
+      }
+    },
+    "support_status": { "enum": ["supported", "experimental", "unsupported"] },
+    "notes": { "type": "array", "maxItems": 20, "items": { "type": "string", "minLength": 1, "maxLength": 160 } }
+  }
+}

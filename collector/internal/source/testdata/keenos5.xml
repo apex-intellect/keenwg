@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<response>
+  <interface>
+    <id>Wireguard0</id>
+    <peer>
+      <public-key>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</public-key>
+      <name>phone</name>
+      <online>true</online>
+      <enabled>true</enabled>
+      <last-handshake>12</last-handshake>
+      <rxbytes>1234</rxbytes>
+      <txbytes>5678</txbytes>
+      <unknown>ignored</unknown>
+    </peer>
+    <peer>
+      <public-key>AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=</public-key>
+      <name>tablet</name>
+      <online>false</online>
+      <enabled>false</enabled>
+      <last-handshake>2147483647</last-handshake>
+      <rxbytes>8</rxbytes>
+      <txbytes>9</txbytes>
+    </peer>
+  </interface>
+</response>

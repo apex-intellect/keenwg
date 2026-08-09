@@ -1,0 +1,36 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "sub-europe",
+      "label": "Europe",
+      "enabled": true,
+      "mode": "selector",
+      "selectorTag": "sub-europe",
+      "activeMember": "sub-europe-nl",
+      "lastFetched": "2026-08-08T20:00:00Z",
+      "lastError": "",
+      "url": "https://provider.invalid/redacted",
+      "headers": [{"name":"User-Agent","value":"redacted"}],
+      "members": [
+        {"tag":"sub-europe-de","label":"Germany","protocol":"vless","server":"de.example","port":443,"transport":"tcp","security":"reality","sni":"cdn.example"},
+        {"tag":"sub-europe-nl","label":"Netherlands","protocol":"trojan","server":"nl.example","port":443,"transport":"tcp","security":"tls","sni":"nl.example"}
+      ],
+      "memberTags": ["sub-europe-de","sub-europe-nl"],
+      "excludedMembers": [],
+      "excludedTags": [],
+      "filteredMembers": [],
+      "orphanTags": [],
+      "rejectedMembers": [],
+      "infoItems": [],
+      "isInline": false,
+      "filterExclude": "",
+      "filterInclude": "",
+      "inboundTag": "sub-europe-in",
+      "listenPort": 11000,
+      "proxyIndex": 1,
+      "refreshHours": 24,
+      "urlTest": {"intervalSec":60,"toleranceMs":50,"url":"https://www.gstatic.com/generate_204"}
+    }
+  ]
+}

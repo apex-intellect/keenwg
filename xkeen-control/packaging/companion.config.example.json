@@ -1,0 +1,29 @@
+{
+  "listen_address": "10.8.0.1:18778",
+  "secure_listen_address": "10.8.0.1:18779",
+  "token": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "subscription_url": "https://vpn.example.test/sub/private",
+  "subscription_cache_path": "/opt/etc/keenwg/xkeen-subscription.json",
+  "state_path": "/opt/etc/keenwg/xkeen-state.json",
+  "backup_dir": "/opt/etc/keenwg/backups",
+  "outbounds_path": "/opt/etc/xray/configs/04_outbounds.json",
+  "exclude_path": "/opt/etc/xkeen/ip_exclude.lst",
+  "domain_policy_path": "/opt/etc/keenwg/domain-policy.json",
+  "domain_policy_backup_path": "/opt/etc/keenwg/domain-policy.json.bak",
+  "routing_path": "/opt/etc/xray/configs/05_routing.json",
+  "init_script": "/opt/etc/init.d/S05xkeen",
+  "xray_binary": "/opt/sbin/xray",
+  "asset_dir": "/opt/etc/xray/dat",
+  "max_subscription_bytes": 262144,
+  "max_nodes": 128,
+  "allow_private_servers": false,
+  "discovery": {
+    "xkeen_init_path": "/opt/etc/init.d/S05xkeen",
+    "asc_path": "/opt/sbin/asc"
+  },
+  "tls_certificate_path": "/opt/etc/keenwg/identity/certificate.pem",
+  "tls_private_key_path": "/opt/etc/keenwg/identity/private-key.pem",
+  "device_store_path": "/opt/etc/keenwg/devices.json",
+  "pairing_store_path": "/opt/etc/keenwg/pairing-offers.json",
+  "legacy_api_enabled": true
+}

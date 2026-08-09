@@ -1,0 +1,87 @@
+#!/bin/sh
+set -eu
+
+ROOT=${KEENWG_DESTDIR:-}
+BINARY=$ROOT/opt/lib/keenwg-companion/current/keenwg-companion
+CONFIG=$ROOT/opt/etc/keenwg/companion.json
+PIDFILE=$ROOT/opt/var/run/keenwg-companion.pid
+READY=$ROOT/opt/var/run/keenwg-companion.ready
+CERT=$ROOT/opt/etc/keenwg/identity/certificate.pem
+SSD=/opt/sbin/start-stop-daemon
+
+alive() {
+    [ -r "$PIDFILE" ] || return 1
+    pid=$(sed -n '1p' "$PIDFILE")
+    case "$pid" in ''|*[!0-9]*) return 1;; esac
+    kill -0 "$pid" 2>/dev/null || return 1
+    if [ -z "$ROOT" ]; then
+        expected=$(readlink -f "$BINARY" 2>/dev/null || true)
+        running=$(readlink "/proc/$pid/exe" 2>/dev/null || true)
+        [ -n "$expected" ] && { [ "$running" = "$expected" ] || [ "$running" = "$expected (deleted)" ]; } || return 1
+    fi
+    return 0
+}
+
+start() {
+    if alive; then return 0; fi
+    rm -f "$PIDFILE" "$READY"
+    [ -x "$BINARY" ] && [ -f "$CONFIG" ] || return 1
+    mkdir -p "${PIDFILE%/*}"
+    if [ -z "$ROOT" ]; then
+        [ -x "$SSD" ] || return 1
+        "$SSD" -S -b -m -p "$PIDFILE" -x "$BINARY" -- -config "$CONFIG" || return 1
+        pid=$(sed -n '1p' "$PIDFILE")
+    else
+        KEENWG_DESTDIR="$ROOT" "$BINARY" -config "$CONFIG" >/dev/null 2>&1 &
+        pid=$!
+        printf '%s\n' "$pid" >"$PIDFILE"
+    fi
+    chmod 600 "$PIDFILE"
+    count=0
+    while [ "$count" -lt 20 ]; do
+        if kill -0 "$pid" 2>/dev/null; then return 0; fi
+        count=$((count+1))
+        [ -n "$ROOT" ] || sleep 1
+    done
+    rm -f "$PIDFILE"
+    return 1
+}
+
+stop() {
+    if ! alive; then rm -f "$PIDFILE" "$READY"; return 0; fi
+    pid=$(sed -n '1p' "$PIDFILE")
+    if [ -z "$ROOT" ]; then
+        "$SSD" -K -p "$PIDFILE" -x "$BINARY" -s TERM || return 1
+    else
+        kill -TERM "$pid" 2>/dev/null || return 1
+    fi
+    count=0
+    while [ "$count" -lt 45 ]; do
+        if ! kill -0 "$pid" 2>/dev/null; then rm -f "$PIDFILE" "$READY"; return 0; fi
+        count=$((count+1))
+        if [ -n "$ROOT" ]; then sleep 0.05; else sleep 1; fi
+    done
+    return 1
+}
+
+health() {
+    alive || return 1
+    if [ -n "$ROOT" ]; then
+        [ -f "$READY" ]
+        return
+    fi
+    [ -f "$CERT" ] && [ ! -L "$CERT" ] || return 1
+    address=$(sed -n 's/^[[:space:]]*"secure_listen_address"[[:space:]]*:[[:space:]]*"\([0-9a-fA-F:.]*\)"[[:space:]]*,\{0,1\}[[:space:]]*$/\1/p' "$CONFIG")
+    [ -n "$address" ] || return 1
+    body=$(curl --silent --show-error --fail --max-time 5 --cacert "$CERT" "https://$address/v1/health") || return 1
+    printf '%s' "$body" | grep -q '"status":"ok"'
+}
+
+case "${1:-}" in
+    start) start ;;
+    stop) stop ;;
+    restart) stop && start ;;
+    status) alive ;;
+    health) health ;;
+    *) echo "usage: $0 {start|stop|restart|status|health}" >&2; exit 2 ;;
+esac

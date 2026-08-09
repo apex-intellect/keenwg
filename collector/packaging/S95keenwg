@@ -1,0 +1,207 @@
+#!/bin/sh
+PATH=${KEENWG_PATH:-/opt/bin:/opt/sbin:/usr/bin:/usr/sbin:/bin:/sbin}
+PID_FILE=${KEENWG_PID_FILE:-/tmp/keenwg.pid}
+IDENTITY_FILE=${KEENWG_IDENTITY_FILE:-$PID_FILE.start}
+PROC_ROOT=${KEENWG_PROC_ROOT:-/proc}
+BINARY=${KEENWG_BINARY:-/opt/keenwg/current/keenwg-collector}
+CONFIG=${KEENWG_CONFIG:-/opt/etc/keenwg/config.json}
+KILL_CMD=${KEENWG_KILL:-kill}
+SLEEP_CMD=${KEENWG_SLEEP:-sleep}
+ALIVE_CMD=${KEENWG_ALIVE:-}
+SSD_CMD=${KEENWG_SSD:-start-stop-daemon}
+[ -r /opt/etc/init.d/rc.func ] && . /opt/etc/init.d/rc.func
+
+process_alive() {
+    if [ -n "$ALIVE_CMD" ]; then
+        "$ALIVE_CMD" "$1"
+    else
+        "$KILL_CMD" -0 "$1" 2>/dev/null
+    fi
+}
+
+read_collector_exe() {
+    raw_exe=$(readlink "$PROC_ROOT/$1/exe" 2>/dev/null || true)
+    deleted_exe=false
+    case "$raw_exe" in
+        *' (deleted)') normalized_exe=${raw_exe%' (deleted)'}; deleted_exe=true ;;
+        *) normalized_exe=$raw_exe ;;
+    esac
+    case "$normalized_exe" in
+        /opt/keenwg/current/keenwg-collector) return 0 ;;
+        /opt/keenwg/releases/*/keenwg-collector)
+            release_id=${normalized_exe#/opt/keenwg/releases/}
+            release_id=${release_id%/keenwg-collector}
+            case "$release_id" in ''|.|..|*/*|*[!A-Za-z0-9._-]*) return 1;; esac
+            return 0
+            ;;
+        *) return 1 ;;
+    esac
+}
+
+read_start_time() {
+    stat_line=$(cat "$PROC_ROOT/$1/stat" 2>/dev/null || true)
+    stat_tail=${stat_line##*) }
+    [ -n "$stat_line" ] && [ "$stat_tail" != "$stat_line" ] || return 1
+    set -- $stat_tail
+    [ "$#" -ge 20 ] || return 1
+    shift 19
+    case "$1" in ''|*[!0-9]*) return 1;; esac
+    observed_start_time=$1
+}
+
+read_tracking() {
+    [ -f "$IDENTITY_FILE" ] && [ ! -L "$IDENTITY_FILE" ] || return 1
+    tracked_extra=
+    IFS=' ' read -r tracked_pid tracked_start tracked_extra <"$IDENTITY_FILE" || return 1
+    [ -z "$tracked_extra" ] || return 1
+    case "$tracked_pid:$tracked_start" in *[!0-9:]*|:*|*:) return 1;; esac
+    [ "$tracked_pid" = "$1" ]
+}
+
+identity_matches() {
+    identity_pid=$1
+    identity_start=$2
+    identity_exe=$3
+    read_collector_exe "$identity_pid" || return 1
+    [ "$normalized_exe" = "$identity_exe" ] || return 1
+    read_start_time "$identity_pid" || return 1
+    [ "$observed_start_time" = "$identity_start" ]
+}
+
+remove_tracking() {
+    rm -f "$PID_FILE" "$IDENTITY_FILE"
+}
+
+write_tracking() {
+    tracking_pid=$1
+    tracking_start=$2
+    tracking_tmp=$IDENTITY_FILE.$$
+    [ ! -e "$tracking_tmp" ] && [ ! -L "$tracking_tmp" ] || return 1
+    printf '%s %s\n' "$tracking_pid" "$tracking_start" >"$tracking_tmp"
+    chmod 600 "$tracking_tmp"
+    mv -fT "$tracking_tmp" "$IDENTITY_FILE"
+}
+
+finish_after_identity_change() {
+    changed_pid=$1
+    if ! process_alive "$changed_pid"; then
+        remove_tracking
+        return 0
+    fi
+    changed_raw_exe=$(readlink "$PROC_ROOT/$changed_pid/exe" 2>/dev/null || true)
+    [ -n "$changed_raw_exe" ] || return 1
+    if read_collector_exe "$changed_pid"; then
+        return 1
+    fi
+    remove_tracking
+    return 0
+}
+
+start_service() {
+    [ -x "$BINARY" ] || return 1
+    [ ! -L "$PID_FILE" ] && [ ! -L "$IDENTITY_FILE" ] || return 1
+    if [ -r "$PID_FILE" ]; then
+        existing_pid=$(cat "$PID_FILE" 2>/dev/null || true)
+        case "$existing_pid" in ''|*[!0-9]*) remove_tracking;;
+            *)
+                existing_raw_exe=$(readlink "$PROC_ROOT/$existing_pid/exe" 2>/dev/null || true)
+                if [ -z "$existing_raw_exe" ]; then
+                    process_alive "$existing_pid" && return 1
+                    remove_tracking
+                elif read_collector_exe "$existing_pid"; then
+                    if read_tracking "$existing_pid" && read_start_time "$existing_pid" && [ "$observed_start_time" = "$tracked_start" ]; then
+                        process_alive "$existing_pid" && return 0
+                    fi
+                    process_alive "$existing_pid" && return 1
+                    remove_tracking
+                else
+                    remove_tracking
+                fi
+                ;;
+        esac
+    fi
+    "$SSD_CMD" -S -b -m -p "$PID_FILE" -x "$BINARY" -- -config "$CONFIG" || return 1
+    remaining=10
+    while [ "$remaining" -gt 0 ]; do
+        pid=$(cat "$PID_FILE" 2>/dev/null || true)
+        case "$pid" in ''|*[!0-9]*) ;;
+            *)
+                if read_collector_exe "$pid" && read_start_time "$pid"; then
+                    write_tracking "$pid" "$observed_start_time" && return 0
+                fi
+                ;;
+        esac
+        "$SLEEP_CMD" 1
+        remaining=$((remaining - 1))
+    done
+    return 1
+}
+
+stop_service() {
+    [ -e "$PID_FILE" ] || [ -L "$PID_FILE" ] || return 0
+    [ -f "$PID_FILE" ] && [ ! -L "$PID_FILE" ] || return 1
+    pid=$(cat "$PID_FILE" 2>/dev/null || true)
+    case "$pid" in
+        ''|*[!0-9]*) remove_tracking; return 0 ;;
+    esac
+
+    raw_exe=$(readlink "$PROC_ROOT/$pid/exe" 2>/dev/null || true)
+    if [ -z "$raw_exe" ]; then
+        process_alive "$pid" && return 1
+        remove_tracking
+        return 0
+    fi
+    if ! read_collector_exe "$pid"; then
+        remove_tracking
+        return 0
+    fi
+    exe=$normalized_exe
+    was_deleted=$deleted_exe
+    read_start_time "$pid" || return 1
+    start_time=$observed_start_time
+    if [ -e "$IDENTITY_FILE" ] || [ -L "$IDENTITY_FILE" ]; then
+        read_tracking "$pid" || return 1
+        if [ "$tracked_start" != "$start_time" ]; then
+            finish_after_identity_change "$pid"
+            return $?
+        fi
+    else
+        write_tracking "$pid" "$start_time" || return 1
+    fi
+    process_alive "$pid" || { remove_tracking; return 0; }
+    identity_matches "$pid" "$start_time" "$exe" || { finish_after_identity_change "$pid"; return $?; }
+
+    if [ "$was_deleted" = true ]; then
+        "$KILL_CMD" -TERM "$pid" 2>/dev/null || true
+    else
+        "$SSD_CMD" -K -p "$PID_FILE" -x "$exe" -s TERM 2>/dev/null || true
+    fi
+
+    remaining=10
+    while [ "$remaining" -gt 0 ]; do
+        identity_matches "$pid" "$start_time" "$exe" || { finish_after_identity_change "$pid"; return $?; }
+        process_alive "$pid" || { remove_tracking; return 0; }
+        "$SLEEP_CMD" 1
+        remaining=$((remaining - 1))
+    done
+
+    identity_matches "$pid" "$start_time" "$exe" || { finish_after_identity_change "$pid"; return $?; }
+    process_alive "$pid" || { remove_tracking; return 0; }
+    "$KILL_CMD" -KILL "$pid" 2>/dev/null || return 1
+
+    remaining=5
+    while [ "$remaining" -gt 0 ]; do
+        identity_matches "$pid" "$start_time" "$exe" || { finish_after_identity_change "$pid"; return $?; }
+        process_alive "$pid" || { remove_tracking; return 0; }
+        "$SLEEP_CMD" 1
+        remaining=$((remaining - 1))
+    done
+    return 1
+}
+
+case "${1:-}" in
+    start) start_service ;;
+    stop) stop_service ;;
+    restart) stop_service && start_service ;;
+    *) echo "usage: $0 {start|stop|restart}" >&2; exit 2 ;;
+esac

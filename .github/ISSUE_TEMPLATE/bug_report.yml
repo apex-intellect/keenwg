@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible KeenWG problem without private data
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "Never attach credentials, subscription/VLESS URLs, private keys, pairing secrets, hostnames, MACs or full IPs. Use the in-app sanitized report."
+  - type: input
+    id: version
+    attributes: { label: KeenWG version }
+    validations: { required: true }
+  - type: input
+    id: environment
+    attributes: { label: Android, router model and firmware }
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes: { label: Steps to reproduce }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: Expected and actual result }
+    validations: { required: true }
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed all private data and used only the sanitized report.
+          required: true

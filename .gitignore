@@ -1,0 +1,26 @@
+*.iml
+.gradle/
+/.kotlin/
+/local.properties
+/.idea/
+/build/
+/app/build/
+/captures
+.externalNativeBuild
+.cxx
+.DS_Store
+
+# KeenWG collector release artifacts
+/dist/stage/
+/dist/keenwg-collector-*-linux-arm64.tar.gz
+/dist/keenwg-xkeen-control-*
+/dist/SHA256SUMS
+/dist/xkeen-control/
+/dist/keenwg-companion-arm64-*.tar.gz
+/collector/keenwg-collector
+/collector/keenwg-collector.exe
+
+# Local JVM crash diagnostics
+/hs_err_pid*.log
+/replay_pid*.log
+/app/src/main/assets/companion/keenwg-companion-arm64.tgz

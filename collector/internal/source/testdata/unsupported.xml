@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<response>
+  <interface>
+    <peer>
+      <name>missing required fields</name>
+      <online>true</online>
+    </peer>
+  </interface>
+</response>
