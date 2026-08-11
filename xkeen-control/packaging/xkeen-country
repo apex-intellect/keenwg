@@ -1,9 +1,0 @@
-#!/bin/sh
-set -eu
-ROOT=${KEENWG_DESTDIR:-}
-BINARY=$ROOT/opt/lib/keenwg-xkeen-control/current/keenwg-xkeen-control
-CONFIG=$ROOT/opt/etc/keenwg/xkeen-control.json
-case "${1:-status}" in
-    status|'') exec "$BINARY" -config "$CONFIG" -status ;;
-    *) echo 'Выбор страны перенесён в KeenWG; этот совместимый скрипт доступен только для -status.' >&2; exit 2 ;;
-esac

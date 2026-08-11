@@ -18,8 +18,6 @@ data class ServerSettings(
     val keepalive: Int = 25,
     val collectorUrl: String = "http://10.8.0.1:18777",
     val collectorToken: String = "",
-    val xkeenControllerUrl: String = "http://10.8.0.1:18778",
-    val xkeenControllerToken: String = "",
 ) {
     val baseUrl: String get() = "http://$host:$port"
 }

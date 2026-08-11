@@ -1,11 +1,16 @@
 package ru.anisimov.keenwg.data.companion
 
+import android.annotation.SuppressLint
 import java.security.MessageDigest
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import java.util.Base64
 import javax.net.ssl.X509TrustManager
 
+// Companion uses a self-issued local certificate learned over a separately
+// verified SSH channel. System CA validation would weaken, not strengthen,
+// this exact SPKI trust contract.
+@SuppressLint("CustomX509TrustManager")
 class ExactPinTrustManager(expectedPin: String) : X509TrustManager {
     private val expectedSpkiHash: ByteArray = decodePin(expectedPin)
 

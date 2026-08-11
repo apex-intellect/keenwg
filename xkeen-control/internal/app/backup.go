@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/api"
-	"github.com/goldb/keenwg/xkeen-control/internal/backup"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/api"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/backup"
 )
 
 type backupManager struct{ service *backup.FileService }

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/catalog"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
 )
 
 var adapterIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)

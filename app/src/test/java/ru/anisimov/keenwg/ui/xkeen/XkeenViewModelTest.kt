@@ -16,6 +16,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.anisimov.keenwg.data.companion.CompanionEndpoint
+import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.data.xkeen.XkeenActiveNode
 import ru.anisimov.keenwg.data.xkeen.XkeenDiagnosticReport
 import ru.anisimov.keenwg.data.xkeen.XkeenDiagnosticStatus
@@ -27,7 +29,8 @@ import ru.anisimov.keenwg.data.xkeen.XkeenOperationState
 import ru.anisimov.keenwg.data.xkeen.XkeenRepositoryGateway
 import ru.anisimov.keenwg.data.xkeen.XkeenStatus
 import ru.anisimov.keenwg.data.xkeen.XkeenSubscription
-import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.domain.model.RouterProfile
+import ru.anisimov.keenwg.domain.model.RouterSecrets
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class XkeenViewModelTest {
@@ -47,10 +50,10 @@ class XkeenViewModelTest {
         assertEquals(7L, viewModel.state.value.status?.stateVersion)
     }
 
-    @Test fun `blank controller token shows setup without networking`() = runTest(dispatcher) {
+    @Test fun `missing companion shows setup without networking`() = runTest(dispatcher) {
         val repository = FakeRepository()
 
-        val viewModel = viewModel(repository, ServerSettings(xkeenControllerToken = ""))
+        val viewModel = viewModel(repository, configured = false)
         advanceUntilIdle()
 
         assertTrue(viewModel.state.value.needsSetup)
@@ -153,8 +156,8 @@ class XkeenViewModelTest {
         assertEquals(100L, viewModel.state.value.diagnosticsCheckedAt)
     }
 
-    private fun viewModel(repository: XkeenRepositoryGateway, settings: ServerSettings = ServerSettings(xkeenControllerToken = "token")) =
-        XkeenViewModel(flowOf(settings), repository)
+    private fun viewModel(repository: XkeenRepositoryGateway, configured: Boolean = true) =
+        XkeenViewModel(flowOf(if (configured) activeProfile() else null), repository)
 
     private class FakeRepository(
         private val statuses: ArrayDeque<Any> = ArrayDeque(),
@@ -167,11 +170,11 @@ class XkeenViewModelTest {
         var selectCalls = 0
         var diagnosticCalls = 0
 
-        override suspend fun probe(settings: ServerSettings) = nextStatus()
-        override suspend fun status(settings: ServerSettings): XkeenStatus { statusCalls++; return nextStatus() }
-        override suspend fun refreshAndAwait(settings: ServerSettings, stateVersion: Long): XkeenOperation { refreshCalls++; return refreshed }
-        override suspend fun selectAndAwait(settings: ServerSettings, nodeId: String, stateVersion: Long): XkeenOperation { selectCalls++; return selected }
-        override suspend fun diagnostics(settings: ServerSettings): XkeenDiagnosticReport { diagnosticCalls++; return diagnosticReport }
+        override suspend fun probe(endpoint: CompanionEndpoint) = nextStatus()
+        override suspend fun status(endpoint: CompanionEndpoint): XkeenStatus { statusCalls++; return nextStatus() }
+        override suspend fun refreshAndAwait(endpoint: CompanionEndpoint, stateVersion: Long): XkeenOperation { refreshCalls++; return refreshed }
+        override suspend fun selectAndAwait(endpoint: CompanionEndpoint, nodeId: String, stateVersion: Long): XkeenOperation { selectCalls++; return selected }
+        override suspend fun diagnostics(endpoint: CompanionEndpoint): XkeenDiagnosticReport { diagnosticCalls++; return diagnosticReport }
 
         private fun nextStatus(): XkeenStatus {
             val value = if (statuses.isEmpty()) status() else statuses.removeFirst()
@@ -181,6 +184,17 @@ class XkeenViewModelTest {
     }
 
     private companion object {
+        fun activeProfile() = ActiveRouterProfile(
+            RouterProfile(
+                id = "home", displayName = "Home", host = "192.168.1.1", rciPort = 80,
+                interfaceId = "Wireguard0", serverPublicKey = "", endpoint = "", subnetBase = "10.8.0.",
+                dns = "192.168.1.1", mtu = 1380, keepalive = 25,
+                companionUrl = "https://192.168.1.1:18779",
+                certificatePin = "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            ),
+            RouterSecrets(companionToken = "device-token"),
+        )
+
         fun status(
             ids: List<String> = listOf("nl1", "de"),
             activeId: String = "nl1",

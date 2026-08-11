@@ -133,7 +133,6 @@ class CompanionClientTest {
                 companionUrl = "https://localhost:${server.port}",
                 certificatePin = ExactPinTrustManager.pin(held.certificate),
                 collectorUrl = "",
-                legacyXkeenUrl = "",
             ),
         )
     }

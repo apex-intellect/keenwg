@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.sh text eol=lf
+xkeen-control/packaging/S* text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary

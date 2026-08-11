@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/catalog"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
 )
 
 const (

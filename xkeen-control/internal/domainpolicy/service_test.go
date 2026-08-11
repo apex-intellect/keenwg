@@ -65,7 +65,7 @@ func (f *runtimeFake) CheckGeoSite(context.Context, string) error {
 func serviceFixture(t *testing.T) (*Service, *runtimeFake) {
 	t.Helper()
 	routing := routingFixture(t)
-	policy, _, err := ImportLegacy(routing)
+	policy, _, err := ImportExistingRouting(routing)
 	if err != nil {
 		t.Fatal(err)
 	}

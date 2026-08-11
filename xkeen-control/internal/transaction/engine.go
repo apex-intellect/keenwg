@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
-	"github.com/goldb/keenwg/xkeen-control/internal/model"
-	statepkg "github.com/goldb/keenwg/xkeen-control/internal/state"
-	"github.com/goldb/keenwg/xkeen-control/internal/subscription"
-	"github.com/goldb/keenwg/xkeen-control/internal/xray"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
+	statepkg "github.com/apex-intellect/keenwg/xkeen-control/internal/state"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/subscription"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/xray"
 )
 
 var (

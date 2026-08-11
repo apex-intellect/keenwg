@@ -1,10 +1,11 @@
 package ru.anisimov.keenwg.data.xkeen
 
 import kotlinx.coroutines.test.runTest
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Test
-import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.data.companion.CompanionEndpoint
 
 class XkeenRepositoryTest {
     @Test fun `lost select response polls same operation without resubmitting`() = runTest {
@@ -14,7 +15,7 @@ class XkeenRepositoryTest {
         )
         val repository = repository(gateway)
 
-        val result = repository.selectAndAwait(settings(), NODE_ID, 7)
+        val result = repository.selectAndAwait(endpoint(), NODE_ID, 7)
 
         assertEquals(XkeenOperationResult.SUCCESS, result.result)
         assertEquals(1, gateway.selectCalls)
@@ -27,7 +28,7 @@ class XkeenRepositoryTest {
             polled = ArrayDeque(listOf(successOperation())),
         )
 
-        val result = repository(gateway).refreshAndAwait(settings(), 7)
+        val result = repository(gateway).refreshAndAwait(endpoint(), 7)
 
         assertEquals(XkeenOperationResult.SUCCESS, result.result)
         assertEquals(1, gateway.refreshCalls)
@@ -37,7 +38,7 @@ class XkeenRepositoryTest {
     @Test fun `terminal submission returns without polling`() = runTest {
         val gateway = FakeGateway(selected = successOperation())
 
-        val result = repository(gateway).selectAndAwait(settings(), NODE_ID, 7)
+        val result = repository(gateway).selectAndAwait(endpoint(), NODE_ID, 7)
 
         assertEquals(XkeenOperationResult.SUCCESS, result.result)
         assertEquals(1, gateway.selectCalls)
@@ -48,7 +49,7 @@ class XkeenRepositoryTest {
         val gateway = FakeGateway(selectFailure = XkeenException(XkeenErrorCode.UNAUTHORIZED, "Нет доступа"))
 
         val failure = try {
-            repository(gateway).selectAndAwait(settings(), NODE_ID, 7)
+            repository(gateway).selectAndAwait(endpoint(), NODE_ID, 7)
             fail("Expected XkeenException")
             error("unreachable")
         } catch (failure: XkeenException) {
@@ -69,7 +70,7 @@ class XkeenRepositoryTest {
         val repository = XkeenRepository(gateway, { KEY }, { delays++ }, maxPolls = 3)
 
         val failure = try {
-            repository.selectAndAwait(settings(), NODE_ID, 7)
+            repository.selectAndAwait(endpoint(), NODE_ID, 7)
             fail("Expected XkeenException")
             error("unreachable")
         } catch (failure: XkeenException) {
@@ -95,22 +96,22 @@ class XkeenRepositoryTest {
         var refreshCalls = 0
         val operationKeys = mutableListOf<String>()
 
-        override suspend fun probe(settings: ServerSettings) = status()
-        override suspend fun status(settings: ServerSettings) = status()
+        override suspend fun probe(endpoint: CompanionEndpoint) = status()
+        override suspend fun status(endpoint: CompanionEndpoint) = status()
 
-        override suspend fun refresh(settings: ServerSettings, stateVersion: Long, idempotencyKey: String): XkeenOperation {
+        override suspend fun refresh(endpoint: CompanionEndpoint, stateVersion: Long, idempotencyKey: String): XkeenOperation {
             refreshCalls++
             refreshFailure?.let { throw it }
             return refreshed
         }
 
-        override suspend fun select(settings: ServerSettings, nodeId: String, stateVersion: Long, idempotencyKey: String): XkeenOperation {
+        override suspend fun select(endpoint: CompanionEndpoint, nodeId: String, stateVersion: Long, idempotencyKey: String): XkeenOperation {
             selectCalls++
             selectFailure?.let { throw it }
             return selected
         }
 
-        override suspend fun operation(settings: ServerSettings, idempotencyKey: String): XkeenOperation {
+        override suspend fun operation(endpoint: CompanionEndpoint, idempotencyKey: String): XkeenOperation {
             operationKeys += idempotencyKey
             return if (polled.isEmpty()) defaultPolled else polled.removeFirst()
         }
@@ -120,7 +121,11 @@ class XkeenRepositoryTest {
         const val KEY = "11111111-1111-4111-8111-111111111111"
         const val NODE_ID = "aabbccddeeff00112233445566778899"
 
-        fun settings() = ServerSettings(xkeenControllerToken = "token")
+        fun endpoint() = CompanionEndpoint(
+            "https://192.168.1.1:18779/".toHttpUrl(),
+            "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "device-token",
+        )
         fun status() = XkeenStatus("0.4.0", 7, subscription = XkeenSubscription(1, false, emptyList()))
         fun operation(state: XkeenOperationState, kind: String = "select") = XkeenOperation(
             KEY, kind, state, startedAt = 1,

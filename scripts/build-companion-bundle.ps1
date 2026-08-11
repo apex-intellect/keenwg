@@ -18,8 +18,6 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $stage = Join-Path ([IO.Path]::GetTempPath()) ("keenwg-companion-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $stage | Out-Null
 try {
-    $commit = (& git -C $repoRoot rev-parse --short=12 HEAD).Trim()
-    if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{12}$') { throw "Git commit is unavailable" }
     $binary = Join-Path $stage "keenwg-companion"
     $previousGoos = $env:GOOS
     $previousGoarch = $env:GOARCH
@@ -28,15 +26,20 @@ try {
         $env:GOOS = "linux"
         $env:GOARCH = "arm64"
         $env:CGO_ENABLED = "0"
-        & $GoExecutable -C $moduleRoot build -trimpath -ldflags "-s -w -X main.version=$Version -X main.commit=$commit" -o $binary ./cmd/keenwg-companion
+        & $GoExecutable -C $moduleRoot build -trimpath -ldflags "-s -w -X main.version=$Version" -o $binary ./cmd/keenwg-companion
         if ($LASTEXITCODE -ne 0) { throw "Companion cross-build failed" }
     } finally {
         $env:GOOS = $previousGoos
         $env:GOARCH = $previousGoarch
         $env:CGO_ENABLED = $previousCgo
     }
-    foreach ($name in @("S96keenwg-companion", "install-companion.sh", "uninstall-companion.sh", "companion.config.example.json")) {
+    foreach ($name in @("S96keenwg-companion", "install-companion.sh", "uninstall-companion.sh", "cleanup-obsolete-controller.sh", "companion.config.example.json")) {
         Copy-Item -LiteralPath (Join-Path $moduleRoot "packaging\$name") -Destination (Join-Path $stage $name)
+    }
+    foreach ($name in @("S96keenwg-companion", "install-companion.sh", "uninstall-companion.sh", "cleanup-obsolete-controller.sh")) {
+        $path = Join-Path $stage $name
+        $text = [IO.File]::ReadAllText($path).Replace("`r`n", "`n")
+        [IO.File]::WriteAllText($path, $text, [Text.UTF8Encoding]::new($false))
     }
     [IO.File]::WriteAllText((Join-Path $stage "VERSION"), "$Version`n", [Text.UTF8Encoding]::new($false))
     $checksumLines = Get-ChildItem -LiteralPath $stage -File | Sort-Object Name | ForEach-Object {

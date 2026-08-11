@@ -2,11 +2,33 @@ package domainpolicy
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestRoutingImportOutputCharacterization(t *testing.T) {
+	current := routingFixture(t)
+	policy, _, err := ImportExistingRouting(current)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered, err := RenderRouting(current, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := hex.DecodeString("69f8a57aa11e97ce8a342babbd754d8b178e463528ddb1e4ceb3b95c4d34b694")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := sha256.Sum256(rendered)
+	if !bytes.Equal(actual[:], want) {
+		t.Fatalf("routing bytes changed: %x", actual)
+	}
+}
 
 func routingFixture(t *testing.T) []byte {
 	t.Helper()
@@ -14,11 +36,13 @@ func routingFixture(t *testing.T) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return body
+	// The repository fixture is LF-only. Normalize stale Windows worktrees too,
+	// so the byte-level characterization remains identical on every platform.
+	return bytes.ReplaceAll(body, []byte("\r\n"), []byte("\n"))
 }
 
-func TestImportLegacyNarrowsBroadZonesAndKeepsServices(t *testing.T) {
-	policy, report, err := ImportLegacy(routingFixture(t))
+func TestImportExistingRoutingNarrowsBroadZonesAndKeepsServices(t *testing.T) {
+	policy, report, err := ImportExistingRouting(routingFixture(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,9 +76,9 @@ func TestImportLegacyNarrowsBroadZonesAndKeepsServices(t *testing.T) {
 	}
 }
 
-func TestRenderRoutingReplacesOnlyLegacyDomainRegion(t *testing.T) {
+func TestRenderRoutingReplacesOnlyExistingDomainRegion(t *testing.T) {
 	current := routingFixture(t)
-	policy, _, err := ImportLegacy(current)
+	policy, _, err := ImportExistingRouting(current)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,14 +86,14 @@ func TestRenderRoutingReplacesOnlyLegacyDomainRegion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	legacyStart := bytes.Index(current, []byte("      // 1C ecosystem"))
-	legacyEnd := bytes.Index(current, []byte("      // Direct: Russian IP ranges"))
+	existingStart := bytes.Index(current, []byte("      // 1C ecosystem"))
+	existingEnd := bytes.Index(current, []byte("      // Direct: Russian IP ranges"))
 	managedStart := bytes.Index(got, []byte("      // BEGIN KEENWG DOMAIN POLICY"))
 	managedEnd := bytes.Index(got, []byte("      // Direct: Russian IP ranges"))
-	if legacyStart < 0 || legacyEnd < 0 || managedStart < 0 || managedEnd < 0 {
+	if existingStart < 0 || existingEnd < 0 || managedStart < 0 || managedEnd < 0 {
 		t.Fatal("expected boundaries missing")
 	}
-	if !bytes.Equal(current[:legacyStart], got[:managedStart]) || !bytes.Equal(current[legacyEnd:], got[managedEnd:]) {
+	if !bytes.Equal(current[:existingStart], got[:managedStart]) || !bytes.Equal(current[existingEnd:], got[managedEnd:]) {
 		t.Fatal("bytes outside migrated region changed")
 	}
 	text := string(got)
@@ -86,7 +110,7 @@ func TestRenderRoutingReplacesOnlyLegacyDomainRegion(t *testing.T) {
 }
 
 func TestRenderRoutingUpdatesManagedBlockAndPreservesOutside(t *testing.T) {
-	policy, _, _ := ImportLegacy(routingFixture(t))
+	policy, _, _ := ImportExistingRouting(routingFixture(t))
 	first, err := RenderRouting(routingFixture(t), policy)
 	if err != nil {
 		t.Fatal(err)
@@ -110,7 +134,7 @@ func TestRenderRoutingUpdatesManagedBlockAndPreservesOutside(t *testing.T) {
 }
 
 func TestRenderRoutingFailsClosedForMalformedMarkers(t *testing.T) {
-	policy, _, _ := ImportLegacy(routingFixture(t))
+	policy, _, _ := ImportExistingRouting(routingFixture(t))
 	for _, body := range [][]byte{
 		[]byte("// BEGIN KEENWG DOMAIN POLICY\n{}"),
 		[]byte("// END KEENWG DOMAIN POLICY\n{}"),
@@ -124,7 +148,7 @@ func TestRenderRoutingFailsClosedForMalformedMarkers(t *testing.T) {
 
 func TestRenderRoutingEmitsCIDRAsIPMatcherForDirectAndVPN(t *testing.T) {
 	current := routingFixture(t)
-	policy, _, err := ImportLegacy(current)
+	policy, _, err := ImportExistingRouting(current)
 	if err != nil {
 		t.Fatal(err)
 	}

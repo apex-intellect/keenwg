@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import ru.anisimov.keenwg.data.ServiceLocator
+import ru.anisimov.keenwg.data.companion.CompanionEndpoint
+import ru.anisimov.keenwg.data.companion.requireCompanionEndpoint
 import ru.anisimov.keenwg.data.network.DomainRoutingGateway
 import ru.anisimov.keenwg.data.network.DomainRoutingResult
 import ru.anisimov.keenwg.data.network.DomainRoutingStatus
@@ -113,9 +115,10 @@ class NetworkViewModel(
                 message = null,
             )
             val settings = settingsFlow.first()
+            val companionEndpoint = runCatching { activeProfileFlow?.first()?.requireCompanionEndpoint() }.getOrNull()
             val devicesTask = async { runCatching { gateway.load(settings) } }
-            val exclusionsTask = async { runCatching { exclusionGateway?.load(settings) } }
-            val domainsTask = async { runCatching { domainGateway?.load(settings) } }
+            val exclusionsTask = async { runCatching { companionEndpoint?.let { exclusionGateway?.load(it) } } }
+            val domainsTask = async { runCatching { companionEndpoint?.let { domainGateway?.load(it) } } }
             val devicesResult = devicesTask.await()
             val exclusionsResult = exclusionsTask.await()
             val domainsResult = domainsTask.await()
@@ -192,9 +195,9 @@ class NetworkViewModel(
     fun confirmDomainMutation(): Job {
         val editor = _state.value.domainEditor ?: return completedJob()
         if (!editor.reviewing || !validDraft(editor.draft)) return completedJob()
-        return mutateDomain { client, settings, status ->
-            editor.original?.let { client.update(settings, status, it.id, editor.draft) }
-                ?: client.create(settings, status, editor.draft)
+        return mutateDomain { client, endpoint, status ->
+            editor.original?.let { client.update(endpoint, status, it.id, editor.draft) }
+                ?: client.create(endpoint, status, editor.draft)
         }
     }
 
@@ -206,7 +209,7 @@ class NetworkViewModel(
 
     fun confirmDomainDelete(): Job {
         val rule = _state.value.pendingDomainDelete ?: return completedJob()
-        return mutateDomain { client, settings, status -> client.delete(settings, status, rule.id) }
+        return mutateDomain { client, endpoint, status -> client.delete(endpoint, status, rule.id) }
     }
 
     fun confirmStaticIp(ip: String): Job = mutateDevice { settings, device -> gateway.setStaticReservation(settings, device.mac, ip.trim()) }
@@ -338,7 +341,8 @@ class NetworkViewModel(
             _state.value = _state.value.copy(busy = true, message = null)
             return viewModelScope.launch {
                 try {
-                    val result = client.mutate(settingsFlow.first(), current.stateVersion, action, value)
+                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: error("Companion не настроен")
+                    val result = client.mutate(endpoint, current.stateVersion, action, value)
                     _state.value = _state.value.copy(
                         exclusions = result.status,
                         exclusionEditorOpen = false,
@@ -357,14 +361,15 @@ class NetworkViewModel(
         return completedJob()
     }
 
-    private fun mutateDomain(operation: suspend (DomainRoutingGateway, ServerSettings, DomainRoutingStatus) -> DomainRoutingResult): Job {
+    private fun mutateDomain(operation: suspend (DomainRoutingGateway, CompanionEndpoint, DomainRoutingStatus) -> DomainRoutingResult): Job {
         val client = domainGateway ?: return completedJob()
         val current = _state.value.domains ?: return completedJob()
         if (!_state.value.busy && !_state.value.writesBlocked && mutationMutex.tryLock()) {
             _state.value = _state.value.copy(busy = true, message = null)
             return viewModelScope.launch {
                 try {
-                    val result = operation(client, settingsFlow.first(), current)
+                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: error("Companion не настроен")
+                    val result = operation(client, endpoint, current)
                     _state.value = _state.value.copy(
                         domains = result.status,
                         domainEditor = null,
@@ -394,7 +399,7 @@ class NetworkViewModel(
     }
 
     private fun Throwable.domainMessage(): String = if (this is XkeenException && code in setOf(XkeenErrorCode.NOT_FOUND, XkeenErrorCode.UNSUPPORTED_SCHEMA)) {
-        "Обновите контроллер XKeen, чтобы управлять доменами"
+        "Обновите Companion, чтобы управлять доменами"
     } else safeMessage("Не удалось получить доменные правила")
 
     private fun Throwable.safeMessage(fallback: String) = message?.takeIf { it.isNotBlank() } ?: fallback

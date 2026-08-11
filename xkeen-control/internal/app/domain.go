@@ -6,9 +6,9 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
-	"github.com/goldb/keenwg/xkeen-control/internal/domainpolicy"
-	"github.com/goldb/keenwg/xkeen-control/internal/xray"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/xray"
 )
 
 type domainRuntime struct {
@@ -61,7 +61,7 @@ func bootstrapDomainPolicy(
 	if err != nil {
 		return nil, errors.New("domain routing unavailable")
 	}
-	policy, _, err := domainpolicy.ImportLegacy(originalRouting)
+	policy, _, err := domainpolicy.ImportExistingRouting(originalRouting)
 	if err != nil {
 		return nil, errors.New("domain routing migration rejected")
 	}

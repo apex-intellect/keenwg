@@ -11,14 +11,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import ru.anisimov.keenwg.data.ServiceLocator
+import ru.anisimov.keenwg.data.companion.requireCompanionEndpoint
 import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.data.support.SupportExport
 import ru.anisimov.keenwg.data.support.SupportGateway
+
+enum class SupportRequirement { COMPANION_PAIRING }
 
 data class SupportUiState(
     val busy: Boolean = false,
     val export: SupportExport? = null,
     val error: String? = null,
+    val requirement: SupportRequirement? = null,
 )
 
 class SupportViewModel(
@@ -33,17 +37,17 @@ class SupportViewModel(
 
     fun generate(): Job = viewModelScope.launch {
         if (!mutex.tryLock()) return@launch
-        _state.value = _state.value.copy(busy = true, error = null)
+        _state.value = _state.value.copy(busy = true, error = null, requirement = null)
         try {
             val active = activeProfileFlow.first()
-            if (active == null || active.profile.companionUrl.isBlank() || active.secrets.companionToken.isBlank()) {
-                _state.value = _state.value.copy(error = "Companion не настроен")
+            if (runCatching { active?.requireCompanionEndpoint() }.getOrNull() == null) {
+                _state.value = _state.value.copy(requirement = SupportRequirement.COMPANION_PAIRING)
                 return@launch
             }
-            val export = gateway.generate(active.profile, active.secrets.companionToken)
-            _state.value = _state.value.copy(export = export, error = null)
+            val export = gateway.generate(active!!.profile, active.secrets.companionToken)
+            _state.value = _state.value.copy(export = export, error = null, requirement = null)
         } catch (_: Exception) {
-            _state.value = _state.value.copy(error = "Не удалось сформировать безопасный отчёт")
+            _state.value = _state.value.copy(error = "Не удалось сформировать безопасный отчёт", requirement = null)
         } finally {
             _state.value = _state.value.copy(busy = false)
             mutex.unlock()

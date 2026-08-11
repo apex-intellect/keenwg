@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/domainpolicy"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
 	"golang.org/x/net/idna"
 )
 

@@ -16,9 +16,8 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import ru.anisimov.keenwg.data.collector.CollectorMeta
 import ru.anisimov.keenwg.domain.model.ServerSettings
-import ru.anisimov.keenwg.data.xkeen.XkeenStatus
-import ru.anisimov.keenwg.data.xkeen.XkeenSubscription
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
@@ -52,27 +51,27 @@ class SettingsViewModelTest {
         assertEquals(listOf(valid), store.saved)
     }
 
-    @Test fun `xkeen probe uses dedicated settings and does not save`() = runTest(dispatcher) {
+    @Test fun `collector probe uses dedicated settings and does not save`() = runTest(dispatcher) {
         val store = FakeSettingsStore()
         val probed = mutableListOf<ServerSettings>()
-        val xkeen = SettingsXkeenGateway { settings ->
+        val collector = SettingsCollectorGateway { settings ->
             probed += settings
-            XkeenStatus("0.4.0", 7, subscription = XkeenSubscription(null, false, emptyList()))
+            CollectorMeta("1.0.0", 2_000)
         }
         val draft = ServerSettings(
-            xkeenControllerUrl = "http://10.8.0.1:18778",
-            xkeenControllerToken = "control-secret",
+            collectorUrl = "http://10.8.0.1:18777",
+            collectorToken = "collector-secret",
         )
-        val vm = SettingsViewModel(store = store, xkeen = xkeen)
+        val vm = SettingsViewModel(store = store, collector = collector)
         val message = async { vm.msg.first() }
         runCurrent()
 
-        vm.testXkeenController(draft)
+        vm.testCollector(draft)
         advanceUntilIdle()
 
         assertEquals(listOf(draft), probed)
         assertEquals(emptyList<ServerSettings>(), store.saved)
-        assertEquals("Контроллер XKeen 0.4.0 доступен, токен принят", message.await())
+        assertEquals("Сборщик 1.0.0 доступен, токен принят", message.await())
     }
 }
 

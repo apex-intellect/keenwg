@@ -88,7 +88,6 @@ fun SettingsScreen(
 ) {
     val saved by vm.settings.collectAsStateWithLifecycle()
     val preview by vm.preview.collectAsStateWithLifecycle()
-    val migrationReviewPending by vm.migrationReviewPending.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -170,22 +169,6 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             productState?.let { SystemProfileCard(it) }
-            if (migrationReviewPending && productState?.health == OverviewHealth.HEALTHY) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.ui_settingsscreen_9ccf8e82a7), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "Проверьте, что подключения, маршруты и доступ WireGuard отображаются как раньше. KeenWG не менял активную страну при миграции.",
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                        TextButton(onClick = vm::dismissMigrationReview) { Text(stringResource(R.string.ui_settingsscreen_f3405594cc)) }
-                    }
-                }
-            }
             OutlinedButton(
                 onClick = onSetupCompanion,
                 enabled = busyAction == null,
@@ -301,40 +284,6 @@ fun SettingsScreen(
                 ) {
                     Icon(Icons.Default.History, contentDescription = null)
                     Text(stringResource(R.string.ui_settingsscreen_5ca026bf4c))
-                }
-            }
-
-            SettingsSection(
-                icon = { Icon(Icons.Default.Language, contentDescription = null) },
-                title = "XKeen",
-                subtitle = stringResource(R.string.ui_settingsscreen_026455fc84),
-            ) {
-                SettingsTextField(
-                    value = draft.xkeenControllerUrl,
-                    onValueChange = { draft = draft.copy(xkeenControllerUrl = it); formError = null },
-                    label = stringResource(R.string.ui_settingsscreen_d5e71ebfe3),
-                    placeholder = "http://10.8.0.1:18778",
-                    keyboardType = KeyboardType.Uri,
-                )
-                SettingsTextField(
-                    value = draft.xkeenControllerToken,
-                    onValueChange = { draft = draft.copy(xkeenControllerToken = it); formError = null },
-                    label = stringResource(R.string.ui_settingsscreen_b0e2fd18be),
-                    keyboardType = KeyboardType.Password,
-                    password = true,
-                )
-                Text(
-                    "Открытие экрана получает статус, но не обновляет подписку. Обновление выполняется только вручную.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedButton(
-                    onClick = { runOperation("Проверяем XKeen…", vm::testXkeenController) },
-                    enabled = busyAction == null && productState?.mutationsEnabled != false,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Default.Language, contentDescription = null)
-                    Text(stringResource(R.string.ui_settingsscreen_15bff12905))
                 }
             }
 
@@ -460,7 +409,6 @@ private fun SystemProfileCard(state: OverviewState) {
                 Text(
                     when (state.health) {
                         OverviewHealth.HEALTHY -> "Companion подключён · модулей: $modules"
-                        OverviewHealth.LEGACY -> "Совместимый режим · модулей: $modules"
                         OverviewHealth.LOCKED -> "Изменения заблокированы до восстановления"
                         OverviewHealth.DEGRADED -> "Защищённый канал временно недоступен"
                         OverviewHealth.SETUP_REQUIRED -> "Требуется настройка companion"

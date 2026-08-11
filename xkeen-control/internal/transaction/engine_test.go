@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
-	"github.com/goldb/keenwg/xkeen-control/internal/model"
-	"github.com/goldb/keenwg/xkeen-control/internal/state"
-	"github.com/goldb/keenwg/xkeen-control/internal/subscription"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/state"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/subscription"
 )
 
 func TestRefreshNeverCallsRouterMutation(t *testing.T) {

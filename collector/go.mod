@@ -1,4 +1,4 @@
-module github.com/goldb/keenwg/collector
+module github.com/apex-intellect/keenwg/collector
 
 go 1.26.0
 

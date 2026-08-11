@@ -3,19 +3,25 @@ package ru.anisimov.keenwg.data.store
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import ru.anisimov.keenwg.domain.model.RouterProfile
 import ru.anisimov.keenwg.domain.model.RouterSecrets
 
 @Serializable
 data class RouterProfileIndex(
-    @SerialName("schema_version") val schemaVersion: Int = 1,
+    @SerialName("schema_version") val schemaVersion: Int = 2,
     @SerialName("selected_profile_id") val selectedProfileId: String,
     val profiles: List<RouterProfile>,
 )
 
 @Serializable
 private data class RouterSecretDocument(
-    @SerialName("schema_version") val schemaVersion: Int = 1,
+    @SerialName("schema_version") val schemaVersion: Int = 2,
     val secrets: Map<String, RouterSecrets>,
 )
 
@@ -31,22 +37,61 @@ object RouterProfileCodec {
         return json.encodeToString(RouterProfileIndex.serializer(), index)
     }
 
-    fun decodeIndex(raw: String): RouterProfileIndex =
-        json.decodeFromString(RouterProfileIndex.serializer(), raw).also(::validate)
+    fun decodeIndex(raw: String): RouterProfileIndex {
+        val root = json.parseToJsonElement(raw).jsonObject
+        val migrated = when (root.schemaVersion()) {
+            1 -> migrateIndexV1(root)
+            2 -> root
+            else -> throw IllegalArgumentException("Unsupported router profile schema")
+        }
+        return json.decodeFromJsonElement(RouterProfileIndex.serializer(), migrated).also(::validate)
+    }
 
     fun encodeSecrets(secrets: Map<String, RouterSecrets>): String =
         json.encodeToString(RouterSecretDocument.serializer(), RouterSecretDocument(secrets = secrets))
 
     fun decodeSecrets(raw: String): Map<String, RouterSecrets> {
-        val document = json.decodeFromString(RouterSecretDocument.serializer(), raw)
-        require(document.schemaVersion == 1) { "Unsupported router secret schema" }
+        val root = json.parseToJsonElement(raw).jsonObject
+        val migrated = when (root.schemaVersion()) {
+            1 -> migrateSecretsV1(root)
+            2 -> root
+            else -> throw IllegalArgumentException("Unsupported router secret schema")
+        }
+        val document = json.decodeFromJsonElement(RouterSecretDocument.serializer(), migrated)
+        require(document.schemaVersion == 2) { "Unsupported router secret schema" }
         return document.secrets
     }
 
+    private fun migrateIndexV1(root: JsonObject): JsonObject {
+        val profiles = root["profiles"] as? JsonArray ?: error("Router profiles are missing")
+        return JsonObject(root.toMutableMap().apply {
+            this["schema_version"] = JsonPrimitive(2)
+            this["profiles"] = JsonArray(profiles.map { element ->
+                JsonObject(element.jsonObject.toMutableMap().apply {
+                    remove("legacyXkeenUrl")
+                    this["schemaVersion"] = JsonPrimitive(2)
+                })
+            })
+        })
+    }
+
+    private fun migrateSecretsV1(root: JsonObject): JsonObject {
+        val secrets = root["secrets"]?.jsonObject ?: error("Router secrets are missing")
+        return JsonObject(root.toMutableMap().apply {
+            this["schema_version"] = JsonPrimitive(2)
+            this["secrets"] = JsonObject(secrets.mapValues { (_, element) ->
+                JsonObject(element.jsonObject.toMutableMap().apply { remove("legacyXkeenToken") })
+            })
+        })
+    }
+
+    private fun JsonObject.schemaVersion(): Int = this["schema_version"]?.jsonPrimitive?.int
+        ?: error("Router schema version is missing")
+
     private fun validate(index: RouterProfileIndex) {
-        require(index.schemaVersion == 1) { "Unsupported router profile schema" }
+        require(index.schemaVersion == 2) { "Unsupported router profile schema" }
         require(index.profiles.isNotEmpty()) { "At least one router profile is required" }
-        require(index.profiles.all { it.schemaVersion == 1 && it.id.isNotBlank() && it.displayName.isNotBlank() }) { "Invalid router profile" }
+        require(index.profiles.all { it.schemaVersion == 2 && it.id.isNotBlank() && it.displayName.isNotBlank() }) { "Invalid router profile" }
         require(index.profiles.map { it.id }.distinct().size == index.profiles.size) { "Duplicate router profile" }
         require(index.profiles.any { it.id == index.selectedProfileId }) { "Selected router profile is missing" }
     }

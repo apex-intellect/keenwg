@@ -1,9 +1,8 @@
 # KeenWG native design system
 
-**Project:** KeenWG 0.7
+**Project:** KeenWG 2.0
 **Platform:** Android / Jetpack Compose Material 3  
 **Direction:** calm Apple-inspired dark utility; rounded, layered, precise  
-**Sources:** UI/UX Pro Max design-system search plus the selected 21st.dev floating-nav reference
 
 ## Principles
 
@@ -70,15 +69,15 @@ Keep peer-management functionality and remove top-level Settings/XKeen icon shor
 
 ### Connections
 
-The active subscription server appears once as a highlighted list row. Show a separate `Current route outside subscription` card only when the controller reports that exceptional state. Normalize a leading country flag before presentation so the flag is never duplicated. Preserve subscription order by default. Favorites are an explicit filter, and recent selection is metadata rather than an automatic sort or switch.
+The active subscription server appears once as a highlighted list row. Show a separate `Current route outside subscription` card only when Companion reports that exceptional state. Normalize a leading country flag before presentation so the flag is never duplicated. Preserve subscription order by default. Favorites are an explicit filter, and recent selection is metadata rather than an automatic sort or switch.
 
 ### Routes
 
-Group Devices, Direct devices, Direct destinations and XKeen destination exclusions. Online/static/direct states use text plus icon. Protected controller-managed endpoints are visibly read-only. All writes open a review sheet showing the exact before/after values.
+Group Devices, Direct devices, Direct destinations and XKeen destination exclusions. Online/static/direct states use text plus icon. Protected Companion-managed endpoints are visibly read-only. All writes open a review sheet showing the exact before/after values.
 
 ### System
 
-Group router, collector and XKeen-controller connections in rounded sections. Keep secrets masked and use semantic form validation.
+Group router, Collector and Companion connections in rounded sections. Keep secrets masked and use semantic form validation.
 
 ## Delivery checks
 

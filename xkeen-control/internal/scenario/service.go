@@ -8,7 +8,7 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/coordinator"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/coordinator"
 )
 
 var ErrPresetNotFound = errors.New("scenario_preset_not_found")

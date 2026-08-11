@@ -50,7 +50,7 @@ func TestFetcherBoundsBodyAndBlocksHTTPSDowngrade(t *testing.T) {
 
 func TestFetcherUsesExactHeadersAndReturnsSuccessfulBody(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Accept") != "text/plain" || r.Header.Get("User-Agent") != "keenwg-xkeen-control/0.4" {
+		if r.Header.Get("Accept") != "text/plain" || r.Header.Get("User-Agent") != "keenwg-companion/2.0" {
 			t.Errorf("headers=%v", r.Header)
 		}
 		_, _ = w.Write([]byte("subscription-body"))

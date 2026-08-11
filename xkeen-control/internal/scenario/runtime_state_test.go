@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/domainpolicy"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
 )
 
 func TestRouteRuntimeStateExposesOnlyActuallyWritableModules(t *testing.T) {

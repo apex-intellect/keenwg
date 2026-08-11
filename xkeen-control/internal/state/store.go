@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/model"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
 )
 
 var (

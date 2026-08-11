@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
 )
 
 var (

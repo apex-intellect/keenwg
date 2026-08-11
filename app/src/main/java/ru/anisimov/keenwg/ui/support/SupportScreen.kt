@@ -51,7 +51,11 @@ import ru.anisimov.keenwg.ui.util.shareSupportReport
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SupportScreen(onBack: () -> Unit, vm: SupportViewModel = viewModel()) {
+fun SupportScreen(
+    onBack: () -> Unit,
+    onSetupCompanion: () -> Unit,
+    vm: SupportViewModel = viewModel(),
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     Scaffold(
@@ -88,8 +92,21 @@ fun SupportScreen(onBack: () -> Unit, vm: SupportViewModel = viewModel()) {
                 }
             }
             state.error?.let { item { StatusNotice(stringResource(R.string.support_error_title), detail = it, isError = true) } }
+            if (state.requirement == SupportRequirement.COMPANION_PAIRING) {
+                item {
+                    StatusNotice(
+                        stringResource(R.string.support_pairing_required_title),
+                        detail = stringResource(R.string.support_pairing_required_detail),
+                    )
+                }
+                item {
+                    Button(onClick = onSetupCompanion, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                        Text(stringResource(R.string.support_pairing_action))
+                    }
+                }
+            }
             val export = state.export
-            if (export == null) {
+            if (export == null && state.requirement == null) {
                 item {
                     Button(onClick = vm::generate, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                         if (state.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
@@ -97,7 +114,7 @@ fun SupportScreen(onBack: () -> Unit, vm: SupportViewModel = viewModel()) {
                         Text("  " + stringResource(if (state.busy) R.string.support_generating else R.string.support_generate))
                     }
                 }
-            } else {
+            } else if (export != null) {
                 item {
                     StatusNotice(
                         stringResource(R.string.support_ready_title),

@@ -125,7 +125,12 @@ fun KeenWgNav() {
                         onBackup = { nav.navigate(BackupRoute) },
                     )
                 }
-                composable<SupportRoute> { SupportScreen(onBack = { nav.popBackStack() }) }
+                composable<SupportRoute> {
+                    SupportScreen(
+                        onBack = { nav.popBackStack() },
+                        onSetupCompanion = { nav.navigate(SetupRoute) },
+                    )
+                }
                 composable<BackupRoute> { BackupScreen(onBack = { nav.popBackStack() }) }
                 composable<DevicesRoute> {
                     DevicesScreen(onBack = { nav.popBackStack() })
@@ -145,7 +150,7 @@ fun KeenWgNav() {
                 composable<ConnectionsRoute> {
                     val hasCatalog = overviewState.capabilities?.capabilities.orEmpty().any { it.id == "connections.catalog" && it.available }
                     if (hasCatalog) ConnectionsScreen(onSettings = { nav.navigate(SystemRoute) })
-                    else XkeenScreen(onSettings = { nav.navigate(SystemRoute) })
+                    else XkeenScreen(onSetupCompanion = { nav.navigate(SetupRoute) })
                 }
                 composable<RoutesRoute> { NetworkScreen() }
                 composable<PeerDetailRoute> { routeEntry ->

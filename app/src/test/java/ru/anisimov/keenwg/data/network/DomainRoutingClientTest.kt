@@ -2,13 +2,12 @@ package ru.anisimov.keenwg.data.network
 
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import ru.anisimov.keenwg.data.xkeen.XkeenErrorCode
 import ru.anisimov.keenwg.data.xkeen.XkeenException
-import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.test.TestCompanionServer
 
 class DomainRoutingClientTest {
     @Test fun `load and mutations use strict authenticated paths`() = runTest {
@@ -18,14 +17,14 @@ class DomainRoutingClientTest {
             MockResponse().setBody(resultJson("committed")),
             MockResponse().setBody(resultJson("committed")),
         )
-        val client = DomainRoutingClient(urlValidator = { null }, keyFactory = { "operation-key-01" })
-        val settings = settings(server)
-        val loaded = client.load(settings)
+        val client = DomainRoutingClient(keyFactory = { "operation-key-01" })
+        val endpoint = server.endpoint("control-secret")
+        val loaded = client.load(endpoint)
         assertEquals("okko.sport", loaded.rules.single().value)
         val draft = DomainRuleDraft("domain", "example.com", "vpn", "Example", true)
-        client.create(settings, loaded, draft)
-        client.update(settings, loaded, "rule-a", draft)
-        client.delete(settings, loaded, "rule-a")
+        client.create(endpoint, loaded, draft)
+        client.update(endpoint, loaded, "rule-a", draft)
+        client.delete(endpoint, loaded, "rule-a")
 
         assertEquals("/v1/network/domains", server.takeRequest().path)
         val create = server.takeRequest()
@@ -37,7 +36,7 @@ class DomainRoutingClientTest {
         val delete = server.takeRequest()
         assertEquals("DELETE", delete.method)
         assertEquals("/v1/network/domains/rules/rule-a", delete.path)
-        server.shutdown()
+        server.close()
     }
 
     @Test fun `rejected and uncertain mutation bodies remain actionable`() = runTest {
@@ -45,12 +44,13 @@ class DomainRoutingClientTest {
             MockResponse().setResponseCode(409).setBody(resultJson("rejected")),
             MockResponse().setResponseCode(503).setBody(resultJson("uncertain")),
         )
-        val client = DomainRoutingClient(urlValidator = { null }, keyFactory = { "operation-key-02" })
+        val client = DomainRoutingClient(keyFactory = { "operation-key-02" })
         val status = DomainRoutingStatus(1, 11u, emptyList(), emptyList(), emptyList())
         val draft = DomainRuleDraft("domain", "example.com", "direct", "", true)
-        assertEquals("rejected", client.create(settings(server), status, draft).result)
-        assertEquals("uncertain", client.create(settings(server), status, draft).result)
-        server.shutdown()
+        val endpoint = server.endpoint("control-secret")
+        assertEquals("rejected", client.create(endpoint, status, draft).result)
+        assertEquals("uncertain", client.create(endpoint, status, draft).result)
+        server.close()
     }
 
     @Test fun `unknown fields and oversized responses fail without leaking body`() = runTest {
@@ -58,21 +58,17 @@ class DomainRoutingClientTest {
             MockResponse().setBody(statusJson().dropLast(1) + ",\"uuid\":\"private-secret\"}"),
             MockResponse().setBody("x".repeat(262_145)),
         )
-        val client = DomainRoutingClient(urlValidator = { null })
+        val client = DomainRoutingClient()
+        val endpoint = server.endpoint("control-secret")
         repeat(2) {
-            val failure = failure { client.load(settings(server)) }
+            val failure = failure { client.load(endpoint) }
             assertEquals(XkeenErrorCode.UNSUPPORTED_SCHEMA, failure.code)
             assertFalse(failure.message.orEmpty().contains("private-secret"))
         }
-        server.shutdown()
+        server.close()
     }
 
-    private fun settings(server: MockWebServer) = ServerSettings(
-        xkeenControllerUrl = server.url("/").toString().removeSuffix("/"),
-        xkeenControllerToken = "control-secret",
-    )
-
-    private fun server(vararg responses: MockResponse) = MockWebServer().apply { responses.forEach(::enqueue); start() }
+    private fun server(vararg responses: MockResponse) = TestCompanionServer(*responses)
 
     private fun statusJson() = """{"schema_version":1,"state_version":11,"rules":[{"id":"rule-a","kind":"domain","value":"okko.sport","effect":"direct","label":"Okko","enabled":true,"source":"manual","protected":false}],"presets":[{"id":"category-gov-ru","label":"Госсайты РФ","matcher":"ext:geosite_v2fly.dat:category-gov-ru","available":true,"enabled":true}],"warnings":[]}"""
     private fun resultJson(result: String) = """{"result":"$result","status":${statusJson()}}"""

@@ -28,7 +28,7 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string, maxBytes int64) ([]b
 		return nil, ErrDownload
 	}
 	req.Header.Set("Accept", "text/plain")
-	req.Header.Set("User-Agent", "keenwg-xkeen-control/0.4")
+	req.Header.Set("User-Agent", "keenwg-companion/2.0")
 
 	client := http.DefaultClient
 	if f != nil && f.Client != nil {

@@ -45,6 +45,26 @@ func TestPairingExchangeIsOneUseAndPersistsOnlyHashes(t *testing.T) {
 	assertPrivateFile(t, store.offerPath)
 }
 
+func TestRunningStoreSeesPairingOfferCreatedByLocalCLIProcess(t *testing.T) {
+	running := newTestStore(t)
+	localCLI, err := NewFileStore(running.devicePath, running.offerPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	offer, err := localCLI.CreateBootstrapOffer(context.Background(), ScopeOwner, 5*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	credential, err := running.Exchange(context.Background(), offer.ID, offer.Secret, "Phone")
+	if err != nil {
+		t.Fatalf("exchange offer created by local CLI: %v", err)
+	}
+	if credential.Device.Scope != ScopeOwner || credential.Token == "" {
+		t.Fatalf("invalid credential: %+v", credential)
+	}
+}
+
 func TestPairingExchangeRejectsExpiredOffer(t *testing.T) {
 	store := newTestStore(t)
 	clock := time.Date(2026, 8, 8, 12, 0, 0, 0, time.UTC)

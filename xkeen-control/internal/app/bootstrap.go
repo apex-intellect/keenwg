@@ -9,12 +9,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
-	"github.com/goldb/keenwg/xkeen-control/internal/identity"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/configupgrade"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/identity"
 )
 
 const maxBootstrapDocument = 64 << 10
@@ -35,7 +37,7 @@ type bootstrapRequest struct {
 	SecureListenAddress string `json:"secure_listen_address"`
 }
 
-func BootstrapFromLegacy(legacyPath, targetPath, requestPath, root string, now time.Time) (BootstrapResult, error) {
+func BootstrapNative(targetPath, requestPath, root string, now time.Time) (BootstrapResult, error) {
 	if err := validateTestRoot(root); err != nil {
 		return BootstrapResult{}, err
 	}
@@ -44,31 +46,18 @@ func BootstrapFromLegacy(legacyPath, targetPath, requestPath, root string, now t
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return BootstrapResult{}, errors.New("companion config unavailable")
 	}
-	cfg, err := LoadConfig(legacyPath)
-	if err != nil {
-		return BootstrapResult{}, err
-	}
 	request, err := loadBootstrapRequest(requestPath)
 	if err != nil {
 		return BootstrapResult{}, err
 	}
-	cfg.SecureListenAddress = request.SecureListenAddress
-	cfg.LegacyAPIEnabled = true
+	cfg := config.NewSecure(request.SecureListenAddress)
 	if err := cfg.Validate(); err != nil {
 		return BootstrapResult{}, err
-	}
-	host, _, err := net.SplitHostPort(cfg.SecureListenAddress)
-	if err != nil {
-		return BootstrapResult{}, config.ErrInvalidConfig
-	}
-	address := net.ParseIP(host)
-	if address == nil {
-		return BootstrapResult{}, config.ErrInvalidConfig
 	}
 	created, err := identity.Ensure(
 		rootedPath(root, cfg.TLSCertificatePath),
 		rootedPath(root, cfg.TLSPrivateKeyPath),
-		[]net.IP{address}, now,
+		[]net.IP{net.ParseIP(strings.Split(cfg.SecureListenAddress, ":")[0])}, now,
 	)
 	if err != nil {
 		return BootstrapResult{}, err
@@ -77,6 +66,74 @@ func BootstrapFromLegacy(legacyPath, targetPath, requestPath, root string, now t
 		return BootstrapResult{}, err
 	}
 	return BootstrapResult{BaseURL: secureBaseURL(cfg.SecureListenAddress), CertificatePin: created.SPKIPin}, nil
+}
+
+func UpgradeCompanionConfig(targetPath, root string) error {
+	if err := validateTestRoot(root); err != nil {
+		return err
+	}
+	if !filepath.IsAbs(targetPath) || filepath.Clean(targetPath) != targetPath {
+		return errors.New("unsafe companion config path")
+	}
+	if root != "" {
+		prefix := root + string(filepath.Separator)
+		if !strings.HasPrefix(targetPath, prefix) {
+			return errors.New("unsafe companion config path")
+		}
+	}
+	info, err := os.Lstat(targetPath)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("companion config unavailable")
+	}
+	source, err := os.Open(targetPath)
+	if err != nil {
+		return errors.New("companion config unavailable")
+	}
+	next, upgradeErr := configupgrade.UpgradeV1(source)
+	closeErr := source.Close()
+	if upgradeErr != nil {
+		return upgradeErr
+	}
+	if closeErr != nil {
+		return errors.New("companion config unavailable")
+	}
+	temporary := targetPath + ".upgrade"
+	file, err := os.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return errors.New("companion config upgrade unavailable")
+	}
+	committed := false
+	defer func() {
+		_ = file.Close()
+		if !committed {
+			_ = os.Remove(temporary)
+		}
+	}()
+	if err := file.Chmod(0o600); err != nil {
+		return errors.New("config permissions unavailable")
+	}
+	if err := config.Encode(file, next); err != nil {
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		return errors.New("config sync failed")
+	}
+	if err := file.Close(); err != nil {
+		return errors.New("config write failed")
+	}
+	if err := os.Rename(temporary, targetPath); err != nil {
+		if runtime.GOOS != "windows" {
+			return errors.New("config replace failed")
+		}
+		if err := os.Remove(targetPath); err != nil {
+			return errors.New("config replace failed")
+		}
+		if err := os.Rename(temporary, targetPath); err != nil {
+			return errors.New("config replace failed")
+		}
+	}
+	committed = true
+	return nil
 }
 
 func CreatePairingOffer(configPath, root string, scope auth.Scope, ttl time.Duration) (PairingOfferResult, error) {
@@ -98,7 +155,24 @@ func CreatePairingOffer(configPath, root string, scope auth.Scope, ttl time.Dura
 	if err != nil {
 		return PairingOfferResult{}, err
 	}
-	offer, err := store.CreateBootstrapOffer(context.Background(), scope, ttl)
+	if scope != auth.ScopeOwner {
+		return PairingOfferResult{}, auth.ErrInvalidScope
+	}
+	ctx := context.Background()
+	devices, err := store.ListDevices(ctx)
+	if err != nil {
+		return PairingOfferResult{}, err
+	}
+	var offer auth.PlainOffer
+	if len(devices) == 0 {
+		offer, err = store.CreateBootstrapOffer(ctx, scope, ttl)
+	} else {
+		// This recovery branch is reachable only through the local root-owned
+		// CLI after Android has verified the router's SSH host key and
+		// authenticated over SSH. The HTTPS endpoint still requires an
+		// existing owner token to issue another invitation.
+		offer, err = store.CreateOffer(ctx, auth.ScopeOwner, scope, ttl)
+	}
 	if err != nil {
 		return PairingOfferResult{}, err
 	}

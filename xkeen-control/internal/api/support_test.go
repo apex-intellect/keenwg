@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/support"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/support"
 )
 
 func TestSupportReportRequiresViewerAndReturnsBoundedReviewBundle(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
 )
 
 type Principal struct {

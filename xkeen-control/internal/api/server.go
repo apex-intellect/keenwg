@@ -2,8 +2,6 @@ package api
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io"
@@ -12,13 +10,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/diagnostics"
-	"github.com/goldb/keenwg/xkeen-control/internal/domainpolicy"
-	"github.com/goldb/keenwg/xkeen-control/internal/exclusions"
-	"github.com/goldb/keenwg/xkeen-control/internal/model"
-	"github.com/goldb/keenwg/xkeen-control/internal/state"
-	"github.com/goldb/keenwg/xkeen-control/internal/transaction"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/diagnostics"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/exclusions"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/state"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/transaction"
 )
 
 const maxMutationBody = 4 << 10
@@ -59,7 +57,6 @@ func WithDomainPolicy(manager DomainPolicyManager) Option {
 }
 
 type Server struct {
-	tokenHash   [32]byte
 	version     string
 	engine      Engine
 	store       Store
@@ -71,10 +68,9 @@ type Server struct {
 	jobs        sync.WaitGroup
 }
 
-func New(token, version string, engine Engine, store Store, options ...Option) *Server {
+func NewCore(version string, engine Engine, store Store, options ...Option) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	server := &Server{
-		tokenHash:   sha256.Sum256([]byte(token)),
 		version:     version,
 		engine:      engine,
 		store:       store,
@@ -483,21 +479,13 @@ func (s *Server) handleOperation(w http.ResponseWriter, r *http.Request, key str
 }
 
 func (s *Server) authorize(w http.ResponseWriter, r *http.Request, required auth.Scope) bool {
-	if principal, ok := principalFrom(r); ok {
-		if !scopeAllows(principal.Scope, required) {
-			writeError(w, http.StatusForbidden, "forbidden")
-			return false
-		}
-		return true
-	}
-	header := r.Header.Get("Authorization")
-	if !strings.HasPrefix(header, "Bearer ") || strings.Count(header, " ") != 1 {
+	principal, ok := principalFrom(r)
+	if !ok {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return false
 	}
-	presented := sha256.Sum256([]byte(strings.TrimPrefix(header, "Bearer ")))
-	if subtle.ConstantTimeCompare(presented[:], s.tokenHash[:]) != 1 {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
+	if !scopeAllows(principal.Scope, required) {
+		writeError(w, http.StatusForbidden, "forbidden")
 		return false
 	}
 	return true

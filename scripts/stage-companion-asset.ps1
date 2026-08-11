@@ -10,7 +10,7 @@ if ([IO.Path]::GetFileName($Archive) -notmatch '^keenwg-companion-arm64-([0-9]+\
 $version = $Matches[1]
 $entries = @(& tar -tf $Archive)
 if ($LASTEXITCODE -ne 0) { throw "Companion archive cannot be read" }
-$required = @("VERSION", "SHA256SUMS", "keenwg-companion", "S96keenwg-companion", "install-companion.sh", "uninstall-companion.sh", "companion.config.example.json")
+$required = @("VERSION", "SHA256SUMS", "keenwg-companion", "S96keenwg-companion", "install-companion.sh", "uninstall-companion.sh", "cleanup-obsolete-controller.sh", "companion.config.example.json")
 foreach ($name in $required) {
     if ($entries -notcontains $name) { throw "Companion archive is missing $name" }
 }

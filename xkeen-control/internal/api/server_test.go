@@ -12,17 +12,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/diagnostics"
-	"github.com/goldb/keenwg/xkeen-control/internal/domainpolicy"
-	"github.com/goldb/keenwg/xkeen-control/internal/exclusions"
-	"github.com/goldb/keenwg/xkeen-control/internal/model"
-	"github.com/goldb/keenwg/xkeen-control/internal/state"
-	"github.com/goldb/keenwg/xkeen-control/internal/transaction"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/diagnostics"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/exclusions"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/state"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/transaction"
 )
 
 const controlToken = "control-token-0123456789abcdef"
 
-func TestStatusRequiresDedicatedBearerAndNeverLeaksSecrets(t *testing.T) {
+func TestStatusRequiresInjectedDevicePrincipalAndNeverLeaksSecrets(t *testing.T) {
 	server, store, _ := newTestServer(t)
 	privateNode := model.Node{
 		ID: strings.Repeat("ab", 16), CanonicalURI: "vless://private-uri-secret", DisplayName: "Нидерланды 1", Host: "nl1.example.test", Port: 443,
@@ -38,17 +38,21 @@ func TestStatusRequiresDedicatedBearerAndNeverLeaksSecrets(t *testing.T) {
 	}
 
 	for _, test := range []struct {
-		name string
-		auth string
-		want int
+		name      string
+		principal *Principal
+		auth      string
+		want      int
 	}{
-		{"missing", "", http.StatusUnauthorized},
-		{"history token", "Bearer history-token", http.StatusUnauthorized},
-		{"control token", "Bearer " + controlToken, http.StatusOK},
+		{"missing", nil, "", http.StatusUnauthorized},
+		{"raw controller token", nil, "Bearer " + controlToken, http.StatusUnauthorized},
+		{"viewer principal", &Principal{DeviceID: "viewer", Scope: "viewer"}, "", http.StatusOK},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/v1/xkeen/status", nil)
 			req.Header.Set("Authorization", test.auth)
+			if test.principal != nil {
+				req = withPrincipal(req, *test.principal)
+			}
 			recorder := httptest.NewRecorder()
 			server.ServeHTTP(recorder, req)
 			body := recorder.Body.Bytes()
@@ -280,7 +284,7 @@ func newTestServer(t *testing.T) (*Server, *state.Store, *fakeEngine) {
 		t.Fatal(err)
 	}
 	engine := &fakeEngine{store: store, completed: make(chan struct{}, 4)}
-	server := New(controlToken, "0.4.0", engine, store)
+	server := NewCore("0.4.0", engine, store)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -293,7 +297,7 @@ func newTestServer(t *testing.T) (*Server, *state.Store, *fakeEngine) {
 
 func authenticatedRequest(method, path string, body io.Reader) *http.Request {
 	req := httptest.NewRequest(method, path, body)
-	req.Header.Set("Authorization", "Bearer "+controlToken)
+	req = withPrincipal(req, Principal{DeviceID: "owner", Scope: "owner"})
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

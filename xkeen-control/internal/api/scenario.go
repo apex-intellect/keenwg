@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/coordinator"
-	"github.com/goldb/keenwg/xkeen-control/internal/scenario"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/coordinator"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/scenario"
 )
 
 type ScenarioManager interface {

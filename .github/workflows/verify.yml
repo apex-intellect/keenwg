@@ -8,31 +8,43 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with: { go-version: '1.26.x', cache-dependency-path: xkeen-control/go.sum }
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.x'
+          cache-dependency-path: |
+            xkeen-control/go.sum
+            collector/go.sum
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '17' }
-      - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: '8.12' }
-      - name: Go tests and vet
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - name: Companion tests and vet
         working-directory: xkeen-control
         run: go test -race ./... && go vet ./...
-      - name: Go vulnerability scan
+      - name: Companion vulnerability scan
         working-directory: xkeen-control
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
+      - name: Collector tests and vet
+        working-directory: collector
+        run: go test -race ./... && go vet ./...
+      - name: Collector vulnerability scan
+        working-directory: collector
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
       - name: Packaging tests
         working-directory: xkeen-control/packaging
-        run: sh ./install_test.sh && sh ./install-companion_test.sh
+        run: sh ./install-companion_test.sh
+      - name: Secure-only runtime policy
+        shell: pwsh
+        run: ./scripts/verify-current-runtime.ps1
       - name: Android tests and lint
-        run: gradle :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources --console=plain
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources :app:assembleDebug --console=plain --no-daemon
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high

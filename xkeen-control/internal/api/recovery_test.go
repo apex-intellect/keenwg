@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/coordinator"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/coordinator"
 )
 
 func TestRecoveryPreviewAllowsViewerAndExactRollbackRequiresOperator(t *testing.T) {

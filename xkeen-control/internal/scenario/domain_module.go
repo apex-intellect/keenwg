@@ -10,7 +10,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/domainpolicy"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
 )
 
 var ErrDomainModule = errors.New("scenario_domain_module_rejected")

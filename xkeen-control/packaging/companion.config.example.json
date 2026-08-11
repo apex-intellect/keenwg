@@ -1,8 +1,7 @@
 {
-  "listen_address": "10.8.0.1:18778",
+  "schema_version": 2,
   "secure_listen_address": "10.8.0.1:18779",
-  "token": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-  "subscription_url": "https://vpn.example.test/sub/private",
+  "subscription_url": "",
   "subscription_cache_path": "/opt/etc/keenwg/xkeen-subscription.json",
   "state_path": "/opt/etc/keenwg/xkeen-state.json",
   "backup_dir": "/opt/etc/keenwg/backups",
@@ -25,5 +24,7 @@
   "tls_private_key_path": "/opt/etc/keenwg/identity/private-key.pem",
   "device_store_path": "/opt/etc/keenwg/devices.json",
   "pairing_store_path": "/opt/etc/keenwg/pairing-offers.json",
-  "legacy_api_enabled": true
+  "catalog_path": "/opt/etc/keenwg/catalog.json",
+  "catalog_secrets_path": "/opt/etc/keenwg/catalog-secrets.json",
+  "recovery_path": "/opt/etc/keenwg/recovery.json"
 }

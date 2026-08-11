@@ -16,9 +16,10 @@ import kotlinx.coroutines.withContext
 import ru.anisimov.keenwg.data.ServiceLocator
 import ru.anisimov.keenwg.data.capability.CapabilityRegistry
 import ru.anisimov.keenwg.data.companion.CompanionClient
+import ru.anisimov.keenwg.data.companion.CompanionEndpoint
+import ru.anisimov.keenwg.data.companion.requireCompanionEndpoint
 import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.domain.model.RouterProfilesState
-import ru.anisimov.keenwg.domain.model.ServerSettings
 import ru.anisimov.keenwg.ui.navigation.visibleTopLevelDestinations
 
 class OverviewViewModel(
@@ -26,7 +27,7 @@ class OverviewViewModel(
     private val activeProfileFlow: Flow<ActiveRouterProfile?>,
     private val companion: CompanionClient,
     private val registry: CapabilityRegistry,
-    private val xkeenNode: suspend (ServerSettings) -> String?,
+    private val xkeenNode: suspend (CompanionEndpoint) -> String?,
     private val selectProfile: suspend (String) -> Unit,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
@@ -35,10 +36,7 @@ class OverviewViewModel(
         activeProfileFlow = ServiceLocator.routerProfileStore.activeProfile,
         companion = ServiceLocator.companionClient,
         registry = ServiceLocator.capabilityRegistry,
-        xkeenNode = { settings ->
-            if (settings.xkeenControllerUrl.isBlank() || settings.xkeenControllerToken.isBlank()) null
-            else ServiceLocator.xkeenRepository.status(settings).active?.displayName
-        },
+        xkeenNode = { endpoint -> ServiceLocator.xkeenRepository.status(endpoint).active?.displayName },
         selectProfile = ServiceLocator.routerProfileStore::select,
     )
 
@@ -95,8 +93,7 @@ class OverviewViewModel(
             return
         }
 
-        val legacy = registry.resolve(selected)
-        val hasLegacy = legacy.capabilities.any { it.available }
+        val optionalModules = registry.resolve(selected)
         val companionFields = listOf(selected.companionUrl, selected.certificatePin, active.secrets.companionToken)
         val companionComplete = companionFields.all { it.isNotBlank() }
         val companionPartial = companionFields.any { it.isNotBlank() } && !companionComplete
@@ -105,23 +102,22 @@ class OverviewViewModel(
             health = when {
                 companionComplete -> OverviewHealth.LOADING
                 companionPartial -> OverviewHealth.SETUP_REQUIRED
-                hasLegacy -> OverviewHealth.LEGACY
                 else -> OverviewHealth.SETUP_REQUIRED
             },
             profiles = state.profiles,
             selectedProfileId = selected.id,
             selectedProfileName = selected.displayName,
             showProfileSelector = state.profiles.size > 1,
-            capabilities = legacy,
-            destinations = visibleTopLevelDestinations(legacy, locked = false),
+            capabilities = optionalModules,
+            destinations = visibleTopLevelDestinations(optionalModules, locked = false),
             message = if (companionPartial) "Настройка защищённого companion не завершена" else null,
             mutationsEnabled = true,
         )
 
         var activeNode: String? = null
         var nodeUnavailable = false
-        if (selected.legacyXkeenUrl.isNotBlank() && active.secrets.legacyXkeenToken.isNotBlank()) {
-            activeNode = runCatching { xkeenNode(active.settings) }.getOrElse {
+        if (companionComplete) {
+            activeNode = runCatching { xkeenNode(active.requireCompanionEndpoint()) }.getOrElse {
                 nodeUnavailable = true
                 null
             }

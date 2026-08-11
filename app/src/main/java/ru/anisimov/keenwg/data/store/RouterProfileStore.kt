@@ -3,7 +3,6 @@ package ru.anisimov.keenwg.data.store
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import java.security.MessageDigest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -49,29 +48,22 @@ class RouterProfileStore internal constructor(
         ActiveRouterProfile(profile, secrets)
     }.distinctUntilChanged()
 
-    val migrationReviewPending: Flow<Boolean> = dataStore.data
-        .map { it[SettingsKeys.migrationReviewPending] ?: false }
-        .distinctUntilChanged()
-
-    suspend fun migrateLegacy() {
+    suspend fun initialize() {
         dataStore.edit { preferences ->
-            if (preferences[SettingsKeys.profiles] != null) return@edit
-            val hasLegacyConfiguration = preferences[SettingsKeys.host] != null ||
-                preferences[SettingsKeys.pass] != null ||
-                preferences[SettingsKeys.iface] != null ||
-                preferences[SettingsKeys.xkeenControllerUrl] != null
-            val (index, secrets) = legacySnapshot(preferences)
+            val storedProfiles = preferences[SettingsKeys.profiles]
+            val (index, secrets) = if (storedProfiles != null) {
+                val storedSecrets = requireNotNull(preferences[SettingsKeys.secrets]) { "Router secrets are missing" }
+                RouterProfileCodec.decodeIndex(storedProfiles) to RouterProfileCodec.decodeSecrets(cipher.decrypt(storedSecrets))
+            } else {
+                defaultSnapshot()
+            }
             writeSnapshot(preferences, index, secrets)
-            if (hasLegacyConfiguration) preferences[SettingsKeys.migrationReviewPending] = true
+            removeObsoletePreferences(preferences)
         }
     }
 
-    suspend fun dismissMigrationReview() {
-        dataStore.edit { it[SettingsKeys.migrationReviewPending] = false }
-    }
-
     suspend fun upsert(profile: RouterProfile, secrets: RouterSecrets, select: Boolean) {
-        require(profile.schemaVersion == 1 && profile.id.isNotBlank() && profile.displayName.isNotBlank())
+        require(profile.schemaVersion == 2 && profile.id.isNotBlank() && profile.displayName.isNotBlank())
         dataStore.edit { preferences ->
             val current = mutableSnapshot(preferences)
             val profiles = current.index.profiles.toMutableList()
@@ -116,9 +108,11 @@ class RouterProfileStore internal constructor(
             )
             val profiles = current.index.profiles.map { if (it.id == profile.id) profile else it }
             val previousSecrets = current.secrets[profile.id] ?: RouterSecrets()
-            val secrets = RouterSecrets.fromServerSettings(settings).copy(companionToken = previousSecrets.companionToken)
+            val secrets = RouterSecrets.fromServerSettings(settings).copy(
+                companionToken = previousSecrets.companionToken,
+                companionDeviceId = previousSecrets.companionDeviceId,
+            )
             writeSnapshot(preferences, current.index.copy(profiles = profiles), current.secrets + (profile.id to secrets))
-            writeLegacyMirror(preferences, settings)
         }
     }
 
@@ -153,7 +147,7 @@ class RouterProfileStore internal constructor(
     private fun decodeSnapshot(preferences: Preferences): Snapshot = runCatching {
         val rawIndex = preferences[SettingsKeys.profiles]
         val pair = if (rawIndex == null) {
-            legacySnapshot(preferences)
+            defaultSnapshot()
         } else {
             val encryptedSecrets = requireNotNull(preferences[SettingsKeys.secrets]) { "Router secrets are missing" }
             RouterProfileCodec.decodeIndex(rawIndex) to RouterProfileCodec.decodeSecrets(cipher.decrypt(encryptedSecrets))
@@ -169,33 +163,12 @@ class RouterProfileStore internal constructor(
         }
     }
 
-    private fun legacySnapshot(preferences: Preferences): Pair<RouterProfileIndex, Map<String, RouterSecrets>> {
-        val settings = readLegacy(preferences)
-        val id = legacyProfileId(settings.host, settings.port)
+    private fun defaultSnapshot(): Pair<RouterProfileIndex, Map<String, RouterSecrets>> {
+        val settings = ServerSettings()
+        val id = DEFAULT_PROFILE_ID
         val profile = RouterProfile.fromServerSettings(id, "Keenetic ${settings.host}", settings)
         return RouterProfileIndex(selectedProfileId = id, profiles = listOf(profile)) to
             mapOf(id to RouterSecrets.fromServerSettings(settings))
-    }
-
-    private fun readLegacy(p: Preferences): ServerSettings {
-        val defaults = ServerSettings()
-        return ServerSettings(
-            host = p[SettingsKeys.host] ?: defaults.host,
-            port = p[SettingsKeys.port] ?: defaults.port,
-            login = p[SettingsKeys.login] ?: defaults.login,
-            password = p[SettingsKeys.pass]?.let(cipher::decrypt).orEmpty(),
-            interfaceId = p[SettingsKeys.iface] ?: defaults.interfaceId,
-            serverPublicKey = p[SettingsKeys.serverKey] ?: defaults.serverPublicKey,
-            endpoint = p[SettingsKeys.endpoint] ?: defaults.endpoint,
-            subnetBase = p[SettingsKeys.subnet] ?: defaults.subnetBase,
-            dns = p[SettingsKeys.dns] ?: defaults.dns,
-            mtu = p[SettingsKeys.mtu] ?: defaults.mtu,
-            keepalive = p[SettingsKeys.keepalive] ?: defaults.keepalive,
-            collectorUrl = p[SettingsKeys.collectorUrl] ?: defaults.collectorUrl,
-            collectorToken = p[SettingsKeys.collectorToken]?.let(cipher::decrypt).orEmpty(),
-            xkeenControllerUrl = p[SettingsKeys.xkeenControllerUrl] ?: defaults.xkeenControllerUrl,
-            xkeenControllerToken = p[SettingsKeys.xkeenControllerToken]?.let(cipher::decrypt).orEmpty(),
-        )
     }
 
     private fun writeSnapshot(preferences: androidx.datastore.preferences.core.MutablePreferences, index: RouterProfileIndex, secrets: Map<String, RouterSecrets>) {
@@ -203,28 +176,19 @@ class RouterProfileStore internal constructor(
         preferences[SettingsKeys.secrets] = cipher.encrypt(RouterProfileCodec.encodeSecrets(secrets))
     }
 
-    private fun writeLegacyMirror(p: androidx.datastore.preferences.core.MutablePreferences, s: ServerSettings) {
-        p[SettingsKeys.host] = s.host
-        p[SettingsKeys.port] = s.port
-        p[SettingsKeys.login] = s.login
-        p[SettingsKeys.pass] = cipher.encrypt(s.password)
-        p[SettingsKeys.iface] = s.interfaceId
-        p[SettingsKeys.serverKey] = s.serverPublicKey
-        p[SettingsKeys.endpoint] = s.endpoint
-        p[SettingsKeys.subnet] = s.subnetBase
-        p[SettingsKeys.dns] = s.dns
-        p[SettingsKeys.mtu] = s.mtu
-        p[SettingsKeys.keepalive] = s.keepalive
-        p[SettingsKeys.collectorUrl] = s.collectorUrl
-        p[SettingsKeys.collectorToken] = cipher.encrypt(s.collectorToken)
-        p[SettingsKeys.xkeenControllerUrl] = s.xkeenControllerUrl
-        p[SettingsKeys.xkeenControllerToken] = cipher.encrypt(s.xkeenControllerToken)
+    private fun removeObsoletePreferences(preferences: androidx.datastore.preferences.core.MutablePreferences) {
+        preferences.asMap().keys.filter { it.name in OBSOLETE_PREFERENCE_NAMES }.forEach { key ->
+            @Suppress("UNCHECKED_CAST")
+            preferences.remove(key as Preferences.Key<Any>)
+        }
     }
 
     companion object {
-        fun legacyProfileId(host: String, port: Int): String {
-            val input = "keenwg-legacy\n${host.lowercase()}\n$port".toByteArray(Charsets.UTF_8)
-            return MessageDigest.getInstance("SHA-256").digest(input).take(16).joinToString("") { "%02x".format(it) }
-        }
+        const val DEFAULT_PROFILE_ID = "default-router"
+        private val OBSOLETE_PREFERENCE_NAMES = setOf(
+            "host", "port", "login", "pass_enc", "iface", "srv_key", "endpoint", "subnet", "dns",
+            "mtu", "keepalive", "collector_url", "collector_token_enc", "xkeen_controller_url",
+            "xkeen_controller_token_enc", "migration_0_7_review_pending",
+        )
     }
 }

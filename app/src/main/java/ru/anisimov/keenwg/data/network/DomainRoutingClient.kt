@@ -1,7 +1,5 @@
 package ru.anisimov.keenwg.data.network
 
-import java.net.SocketTimeoutException
-import java.time.Duration
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -9,16 +7,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
+import ru.anisimov.keenwg.data.companion.CompanionEndpoint
+import ru.anisimov.keenwg.data.companion.CompanionHttpTransport
+import ru.anisimov.keenwg.data.companion.CompanionResponseTooLargeException
+import ru.anisimov.keenwg.data.companion.CompanionTransportException
 import ru.anisimov.keenwg.data.xkeen.XkeenErrorCode
 import ru.anisimov.keenwg.data.xkeen.XkeenException
-import ru.anisimov.keenwg.domain.ServerSettingsValidator
-import ru.anisimov.keenwg.domain.model.ServerSettings
 
 @Serializable data class DomainRule(
     val id: String,
@@ -64,59 +58,45 @@ data class DomainRuleDraft(
 )
 
 interface DomainRoutingGateway {
-    suspend fun load(settings: ServerSettings): DomainRoutingStatus
-    suspend fun create(settings: ServerSettings, status: DomainRoutingStatus, draft: DomainRuleDraft): DomainRoutingResult
-    suspend fun update(settings: ServerSettings, status: DomainRoutingStatus, id: String, draft: DomainRuleDraft): DomainRoutingResult
-    suspend fun delete(settings: ServerSettings, status: DomainRoutingStatus, id: String): DomainRoutingResult
+    suspend fun load(endpoint: CompanionEndpoint): DomainRoutingStatus
+    suspend fun create(endpoint: CompanionEndpoint, status: DomainRoutingStatus, draft: DomainRuleDraft): DomainRoutingResult
+    suspend fun update(endpoint: CompanionEndpoint, status: DomainRoutingStatus, id: String, draft: DomainRuleDraft): DomainRoutingResult
+    suspend fun delete(endpoint: CompanionEndpoint, status: DomainRoutingStatus, id: String): DomainRoutingResult
 }
 
 class DomainRoutingClient(
-    private val http: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(Duration.ofSeconds(5))
-        .readTimeout(Duration.ofSeconds(60))
-        .writeTimeout(Duration.ofSeconds(10))
-        .build(),
-    private val urlValidator: (String) -> String? = ServerSettingsValidator::validateXkeenControllerUrl,
+    private val transport: CompanionHttpTransport = CompanionHttpTransport(),
     private val keyFactory: () -> String = { UUID.randomUUID().toString() },
 ) : DomainRoutingGateway {
     private val json = Json { ignoreUnknownKeys = false; explicitNulls = false }
 
-    override suspend fun load(settings: ServerSettings): DomainRoutingStatus = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url(baseUrl(settings).newBuilder().addPathSegments("v1/network/domains").build())
-            .authenticated(settings).get().build()
-        execute(request) { decodeStatus(it) }
+    override suspend fun load(endpoint: CompanionEndpoint): DomainRoutingStatus = withContext(Dispatchers.IO) {
+        execute(endpoint, "/v1/network/domains") { decodeStatus(it) }
     }
 
-    override suspend fun create(settings: ServerSettings, status: DomainRoutingStatus, draft: DomainRuleDraft) =
-        mutate(settings, status, null, draft, "POST")
+    override suspend fun create(endpoint: CompanionEndpoint, status: DomainRoutingStatus, draft: DomainRuleDraft) =
+        mutate(endpoint, status, null, draft, "POST")
 
-    override suspend fun update(settings: ServerSettings, status: DomainRoutingStatus, id: String, draft: DomainRuleDraft): DomainRoutingResult {
+    override suspend fun update(endpoint: CompanionEndpoint, status: DomainRoutingStatus, id: String, draft: DomainRuleDraft): DomainRoutingResult {
         requireRuleId(id)
-        return mutate(settings, status, id, draft, "PUT")
+        return mutate(endpoint, status, id, draft, "PUT")
     }
 
-    override suspend fun delete(settings: ServerSettings, status: DomainRoutingStatus, id: String): DomainRoutingResult {
+    override suspend fun delete(endpoint: CompanionEndpoint, status: DomainRoutingStatus, id: String): DomainRoutingResult {
         requireRuleId(id)
-        return mutate(settings, status, id, null, "DELETE")
+        return mutate(endpoint, status, id, null, "DELETE")
     }
 
     private suspend fun mutate(
-        settings: ServerSettings,
+        endpoint: CompanionEndpoint,
         status: DomainRoutingStatus,
         id: String?,
         draft: DomainRuleDraft?,
         method: String,
     ): DomainRoutingResult = withContext(Dispatchers.IO) {
-        val builder = baseUrl(settings).newBuilder().addPathSegments("v1/network/domains/rules")
-        if (id != null) builder.addPathSegment(id)
-        val body = json.encodeToString(DomainMutationRequest(status.stateVersion, keyFactory(), draft?.toRequestRule())).toRequestBody(JSON)
-        val requestBuilder = Request.Builder().url(builder.build()).authenticated(settings)
-        val request = when (method) {
-            "POST" -> requestBuilder.post(body).build()
-            "PUT" -> requestBuilder.put(body).build()
-            else -> requestBuilder.delete(body).build()
-        }
-        executeMutation(request)
+        val path = "/v1/network/domains/rules" + (id?.let { "/$it" } ?: "")
+        val body = json.encodeToString(DomainMutationRequest(status.stateVersion, keyFactory(), draft?.toRequestRule()))
+        executeMutation(endpoint, path, method, body)
     }
 
     private fun DomainRuleDraft.toRequestRule() = DomainRule(
@@ -125,39 +105,40 @@ class DomainRoutingClient(
         isProtected = false,
     )
 
-    private fun executeMutation(request: Request): DomainRoutingResult {
+    private fun executeMutation(endpoint: CompanionEndpoint, path: String, method: String, body: String): DomainRoutingResult {
         try {
-            http.newCall(request).execute().use { response ->
-                val text = readBounded(response)
-                if (response.isSuccessful || response.code == 409 || response.code == 503) {
-                    val result = decode<DomainRoutingResult>(text)
-                    requireValid(result.status)
-                    if (result.result !in RESULTS) schemaFailure()
-                    return result
-                }
-                throw httpFailure(response.code)
+            val response = transport.execute(endpoint, path, method, body, MAX_BYTES)
+            if (response.status in 200..299 || response.status == 409 || response.status == 503) {
+                val result = decode<DomainRoutingResult>(response.body)
+                requireValid(result.status)
+                if (result.result !in RESULTS) schemaFailure()
+                return result
             }
+            throw httpFailure(response.status)
         } catch (known: XkeenException) {
             throw known
-        } catch (timeout: SocketTimeoutException) {
-            throw XkeenException(XkeenErrorCode.TIMEOUT, "Контроллер XKeen не ответил вовремя", timeout)
+        } catch (failure: CompanionResponseTooLargeException) {
+            schemaFailure()
+        } catch (failure: CompanionTransportException) {
+            throw XkeenException(XkeenErrorCode.NETWORK, "Связь с Companion прервана", failure)
         } catch (failure: Exception) {
-            throw XkeenException(XkeenErrorCode.NETWORK, "Связь с контроллером XKeen прервана", failure)
+            throw XkeenException(XkeenErrorCode.NETWORK, "Связь с Companion прервана", failure)
         }
     }
 
-    private fun <T> execute(request: Request, decoder: (String) -> T): T {
+    private fun <T> execute(endpoint: CompanionEndpoint, path: String, decoder: (String) -> T): T {
         try {
-            http.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw httpFailure(response.code)
-                return decoder(readBounded(response))
-            }
+            val response = transport.execute(endpoint, path, maxResponseBytes = MAX_BYTES)
+            if (response.status !in 200..299) throw httpFailure(response.status)
+            return decoder(response.body)
         } catch (known: XkeenException) {
             throw known
-        } catch (timeout: SocketTimeoutException) {
-            throw XkeenException(XkeenErrorCode.TIMEOUT, "Контроллер XKeen не ответил вовремя", timeout)
+        } catch (failure: CompanionResponseTooLargeException) {
+            schemaFailure()
+        } catch (failure: CompanionTransportException) {
+            throw XkeenException(XkeenErrorCode.NETWORK, "Связь с Companion прервана", failure)
         } catch (failure: Exception) {
-            throw XkeenException(XkeenErrorCode.NETWORK, "Связь с контроллером XKeen прервана", failure)
+            throw XkeenException(XkeenErrorCode.NETWORK, "Связь с Companion прервана", failure)
         }
     }
 
@@ -177,42 +158,15 @@ class DomainRoutingClient(
     private fun validRule(rule: DomainRule) = RULE_ID.matches(rule.id) && rule.kind in KINDS && rule.effect in EFFECTS &&
         rule.source in SOURCES && rule.value.isNotBlank() && rule.label.length <= 160
 
-    private fun readBounded(response: Response): String {
-        val body = response.body ?: schemaFailure()
-        if (body.contentLength() > MAX_BYTES) schemaFailure()
-        val source = body.source()
-        source.request(MAX_BYTES + 1)
-        if (source.buffer.size > MAX_BYTES) schemaFailure()
-        return source.readUtf8()
-    }
-
-    private fun baseUrl(settings: ServerSettings) = try {
-        validate(settings)
-        settings.xkeenControllerUrl.toHttpUrl()
-    } catch (known: XkeenException) {
-        throw known
-    } catch (_: Exception) {
-        throw invalid()
-    }
-
-    private fun Request.Builder.authenticated(settings: ServerSettings) = header("Authorization", "Bearer ${settings.xkeenControllerToken}")
-        .header("Cache-Control", "no-store")
-
-    private fun validate(settings: ServerSettings) {
-        if (settings.xkeenControllerUrl.isBlank() || urlValidator(settings.xkeenControllerUrl) != null ||
-            settings.xkeenControllerToken.isBlank() || settings.xkeenControllerToken.length > 256 || settings.xkeenControllerToken.any(Char::isISOControl)
-        ) throw invalid()
-    }
-
     private fun requireRuleId(id: String) { if (!RULE_ID.matches(id)) throw invalid() }
 
     private fun httpFailure(code: Int) = when (code) {
-        401 -> XkeenException(XkeenErrorCode.UNAUTHORIZED, "Контроллер XKeen отклонил токен")
+        401 -> XkeenException(XkeenErrorCode.UNAUTHORIZED, "Companion отклонил токен устройства")
         404 -> XkeenException(XkeenErrorCode.NOT_FOUND, "Доменное правило не найдено")
         409 -> XkeenException(XkeenErrorCode.STALE_STATE, "Доменные правила изменились; обновите список")
         413 -> schemaFailure()
-        429, 503 -> XkeenException(XkeenErrorCode.BUSY, "Контроллер XKeen занят другой операцией")
-        else -> XkeenException(XkeenErrorCode.CONTROLLER_UNAVAILABLE, "Контроллер XKeen недоступен")
+        429, 503 -> XkeenException(XkeenErrorCode.BUSY, "Companion занят другой операцией")
+        else -> XkeenException(XkeenErrorCode.COMPANION_UNAVAILABLE, "Companion недоступен")
     }
 
     private fun invalid() = XkeenException(XkeenErrorCode.INVALID_SETTINGS, "Некорректные параметры доменного правила")
@@ -220,7 +174,6 @@ class DomainRoutingClient(
 
     private companion object {
         const val MAX_BYTES = 262_144L
-        val JSON = "application/json; charset=utf-8".toMediaType()
         val RULE_ID = Regex("^[a-z0-9][a-z0-9_-]{0,63}$")
         val KINDS = setOf("domain", "suffix", "geosite")
         val EFFECTS = setOf("direct", "vpn")

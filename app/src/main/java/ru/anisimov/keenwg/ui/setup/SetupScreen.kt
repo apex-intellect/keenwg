@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.data.installer.InstallPhase
+import ru.anisimov.keenwg.data.installer.InstallMode
 import ru.anisimov.keenwg.data.installer.SshEndpoint
 import ru.anisimov.keenwg.ui.theme.MonoLabel
 
@@ -151,7 +152,15 @@ fun SetupScreen(
                     Button(
                         onClick = { consumePassword { vm.confirmInstall(it, "KeenWG ${Build.MODEL}") } },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                ) { Text(stringResource(R.string.setup_install_companion, current.plan.version)) }
+                ) {
+                    Text(
+                        when (current.plan.mode) {
+                            InstallMode.CLEAN_INSTALL -> stringResource(R.string.setup_install_companion, current.plan.version)
+                            InstallMode.UPDATE -> stringResource(R.string.setup_update_companion, current.plan.version)
+                            InstallMode.PAIR_ONLY -> stringResource(R.string.setup_pair_phone)
+                        },
+                    )
+                }
                     OutlinedButton(onClick = vm::reset, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.ui_setupscreen_8fbe9b75cb)) }
                 }
                 is SetupState.Installing -> InstallingContent(current)
@@ -230,7 +239,7 @@ private fun ProbeCard(state: SetupState.Review) {
             InfoRow("Архитектура", state.probe.architecture)
             InfoRow("Прошивка", state.probe.firmware)
             InfoRow("Свободно /opt", "${state.probe.optFreeBytes / 1024 / 1024} МиБ")
-            InfoRow("Адрес API", state.plan.secureBaseUrl)
+            InfoRow("Адрес API", state.plan.secureBaseUrl ?: stringResource(R.string.setup_companion_address_pending))
         }
     }
 }

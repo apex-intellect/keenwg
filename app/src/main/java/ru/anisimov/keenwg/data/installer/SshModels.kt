@@ -76,11 +76,12 @@ sealed class FixedCommand {
 
         private const val PROBE_COMMAND =
             "printf 'architecture='; uname -m; " +
-            "printf 'firmware='; if test -r /etc/version; then sed -n '1p' /etc/version; else echo unknown; fi; " +
+            "printf 'firmware='; firmware=\$(ndmc -c 'show version' 2>/dev/null | sed -n 's/^[[:space:]]*[Rr]elease[[:space:]]*:[[:space:]]*//p' | sed -n '1p'); " +
+            "if test -z \"\$firmware\" && test -r /etc/version; then firmware=\$(sed -n '1p' /etc/version); fi; " +
+            "if test -n \"\$firmware\"; then printf '%s\\n' \"\$firmware\"; else echo unknown; fi; " +
             "printf 'opt_free_kib='; df -Pk /opt | awk 'NR==2 {print \$4}'; " +
             "printf 'entware='; if test -d /opt/etc; then echo present; else echo missing; fi; " +
-            "printf 'legacy_config='; if test -f /opt/etc/keenwg/xkeen-control.json; then echo present; else echo missing; fi; " +
-            "printf 'legacy_running='; if test -x /opt/etc/init.d/S96keenwg-xkeen-control && /opt/etc/init.d/S96keenwg-xkeen-control status >/dev/null 2>&1; then echo yes; else echo no; fi; " +
+            "printf 'companion_config='; if test -f /opt/etc/keenwg/companion.json; then echo present; else echo missing; fi; " +
             "printf 'xkeen='; if test -x /opt/bin/xkeen; then /opt/bin/xkeen -version 2>/dev/null | sed -n '1p'; elif test -r /opt/etc/xray/version; then sed -n '1p' /opt/etc/xray/version; elif test -d /opt/etc/xray; then echo unknown; else echo missing; fi; " +
             "printf 'asc='; if command -v asc >/dev/null 2>&1; then echo present; else echo missing; fi; " +
             "printf 'xray='; if command -v xray >/dev/null 2>&1; then echo present; else echo missing; fi; " +

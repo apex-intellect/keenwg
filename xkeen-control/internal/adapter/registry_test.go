@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/catalog"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
 )
 
 func TestRegistrySortsAdaptersAndRejectsDuplicateNodeIDs(t *testing.T) {

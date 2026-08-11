@@ -2,53 +2,52 @@ package ru.anisimov.keenwg.data.xkeen
 
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.test.TestCompanionServer
 
 class XkeenClientTest {
     @Test fun `refresh uses bearer and exact idempotency body`() = runTest {
         val server = server(MockResponse().setResponseCode(202).setBody(operationJson("queued")))
-        val settings = settings(server, "control-secret")
+        val endpoint = server.endpoint("control-secret")
 
-        client().refresh(settings, 7, KEY)
+        client().refresh(endpoint, 7, KEY)
 
         val request = server.takeRequest()
         assertEquals("/v1/xkeen/subscription/refresh", request.path)
         assertEquals("Bearer control-secret", request.getHeader("Authorization"))
         assertEquals("no-store", request.getHeader("Cache-Control"))
         assertEquals("""{"state_version":7,"idempotency_key":"$KEY"}""", request.body.readUtf8())
-        server.shutdown()
+        server.close()
     }
 
     @Test fun `unknown secret-bearing status fields fail closed`() = runTest {
         val body = validStatusJson().dropLast(1) + ",\"uuid\":\"secret\"}"
         val server = server(MockResponse().setBody(body))
 
-        val failure = failure { client().status(settings(server)) }
+        val failure = failure { client().status(server.endpoint()) }
 
         assertEquals(XkeenErrorCode.UNSUPPORTED_SCHEMA, failure.code)
         assertFalse(failure.message.orEmpty().contains("secret"))
-        server.shutdown()
+        server.close()
     }
 
     @Test fun `status and probe use authenticated status endpoint`() = runTest {
         val server = server(MockResponse().setBody(validStatusJson()), MockResponse().setBody(validStatusJson()))
-        val settings = settings(server)
+        val endpoint = server.endpoint("control-secret")
         val client = client()
 
-        assertEquals(7, client.status(settings).stateVersion)
-        assertEquals("0.4.0", client.probe(settings).version)
+        assertEquals(7, client.status(endpoint).stateVersion)
+        assertEquals("0.4.0", client.probe(endpoint).version)
 
         repeat(2) {
             val request = server.takeRequest()
             assertEquals("/v1/xkeen/status", request.path)
             assertEquals("Bearer control-secret", request.getHeader("Authorization"))
         }
-        server.shutdown()
+        server.close()
     }
 
     @Test fun `select encodes one node segment and operation polls same key`() = runTest {
@@ -56,15 +55,15 @@ class XkeenClientTest {
             MockResponse().setResponseCode(202).setBody(operationJson("running")),
             MockResponse().setBody(operationJson("terminal", "success")),
         )
-        val settings = settings(server)
+        val endpoint = server.endpoint()
         val nodeId = "aabbccddeeff00112233445566778899"
 
-        client().select(settings, nodeId, 7, KEY)
-        client().operation(settings, KEY)
+        client().select(endpoint, nodeId, 7, KEY)
+        client().operation(endpoint, KEY)
 
         assertEquals("/v1/xkeen/nodes/$nodeId/select", server.takeRequest().path)
         assertEquals("/v1/xkeen/operations/$KEY", server.takeRequest().path)
-        server.shutdown()
+        server.close()
     }
 
     @Test fun `http errors map to fixed codes`() = runTest {
@@ -74,14 +73,14 @@ class XkeenClientTest {
             MockResponse().setResponseCode(503),
             MockResponse().setResponseCode(404),
         )
-        val settings = settings(server)
+        val endpoint = server.endpoint()
         val client = client()
 
-        assertEquals(XkeenErrorCode.UNAUTHORIZED, failure { client.status(settings) }.code)
-        assertEquals(XkeenErrorCode.STALE_STATE, failure { client.status(settings) }.code)
-        assertEquals(XkeenErrorCode.BUSY, failure { client.status(settings) }.code)
-        assertEquals(XkeenErrorCode.NOT_FOUND, failure { client.status(settings) }.code)
-        server.shutdown()
+        assertEquals(XkeenErrorCode.UNAUTHORIZED, failure { client.status(endpoint) }.code)
+        assertEquals(XkeenErrorCode.STALE_STATE, failure { client.status(endpoint) }.code)
+        assertEquals(XkeenErrorCode.BUSY, failure { client.status(endpoint) }.code)
+        assertEquals(XkeenErrorCode.NOT_FOUND, failure { client.status(endpoint) }.code)
+        server.close()
     }
 
     @Test fun `oversize status and operation fail closed`() = runTest {
@@ -89,22 +88,20 @@ class XkeenClientTest {
             MockResponse().setBody("x".repeat(1_048_577)),
             MockResponse().setBody("x".repeat(4_097)),
         )
-        val settings = settings(server)
+        val endpoint = server.endpoint()
         val client = client()
 
-        assertEquals(XkeenErrorCode.UNSUPPORTED_SCHEMA, failure { client.status(settings) }.code)
-        assertEquals(XkeenErrorCode.UNSUPPORTED_SCHEMA, failure { client.operation(settings, KEY) }.code)
-        server.shutdown()
+        assertEquals(XkeenErrorCode.UNSUPPORTED_SCHEMA, failure { client.status(endpoint) }.code)
+        assertEquals(XkeenErrorCode.UNSUPPORTED_SCHEMA, failure { client.operation(endpoint, KEY) }.code)
+        server.close()
     }
 
-    @Test fun `empty token and invalid local ids make zero requests`() = runTest {
+    @Test fun `invalid local ids make zero requests`() = runTest {
         val server = server()
-        val blank = settings(server, "")
 
-        assertEquals(XkeenErrorCode.INVALID_SETTINGS, failure { client().status(blank) }.code)
-        assertEquals(XkeenErrorCode.INVALID_SETTINGS, failure { client().select(settings(server), "../secret", 7, KEY) }.code)
+        assertEquals(XkeenErrorCode.INVALID_SETTINGS, failure { client().select(server.endpoint(), "../secret", 7, KEY) }.code)
         assertEquals(0, server.requestCount)
-        server.shutdown()
+        server.close()
     }
 
     @Test fun `diagnostics are explicit authenticated post and preserve result order`() = runTest {
@@ -115,7 +112,7 @@ class XkeenClientTest {
           ]
         }"""))
 
-        val report = client().diagnostics(settings(server))
+        val report = client().diagnostics(server.endpoint("control-secret"))
 
         assertEquals(listOf(XkeenDiagnosticStatus.REACHABLE, XkeenDiagnosticStatus.DNS_ERROR), report.results.map { it.status })
         val request = server.takeRequest()
@@ -123,20 +120,12 @@ class XkeenClientTest {
         assertEquals("POST", request.method)
         assertEquals("{}", request.body.readUtf8())
         assertEquals("Bearer control-secret", request.getHeader("Authorization"))
-        server.shutdown()
+        server.close()
     }
 
-    private fun client() = XkeenClient(urlValidator = { null })
+    private fun client() = XkeenClient()
 
-    private fun settings(server: MockWebServer, token: String = "control-secret") = ServerSettings(
-        xkeenControllerUrl = server.url("/").toString().removeSuffix("/"),
-        xkeenControllerToken = token,
-    )
-
-    private fun server(vararg responses: MockResponse) = MockWebServer().apply {
-        responses.forEach(::enqueue)
-        start()
-    }
+    private fun server(vararg responses: MockResponse) = TestCompanionServer(*responses)
 
     private fun validStatusJson() = """{
       "version":"0.4.0","state_version":7,

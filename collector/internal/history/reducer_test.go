@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goldb/keenwg/collector/internal/model"
+	"github.com/apex-intellect/keenwg/collector/internal/model"
 )
 
 func ptr64(v int64) *int64 { return &v }

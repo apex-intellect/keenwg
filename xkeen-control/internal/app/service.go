@@ -11,55 +11,33 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/adapter"
-	"github.com/goldb/keenwg/xkeen-control/internal/api"
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/backup"
-	"github.com/goldb/keenwg/xkeen-control/internal/capability"
-	"github.com/goldb/keenwg/xkeen-control/internal/catalog"
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
-	"github.com/goldb/keenwg/xkeen-control/internal/connection"
-	modulecoordinator "github.com/goldb/keenwg/xkeen-control/internal/coordinator"
-	"github.com/goldb/keenwg/xkeen-control/internal/diagnostics"
-	"github.com/goldb/keenwg/xkeen-control/internal/domainpolicy"
-	"github.com/goldb/keenwg/xkeen-control/internal/exclusions"
-	"github.com/goldb/keenwg/xkeen-control/internal/identity"
-	"github.com/goldb/keenwg/xkeen-control/internal/ownedsource"
-	"github.com/goldb/keenwg/xkeen-control/internal/routegraph"
-	"github.com/goldb/keenwg/xkeen-control/internal/scenario"
-	"github.com/goldb/keenwg/xkeen-control/internal/state"
-	"github.com/goldb/keenwg/xkeen-control/internal/subscription"
-	"github.com/goldb/keenwg/xkeen-control/internal/support"
-	"github.com/goldb/keenwg/xkeen-control/internal/transaction"
-	"github.com/goldb/keenwg/xkeen-control/internal/xray"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/adapter"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/api"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/backup"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/capability"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/connection"
+	modulecoordinator "github.com/apex-intellect/keenwg/xkeen-control/internal/coordinator"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/diagnostics"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/exclusions"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/identity"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/ownedsource"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/routegraph"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/scenario"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/state"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/subscription"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/support"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/transaction"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/xray"
 )
 
 type controllerRuntime struct {
 	handler *api.Server
 	engine  *transaction.Engine
 	domains *domainpolicy.Service
-}
-
-func RunLegacy(ctx context.Context, cfg config.Config, version string, store *state.Store, system xray.System) error {
-	runtime, err := buildController(ctx, cfg, version, store, system)
-	if err != nil {
-		return err
-	}
-	if err := runtime.engine.Recover(ctx); err != nil {
-		return err
-	}
-	listener, err := net.Listen("tcp4", cfg.ListenAddress)
-	if err != nil {
-		return err
-	}
-	server := hardenedServer(runtime.handler)
-	err = runHTTPServers(ctx, []*http.Server{server}, []net.Listener{listener})
-	shutdownContext, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if shutdownErr := runtime.handler.Shutdown(shutdownContext); err == nil {
-		err = shutdownErr
-	}
-	return err
 }
 
 func RunCompanion(ctx context.Context, cfg config.Config, version, root string) error {
@@ -211,28 +189,13 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 		Certificates: []tls.Certificate{certificate},
 		MinVersion:   tls.VersionTLS12,
 	})
-	servers := []*http.Server{hardenedServer(secureHandler)}
-	listeners := []net.Listener{tlsListener}
-	if cfg.LegacyAPIEnabled {
-		legacyListener, listenErr := net.Listen("tcp4", cfg.ListenAddress)
-		if listenErr != nil {
-			_ = tlsListener.Close()
-			return listenErr
-		}
-		servers = append(servers, hardenedServer(controller.handler))
-		listeners = append(listeners, legacyListener)
-	}
-	err = runHTTPServers(ctx, servers, listeners)
+	err = runHTTPServers(ctx, []*http.Server{hardenedServer(secureHandler)}, []net.Listener{tlsListener})
 	shutdownContext, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if shutdownErr := controller.handler.Shutdown(shutdownContext); err == nil {
 		err = shutdownErr
 	}
 	return err
-}
-
-func buildController(ctx context.Context, cfg config.Config, version string, store *state.Store, system xray.System) (controllerRuntime, error) {
-	return buildControllerMode(ctx, cfg, version, store, system, false)
 }
 
 func buildControllerMode(ctx context.Context, cfg config.Config, version string, store *state.Store, system xray.System, allowDomainRecovery bool) (controllerRuntime, error) {
@@ -247,7 +210,7 @@ func buildControllerMode(ctx context.Context, cfg config.Config, version string,
 	if err != nil {
 		return controllerRuntime{}, err
 	}
-	handler := api.New(cfg.Token, version, engine, store,
+	handler := api.NewCore(version, engine, store,
 		api.WithExclusions(exclusions.New(cfg.ExcludePath, system)),
 		api.WithDomainPolicy(domainService),
 	)

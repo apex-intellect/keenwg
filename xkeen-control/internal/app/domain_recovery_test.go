@@ -5,8 +5,8 @@ import (
 	"io/fs"
 	"testing"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
-	"github.com/goldb/keenwg/xkeen-control/internal/domainpolicy"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
 )
 
 func TestBootstrapDomainPolicyAllowsMismatchOnlyForPendingReviewedRecovery(t *testing.T) {

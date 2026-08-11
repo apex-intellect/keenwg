@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goldb/keenwg/collector/internal/history"
-	"github.com/goldb/keenwg/collector/internal/model"
-	collectorsource "github.com/goldb/keenwg/collector/internal/source"
+	"github.com/apex-intellect/keenwg/collector/internal/history"
+	"github.com/apex-intellect/keenwg/collector/internal/model"
+	collectorsource "github.com/apex-intellect/keenwg/collector/internal/source"
 )
 
 type fakeClock struct {

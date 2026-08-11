@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/adapter"
-	"github.com/goldb/keenwg/xkeen-control/internal/catalog"
-	"github.com/goldb/keenwg/xkeen-control/internal/connection"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/adapter"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/connection"
 )
 
 const maxCatalogMutationBody int64 = 1 << 20

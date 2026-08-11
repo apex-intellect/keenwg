@@ -35,8 +35,8 @@ class OverviewViewModelTest {
     @Before fun setup() = Dispatchers.setMain(dispatcher)
     @After fun teardown() = Dispatchers.resetMain()
 
-    @Test fun `single profile hides selector and legacy modules remain available`() = runTest(dispatcher) {
-        val profile = profile(host = "192.168.1.1", xkeen = "http://router:18778")
+    @Test fun `single profile hides selector and exposes only configured direct modules`() = runTest(dispatcher) {
+        val profile = profile(host = "192.168.1.1")
         val harness = harness(RouterProfilesState.Ready(listOf(profile), profile.id), active(profile))
 
         advanceUntilIdle()
@@ -44,7 +44,7 @@ class OverviewViewModelTest {
         assertFalse(harness.vm.state.value.showProfileSelector)
         assertEquals("Home", harness.vm.state.value.selectedProfileName)
         assertTrue(harness.vm.state.value.destinations.contains(TopLevelDestination.ACCESS))
-        assertTrue(harness.vm.state.value.destinations.contains(TopLevelDestination.CONNECTIONS))
+        assertFalse(harness.vm.state.value.destinations.contains(TopLevelDestination.CONNECTIONS))
     }
 
     @Test fun `multiple profiles show selector and selection delegates to profile store`() = runTest(dispatcher) {
@@ -124,7 +124,6 @@ class OverviewViewModelTest {
     private fun profile(
         id: String = "home",
         host: String = "",
-        xkeen: String = "",
         companionUrl: String = "",
         pin: String = "",
     ) = RouterProfile(
@@ -142,7 +141,6 @@ class OverviewViewModelTest {
         companionUrl = companionUrl,
         certificatePin = pin,
         collectorUrl = "",
-        legacyXkeenUrl = xkeen,
     )
 
     private fun capability(id: String) = Capability(

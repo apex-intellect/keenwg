@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/adapter"
-	"github.com/goldb/keenwg/xkeen-control/internal/catalog"
-	"github.com/goldb/keenwg/xkeen-control/internal/ownedsource"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/adapter"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/ownedsource"
 )
 
 type Registry interface {

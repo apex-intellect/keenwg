@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"net/http"
 	"os"
@@ -12,44 +11,39 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
 )
 
-func TestBootstrapFromLegacyCreatesSecureConfigIdentityAndFirstOffer(t *testing.T) {
+func TestBootstrapNativeCreatesSecureOnlyConfig(t *testing.T) {
 	root := t.TempDir()
-	legacyPath := filepath.Join(root, "legacy.json")
 	targetPath := filepath.Join(root, "companion.json")
 	requestPath := filepath.Join(root, "request.json")
-	writeTestFile(t, legacyPath, legacyConfigJSON(), 0o600)
 	writeTestFile(t, requestPath, `{"schema_version":1,"secure_listen_address":"10.8.0.1:18779"}`, 0o600)
 
-	result, err := BootstrapFromLegacy(legacyPath, targetPath, requestPath, root, time.Now().UTC())
+	result, err := BootstrapNative(targetPath, requestPath, root, time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.CertificatePin == "" || result.BaseURL != "https://10.8.0.1:18779" {
+	if result.BaseURL != "https://10.8.0.1:18779" || result.CertificatePin == "" {
 		t.Fatalf("invalid bootstrap result: %+v", result)
 	}
-	file, err := os.Open(targetPath)
+	body, err := os.ReadFile(targetPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := config.Decode(file)
-	_ = file.Close()
+	for _, forbidden := range []string{`"listen_address"`, `"token"`, `"legacy_api_enabled"`} {
+		if strings.Contains(string(body), forbidden) {
+			t.Fatalf("native config contains obsolete field %q: %s", forbidden, body)
+		}
+	}
+	cfg, err := config.Decode(strings.NewReader(string(body)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.SecureListenAddress != "10.8.0.1:18779" || !cfg.LegacyAPIEnabled || cfg.Token != "0123456789abcdef0123456789abcdef" {
-		t.Fatalf("legacy settings were not migrated: %+v", cfg)
+	if cfg.SchemaVersion != 2 || cfg.SecureListenAddress != "10.8.0.1:18779" || cfg.SubscriptionURL != "" {
+		t.Fatalf("unexpected native config: %+v", cfg)
 	}
-	if _, err := os.Stat(rootedPath(root, cfg.TLSCertificatePath)); err != nil {
-		t.Fatalf("certificate not created: %v", err)
-	}
-	if _, err := os.Stat(rootedPath(root, cfg.TLSPrivateKeyPath)); err != nil {
-		t.Fatalf("private key not created: %v", err)
-	}
-
 	offer, err := CreatePairingOffer(targetPath, root, auth.ScopeOwner, 5*time.Minute)
 	if err != nil {
 		t.Fatal(err)
@@ -65,20 +59,36 @@ func TestBootstrapFromLegacyCreatesSecureConfigIdentityAndFirstOffer(t *testing.
 	assertPrivateAppFile(t, targetPath)
 }
 
-func TestBootstrapFromLegacyIsCreateOnly(t *testing.T) {
+func TestCreatePairingOfferAllowsVerifiedSSHRecoveryWhenOwnerAlreadyExists(t *testing.T) {
 	root := t.TempDir()
-	legacyPath := filepath.Join(root, "legacy.json")
 	targetPath := filepath.Join(root, "companion.json")
 	requestPath := filepath.Join(root, "request.json")
-	writeTestFile(t, legacyPath, legacyConfigJSON(), 0o600)
-	writeTestFile(t, targetPath, "owned", 0o600)
 	writeTestFile(t, requestPath, `{"schema_version":1,"secure_listen_address":"10.8.0.1:18779"}`, 0o600)
-	if _, err := BootstrapFromLegacy(legacyPath, targetPath, requestPath, root, time.Now().UTC()); err == nil {
-		t.Fatal("existing companion config was overwritten")
+	if _, err := BootstrapNative(targetPath, requestPath, root, time.Now().UTC()); err != nil {
+		t.Fatal(err)
 	}
-	body, err := os.ReadFile(targetPath)
-	if err != nil || string(body) != "owned" {
-		t.Fatalf("target changed: body=%q err=%v", body, err)
+	cfg, err := LoadConfig(targetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := CreatePairingOffer(targetPath, root, auth.ScopeOwner, 5*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := auth.NewFileStore(rootedPath(root, cfg.DeviceStorePath), rootedPath(root, cfg.PairingStorePath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Exchange(context.Background(), first.Offer.ID, first.Offer.Secret, "Existing owner"); err != nil {
+		t.Fatal(err)
+	}
+
+	recovery, err := CreatePairingOffer(targetPath, root, auth.ScopeOwner, 5*time.Minute)
+	if err != nil {
+		t.Fatalf("verified SSH recovery offer: %v", err)
+	}
+	if recovery.Offer.ID == "" || recovery.Offer.Secret == "" || recovery.Offer.ID == first.Offer.ID {
+		t.Fatalf("invalid recovery offer: %+v", recovery)
 	}
 }
 
@@ -121,12 +131,10 @@ func TestBootstrapRequestRejectsUnknownFieldsAndWildcardListener(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()
-			legacyPath := filepath.Join(root, "legacy.json")
 			targetPath := filepath.Join(root, "companion.json")
 			requestPath := filepath.Join(root, "request.json")
-			writeTestFile(t, legacyPath, legacyConfigJSON(), 0o600)
 			writeTestFile(t, requestPath, request, 0o600)
-			if _, err := BootstrapFromLegacy(legacyPath, targetPath, requestPath, root, time.Now().UTC()); err == nil {
+			if _, err := BootstrapNative(targetPath, requestPath, root, time.Now().UTC()); err == nil {
 				t.Fatal("unsafe bootstrap request accepted")
 			}
 		})
@@ -175,19 +183,4 @@ func assertPrivateAppFile(t *testing.T, path string) {
 	if info.Mode().Perm() != 0o600 {
 		t.Fatalf("mode=%o want=600", info.Mode().Perm())
 	}
-}
-
-func legacyConfigJSON() string {
-	value := map[string]any{
-		"listen_address": "10.8.0.1:18778", "token": "0123456789abcdef0123456789abcdef",
-		"subscription_url":        "https://vpn.example.test/sub/private",
-		"subscription_cache_path": "/opt/etc/keenwg/xkeen-subscription.json", "state_path": "/opt/etc/keenwg/xkeen-state.json",
-		"backup_dir": "/opt/etc/keenwg/backups", "outbounds_path": "/opt/etc/xray/configs/04_outbounds.json",
-		"exclude_path": "/opt/etc/xkeen/ip_exclude.lst", "domain_policy_path": "/opt/etc/keenwg/domain-policy.json",
-		"domain_policy_backup_path": "/opt/etc/keenwg/domain-policy.json.bak", "routing_path": "/opt/etc/xray/configs/05_routing.json",
-		"init_script": "/opt/etc/init.d/S05xkeen", "xray_binary": "/opt/sbin/xray", "asset_dir": "/opt/etc/xray/dat",
-		"max_subscription_bytes": 262144, "max_nodes": 128, "allow_private_servers": false,
-	}
-	body, _ := json.Marshal(value)
-	return string(body)
 }

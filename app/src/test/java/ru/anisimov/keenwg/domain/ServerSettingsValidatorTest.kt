@@ -2,7 +2,6 @@ package ru.anisimov.keenwg.domain
 
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertEquals
 import org.junit.Test
 import ru.anisimov.keenwg.domain.model.ServerSettings
 
@@ -59,26 +58,6 @@ class ServerSettingsValidatorTest {
         )
 
         assertFalse(ServerSettingsValidator.validateForMutation(settings).any { it.field == "collectorUrl" })
-    }
-
-    @Test fun `xkeen controller is optional and public cleartext is rejected`() {
-        assertEquals(null, ServerSettingsValidator.validateXkeenControllerUrl(""))
-        assertEquals(null, ServerSettingsValidator.validateXkeenControllerUrl("http://10.8.0.1:18778"))
-        assertEquals(null, ServerSettingsValidator.validateXkeenControllerUrl("http://100.64.0.1:18778"))
-        assertTrue(ServerSettingsValidator.validateXkeenControllerUrl("http://8.8.8.8:18778") != null)
-        assertTrue(ServerSettingsValidator.validateXkeenControllerUrl("http://router.example.com:18778") != null)
-        assertEquals(null, ServerSettingsValidator.validateXkeenControllerUrl("https://router.example.com"))
-    }
-
-    @Test fun `invalid controller cannot block peer mutations`() {
-        val settings = ServerSettings(
-            password = "secret",
-            serverPublicKey = key,
-            endpoint = "vpn.example.net:51820",
-            xkeenControllerUrl = "http://8.8.8.8:18778",
-        )
-
-        assertFalse(ServerSettingsValidator.validateForMutation(settings).any { it.field == "xkeenControllerUrl" })
     }
 
     @Test fun `endpoint rejects paths and malformed bracketed ipv6`() {

@@ -7,7 +7,6 @@ import ru.anisimov.keenwg.ui.navigation.TopLevelDestination
 enum class OverviewHealth {
     LOADING,
     HEALTHY,
-    LEGACY,
     DEGRADED,
     SETUP_REQUIRED,
     LOCKED,

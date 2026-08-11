@@ -55,7 +55,7 @@ enum class XkeenErrorCode {
     INVALID_SUBSCRIPTION,
     UNSUPPORTED_SCHEMA,
     OPERATION_TIMEOUT,
-    CONTROLLER_UNAVAILABLE,
+    COMPANION_UNAVAILABLE,
 }
 
 class XkeenException(
@@ -133,11 +133,11 @@ internal data class XkeenMutationRequest(
 )
 
 interface XkeenGateway {
-    suspend fun probe(settings: ru.anisimov.keenwg.domain.model.ServerSettings): XkeenStatus
-    suspend fun status(settings: ru.anisimov.keenwg.domain.model.ServerSettings): XkeenStatus
-    suspend fun refresh(settings: ru.anisimov.keenwg.domain.model.ServerSettings, stateVersion: Long, idempotencyKey: String): XkeenOperation
-    suspend fun select(settings: ru.anisimov.keenwg.domain.model.ServerSettings, nodeId: String, stateVersion: Long, idempotencyKey: String): XkeenOperation
-    suspend fun operation(settings: ru.anisimov.keenwg.domain.model.ServerSettings, idempotencyKey: String): XkeenOperation
-    suspend fun diagnostics(settings: ru.anisimov.keenwg.domain.model.ServerSettings): XkeenDiagnosticReport =
+    suspend fun probe(endpoint: ru.anisimov.keenwg.data.companion.CompanionEndpoint): XkeenStatus
+    suspend fun status(endpoint: ru.anisimov.keenwg.data.companion.CompanionEndpoint): XkeenStatus
+    suspend fun refresh(endpoint: ru.anisimov.keenwg.data.companion.CompanionEndpoint, stateVersion: Long, idempotencyKey: String): XkeenOperation
+    suspend fun select(endpoint: ru.anisimov.keenwg.data.companion.CompanionEndpoint, nodeId: String, stateVersion: Long, idempotencyKey: String): XkeenOperation
+    suspend fun operation(endpoint: ru.anisimov.keenwg.data.companion.CompanionEndpoint, idempotencyKey: String): XkeenOperation
+    suspend fun diagnostics(endpoint: ru.anisimov.keenwg.data.companion.CompanionEndpoint): XkeenDiagnosticReport =
         throw UnsupportedOperationException("Diagnostics are unavailable")
 }

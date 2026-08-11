@@ -5,8 +5,7 @@ data class InstallProbe(
     val firmware: String,
     val optFreeBytes: Long,
     val entwarePresent: Boolean,
-    val legacyConfigPresent: Boolean,
-    val legacyRunning: Boolean,
+    val companionConfigPresent: Boolean,
     val xkeenVersion: String?,
     val ascPresent: Boolean,
     val xrayPresent: Boolean,
@@ -15,8 +14,8 @@ data class InstallProbe(
 
 object InstallProbeParser {
     private val keys = setOf(
-        "architecture", "firmware", "opt_free_kib", "entware", "legacy_config",
-        "legacy_running", "xkeen", "asc", "xray", "companion",
+        "architecture", "firmware", "opt_free_kib", "entware", "companion_config",
+        "xkeen", "asc", "xray", "companion",
     )
 
     fun parse(result: CommandResult): InstallProbe {
@@ -37,12 +36,14 @@ object InstallProbeParser {
             firmware = values.getValue("firmware"),
             optFreeBytes = freeKib * 1024,
             entwarePresent = values.present("entware"),
-            legacyConfigPresent = values.present("legacy_config"),
-            legacyRunning = values.getValue("legacy_running") == "yes",
+            companionConfigPresent = values.present("companion_config"),
             xkeenVersion = values.optional("xkeen"),
             ascPresent = values.present("asc"),
             xrayPresent = values.present("xray"),
-            companionVersion = values.optional("companion")?.removePrefix("keenwg-companion "),
+            companionVersion = values.optional("companion")
+                ?.removePrefix("keenwg-companion ")
+                ?.substringBefore(' ')
+                ?.takeIf { it.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?")) },
         )
     }
 

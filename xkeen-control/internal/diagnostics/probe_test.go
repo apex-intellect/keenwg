@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/model"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
 )
 
 type transientResolver struct{ calls atomic.Int32 }

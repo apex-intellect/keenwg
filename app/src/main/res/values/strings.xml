@@ -6,6 +6,9 @@
     <string name="support_intro_title">Review before sharing</string>
     <string name="support_intro_body">KeenWG checks DNS, IPv4, IPv6, TCP and QUIC applicability. Server names, full IP addresses, UUIDs, keys, MAC addresses, URLs and tokens are excluded from the report.</string>
     <string name="support_error_title">Report was not generated</string>
+    <string name="support_pairing_required_title">This phone is not paired with Companion</string>
+    <string name="support_pairing_required_detail">Pair the active router before creating its safe diagnostic report.</string>
+    <string name="support_pairing_action">Pair phone</string>
     <string name="support_generate">Generate report</string>
     <string name="support_generating">Checking network…</string>
     <string name="support_ready_title">Report ready for review</string>
@@ -20,6 +23,7 @@
     <string name="support_status_failed">Failed</string>
     <string name="support_status_unsupported">Not applicable</string>
     <string name="support_layer_network">Network</string>
+    <string name="network_writes_blocked_detail">Refresh the data so Companion can confirm the current routing state.</string>
     <string name="settings_support_report">Safe diagnostic report</string>
     <string name="share_support_chooser">Share KeenWG report</string>
     <string name="connection_subscription">Subscription</string>
@@ -43,7 +47,6 @@
     <string name="route_shadowed">Matched but placed lower: %1$s</string>
     <string name="exclusion_delete_detail">%1$s will be routed through XKeen again.</string>
     <string name="peers_online_summary">%1$s online · %2$s enabled</string>
-    <string name="setup_install_companion">Install companion %1$s</string>
     <string name="device_last_activity">Last activity: %1$s</string>
     <string name="xkeen_current_route">Current route</string>
     <string name="state_enabled">enabled</string>
@@ -77,7 +80,7 @@
 
     <string name="ui_addpeerscreen_02624a1f36">Ready</string>
     <string name="ui_addpeerscreen_04e6a146c0">Device name</string>
-    <string name="ui_addpeerscreen_0bfd2694df">We create and check...</string>
+    <string name="ui_addpeerscreen_0bfd2694df">We create and check…</string>
     <string name="ui_addpeerscreen_1e3072c041">Access ready</string>
     <string name="ui_addpeerscreen_5e9288c0d8">Access not created</string>
     <string name="ui_addpeerscreen_628ed1505f">The QR code contains a private key</string>
@@ -85,14 +88,12 @@
     <string name="ui_addpeerscreen_8559311a60">You can leave a suggested address</string>
     <string name="ui_addpeerscreen_977e224b3c">For example, Anna\'s phone</string>
     <string name="ui_addpeerscreen_9c365ff920">Transfer</string>
-    <string name="ui_addpeerscreen_ab16104db2">Pass the configuration only to the device owner and do not save it in public chats.</string>
-    <string name="ui_addpeerscreen_c1f277f4a8">We are looking for a free address...</string>
+    <string name="ui_addpeerscreen_c1f277f4a8">We are looking for a free address…</string>
     <string name="ui_addpeerscreen_c83580eaa5">IP not assigned</string>
     <string name="ui_addpeerscreen_d5b491dc6a">The key and configuration have been verified. Now they can be transferred to the device.</string>
     <string name="ui_addpeerscreen_d820ccbe3d">New access</string>
     <string name="ui_addpeerscreen_dadb26499e">The router confirmed the new access</string>
     <string name="ui_addpeerscreen_dba20ab538">Device</string>
-    <string name="ui_addpeerscreen_dee0b15a2f">Create access</string>
     <string name="ui_addpeerscreen_df2ce7ac57">IP in WireGuard</string>
     <string name="ui_addpeerscreen_f92eb412b8">How this access is identified</string>
     <string name="ui_connectionsscreen_051272a3fc">Paste from clipboard</string>
@@ -126,7 +127,7 @@
     <string name="ui_domainrulesheet_569264348e">Via VPN</string>
     <string name="ui_domainrulesheet_68365bcf3e">.rf</string>
     <string name="ui_domainrulesheet_6d0b5e48e0">Domain</string>
-    <string name="ui_domainrulesheet_73ff0c584c">The controller will check Xray, restart XKeen, and restore the previous files if an error occurs.</string>
+    <string name="ui_domainrulesheet_73ff0c584c">Companion will check Xray, restart XKeen, and restore the previous files if an error occurs.</string>
     <string name="ui_domainrulesheet_86885217ae">New rule</string>
     <string name="ui_domainrulesheet_8fbe9b75cb">Cancel</string>
     <string name="ui_domainrulesheet_9c2c7eeb43">Route</string>
@@ -155,7 +156,7 @@
     <string name="ui_peerdetailscreen_5189135a61">Retry</string>
     <string name="ui_peerdetailscreen_59df144dcc">Return to list</string>
     <string name="ui_peerdetailscreen_62bb18ef10">Share .conf</string>
-    <string name="ui_peerdetailscreen_666b4235cf">We receive access data...</string>
+    <string name="ui_peerdetailscreen_666b4235cf">We receive access data…</string>
     <string name="ui_peerdetailscreen_799c93f90e">There is no data for this period yet</string>
     <string name="ui_peerdetailscreen_8121f6f155">Enable access</string>
     <string name="ui_peerdetailscreen_8fb994bbd9">Last received history shown</string>
@@ -178,7 +179,7 @@
     <string name="ui_peerdetailscreen_e2ce86b38f">Got it</string>
     <string name="ui_peerdetailscreen_e6ee0dd136">Access not found</string>
     <string name="ui_peerdetailscreen_eaf03570b0">Remove access</string>
-    <string name="ui_peerdetailscreen_efb18c179d">Loading history...</string>
+    <string name="ui_peerdetailscreen_efb18c179d">Loading history…</string>
     <string name="ui_peerdetailscreen_f173ac574b">Dangerous actions</string>
     <string name="ui_peerdetailscreen_f67a185fb3">Configuration</string>
 
@@ -208,7 +209,7 @@
     <string name="ui_networkscreen_66460f3c57">Remove IP exception?</string>
     <string name="ui_networkscreen_66840f0894">Unfinished change</string>
     <string name="ui_networkscreen_6e61611687">static</string>
-    <string name="ui_networkscreen_6f11c69c5d">Update your XKeen controller. The devices continue to work.</string>
+    <string name="ui_networkscreen_6f11c69c5d">Update Companion. Device management remains available.</string>
     <string name="ui_networkscreen_71038c53bb">Add</string>
     <string name="ui_networkscreen_76f55a988f">Restore</string>
     <string name="ui_networkscreen_7a70e219d3">Direct, bypassing XKeen</string>
@@ -257,7 +258,7 @@
     <string name="ui_peerlistscreen_3adaf4bd83">Create access</string>
     <string name="ui_peerlistscreen_5189135a61">Repeat</string>
     <string name="ui_peerlistscreen_53e577f59c">This access</string>
-    <string name="ui_peerlistscreen_762c10f506">Contacting the router...</string>
+    <string name="ui_peerlistscreen_762c10f506">Contacting the router…</string>
     <string name="ui_peerlistscreen_7c8ef82d31">Open settings</string>
     <string name="ui_peerlistscreen_a54eaf3785">Turn on</string>
     <string name="ui_peerlistscreen_b100b551e4">No access yet</string>
@@ -266,12 +267,10 @@
     <string name="ui_peerlistscreen_e15d947af3">this phone</string>
     <string name="ui_peerlistscreen_e2ce86b38f">Got it</string>
 
-    <string name="ui_settingsscreen_026455fc84">Manual subscription update and country selection</string>
     <string name="ui_settingsscreen_0737242cfc">Observation collector on the router</string>
     <string name="ui_settingsscreen_103fb24291">Check the found parameters</string>
     <string name="ui_settingsscreen_1417b7792d">History</string>
     <string name="ui_settingsscreen_151e612124">Server public key</string>
-    <string name="ui_settingsscreen_15bff12905">Check controller</string>
     <string name="ui_settingsscreen_2635aebaee">Subnet</string>
     <string name="ui_settingsscreen_37aab38ece">Apply and check</string>
     <string name="ui_settingsscreen_39d3c42bd5">HTTP port</string>
@@ -290,17 +289,13 @@
     <string name="ui_settingsscreen_8f508532ef">Server interface and client connection address</string>
     <string name="ui_settingsscreen_8fbe9b75cb">Cancel</string>
     <string name="ui_settingsscreen_985b5e0f2c">Settings</string>
-    <string name="ui_settingsscreen_9ccf8e82a7">The transition from 0.6 is complete</string>
     <string name="ui_settingsscreen_a3c4da8156">Advanced</string>
     <string name="ui_settingsscreen_a4ddfbe571">Keepalive, s</string>
     <string name="ui_settingsscreen_a4ee9eab34">Secure storage</string>
     <string name="ui_settingsscreen_ae95f45059">Save and check</string>
-    <string name="ui_settingsscreen_b0e2fd18be">Separate XKeen token</string>
     <string name="ui_settingsscreen_b810b420a8">Get data from the router</string>
     <string name="ui_settingsscreen_cb1a2074b3">Password</string>
-    <string name="ui_settingsscreen_d5e71ebfe3">Controller address</string>
     <string name="ui_settingsscreen_f236f158aa">Check the values</string>
-    <string name="ui_settingsscreen_f3405594cc">Everything works</string>
     <string name="ui_settingsscreen_fd4b2db378">Collector\'s address</string>
     <string name="ui_settingsscreen_ff296ddaed">Clients</string>
 
@@ -318,8 +313,12 @@
     <string name="ui_setupscreen_b2e75a12c2">Get a fingerprint</string>
     <string name="ui_setupscreen_dccef2005c">Don\'t close the application</string>
     <string name="ui_setupscreen_dde7f6b38a">SSH address</string>
-    <string name="ui_setupscreen_edb20a8227">KeenWG will check HTTPS before switching legacy service. If there is an early error, the installer will perform a rollback.</string>
+    <string name="ui_setupscreen_edb20a8227">KeenWG checks the new Companion over HTTPS first. A failed installation rolls back without changing routes.</string>
     <string name="ui_setupscreen_f1080dfab1">The key matches - check the router</string>
+    <string name="setup_install_companion">Install Companion %1$s</string>
+    <string name="setup_update_companion">Update Companion to %1$s</string>
+    <string name="setup_pair_phone">Pair phone</string>
+    <string name="setup_companion_address_pending">Will be received from Companion</string>
 
     <string name="ui_devicesscreen_07d098a986">Gives only viewing and is valid for five minutes. When closed, the invitation is revoked on the router.</string>
     <string name="ui_devicesscreen_10e47c4114">For this profile, companion did not issue the system.devices module.</string>
@@ -341,9 +340,9 @@
     <string name="ui_devicesscreen_f6612bd9f1">Revoke access?</string>
     <string name="ui_devicesscreen_fb921ce49a">Last confirmation</string>
 
-    <string name="ui_xkeenscreen_0cffc5c72a">Communication with the controller is interrupted. Check again.</string>
+    <string name="ui_xkeenscreen_0cffc5c72a">Communication with Companion was interrupted. Check again.</string>
     <string name="ui_xkeenscreen_0dc7eba110">Change country?</string>
-    <string name="ui_xkeenscreen_0fd6014bb4">New changes are disabled until the controller returns a reliable status.</string>
+    <string name="ui_xkeenscreen_0fd6014bb4">New changes are disabled until Companion returns a reliable status.</string>
     <string name="ui_xkeenscreen_1f8c321147">XKeen route</string>
     <string name="ui_xkeenscreen_215816bf42">All</string>
     <string name="ui_xkeenscreen_233a8e993a">Warning</string>
@@ -358,16 +357,17 @@
     <string name="ui_xkeenscreen_6c5a2b0849">Switch</string>
     <string name="ui_xkeenscreen_6f9ee3bf33">Favorites</string>
     <string name="ui_xkeenscreen_72909eb470">Set up XKeen controls</string>
-    <string name="ui_xkeenscreen_7c8ef82d31">Open settings</string>
+    <string name="ui_xkeenscreen_7c8ef82d31">Pair Companion</string>
+    <string name="xkeen_pairing_required_detail">Pair this phone with the router Companion. Subscription updates and country changes remain manual.</string>
     <string name="ui_xkeenscreen_84f94e80b2">Refresh the XKeen subscription manually</string>
     <string name="ui_xkeenscreen_8fbe9b75cb">Cancel</string>
-    <string name="ui_xkeenscreen_90028924db">Checking availability...</string>
+    <string name="ui_xkeenscreen_90028924db">Checking availability…</string>
     <string name="ui_xkeenscreen_acfa7ce915">Refresh the subscription and select an available node.</string>
     <string name="ui_xkeenscreen_b600944340">The list is empty</string>
     <string name="ui_xkeenscreen_b939a9e9d1">Latest data shown</string>
     <string name="ui_xkeenscreen_c22462bc76">active</string>
     <string name="ui_xkeenscreen_ce7e3fd182">Refresh subscription</string>
-    <string name="ui_xkeenscreen_d2606cebc8">Checking the operation...</string>
+    <string name="ui_xkeenscreen_d2606cebc8">Checking the operation…</string>
     <string name="ui_xkeenscreen_d33acb5d9b">Need to check the status</string>
     <string name="ui_xkeenscreen_d6138fa03b">Fetching the current route…</string>
     <string name="ui_xkeenscreen_e1bd32a0d4">XKeen will apply the configuration and check your internet access. If there is an error, the previous route will be restored.</string>
@@ -394,7 +394,7 @@
     <string name="backup_preview_warning">Only KeenWG-owned resources are applied. Existing foreign files are skipped.</string>
     <string name="backup_apply">Review and restore</string>
     <string name="backup_confirm_title">Apply this exact plan?</string>
-    <string name="backup_confirm_body">The controller will verify every write and roll back on a confirmed failure. If verification is uncertain, recovery files stay on the router.</string>
+    <string name="backup_confirm_body">Companion will verify every write and roll back on a confirmed failure. If verification is uncertain, recovery files stay on the router.</string>
     <string name="backup_confirm_apply">Restore</string>
     <string name="backup_cancel">Cancel</string>
     <string name="backup_restore_complete">Restore verified</string>

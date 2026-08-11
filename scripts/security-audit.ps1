@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$LinuxGoExecutable,
     [string]$WindowsGoExecutable = 'go',
-    [string]$GradleExecutable = 'gradle',
+    [string]$GradleExecutable = '',
     [int]$FuzzSeconds = 10,
     [switch]$RequireArtifacts
 )
@@ -10,6 +10,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $module = Join-Path $repo 'xkeen-control'
+if ([string]::IsNullOrWhiteSpace($GradleExecutable)) {
+    $GradleExecutable = Join-Path $repo 'gradlew.bat'
+}
 $buildText = Get-Content -LiteralPath (Join-Path $repo 'app\build.gradle.kts') -Raw
 $versionMatch = [regex]::Match($buildText, 'versionName\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"')
 if (-not $versionMatch.Success) { throw 'Cannot determine application version' }
@@ -32,13 +35,19 @@ function Quote-Sh([string]$Value) {
 
 $goVersion = (& wsl.exe -e $LinuxGoExecutable version).Trim()
 if ($goVersion -notmatch '^go version go1\.26\.5\s') { throw "Go 1.26.5 is required after GO-2026-5856; found: $goVersion" }
-$wslModule = Wsl-Path $module
 $quotedGo = Quote-Sh $LinuxGoExecutable
-Invoke-Checked 'Go race tests and vet' {
-    & wsl.exe -e sh -lc "cd $(Quote-Sh $wslModule) && $quotedGo test -race ./... -count=1 && $quotedGo vet ./..."
-}
-Invoke-Checked 'Go vulnerability scan' {
-    & wsl.exe -e sh -lc "cd $(Quote-Sh $wslModule) && $quotedGo run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./..."
+$wslCompanion = Wsl-Path $module
+foreach ($goModule in @(
+    @{ Name = 'Companion'; Path = $module; WslPath = $wslCompanion },
+    @{ Name = 'Collector'; Path = (Join-Path $repo 'collector') }
+)) {
+    $wslModule = if ($goModule.WslPath) { $goModule.WslPath } else { Wsl-Path $goModule.Path }
+    Invoke-Checked "$($goModule.Name) race tests and vet" {
+        & wsl.exe -e sh -lc "cd $(Quote-Sh $wslModule) && $quotedGo test -race ./... -count=1 && $quotedGo vet ./..."
+    }
+    Invoke-Checked "$($goModule.Name) vulnerability scan" {
+        & wsl.exe -e sh -lc "cd $(Quote-Sh $wslModule) && $quotedGo run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./..."
+    }
 }
 foreach ($target in @(
     @('internal/subscription', 'FuzzParseNeverPanicsOrLeaksInput'),
@@ -46,18 +55,20 @@ foreach ($target in @(
     @('internal/config', 'FuzzDecodeFailsClosedWithoutLeakingInput')
 )) {
     Invoke-Checked "Fuzz $($target[1])" {
-        & wsl.exe -e sh -lc "cd $(Quote-Sh $wslModule) && $quotedGo test ./$($target[0]) -run='^$' -fuzz=$($target[1]) -fuzztime=${FuzzSeconds}s"
+        & wsl.exe -e sh -lc "cd $(Quote-Sh $wslCompanion) && $quotedGo test ./$($target[0]) -run='^$' -fuzz=$($target[1]) -fuzztime=${FuzzSeconds}s"
     }
 }
 $wslPackaging = Wsl-Path (Join-Path $module 'packaging')
 Invoke-Checked 'Installer rollback and path tests' {
-    & wsl.exe -e sh -lc "cd $(Quote-Sh $wslPackaging) && sh ./install_test.sh && sh ./install-companion_test.sh"
+    & wsl.exe -e sh -lc "cd $(Quote-Sh $wslPackaging) && sh ./install-companion_test.sh"
 }
+
+Invoke-Checked 'Secure-only current runtime policy' { & (Join-Path $repo 'scripts\verify-current-runtime.ps1') }
 
 $env:ANDROID_HOME = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { Join-Path $env:LOCALAPPDATA 'Android\Sdk' }
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 Invoke-Checked 'Android tests, lint, locale and provider policy' {
-    & $GradleExecutable -p $repo :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources --console=plain
+    & $GradleExecutable -p $repo :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources --console=plain --no-daemon
 }
 Invoke-Checked 'Evidence policy self-test' { & (Join-Path $repo 'scripts\router-evidence\self-test.ps1') }
 $wslEvidence = Wsl-Path (Join-Path $repo 'scripts\router-evidence')

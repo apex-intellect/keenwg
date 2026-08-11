@@ -13,8 +13,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/goldb/keenwg/collector/internal/history"
-	"github.com/goldb/keenwg/collector/internal/model"
+	"github.com/apex-intellect/keenwg/collector/internal/history"
+	"github.com/apex-intellect/keenwg/collector/internal/model"
 )
 
 type memoryReader struct {

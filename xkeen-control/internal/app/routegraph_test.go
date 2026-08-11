@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/adapter"
-	"github.com/goldb/keenwg/xkeen-control/internal/catalog"
-	"github.com/goldb/keenwg/xkeen-control/internal/domainpolicy"
-	"github.com/goldb/keenwg/xkeen-control/internal/routegraph"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/adapter"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/routegraph"
 )
 
 func TestRouteEvidenceProviderBuildsPartialSnapshotWithoutSecrets(t *testing.T) {

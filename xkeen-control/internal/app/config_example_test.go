@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
 )
 
 func TestCompanionExampleConfigIsStrictlyValid(t *testing.T) {
@@ -18,7 +18,7 @@ func TestCompanionExampleConfigIsStrictlyValid(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.SecureListenAddress != "10.8.0.1:18779" || !cfg.LegacyAPIEnabled {
+	if cfg.SchemaVersion != 2 || cfg.SecureListenAddress != "10.8.0.1:18779" {
 		t.Fatalf("unexpected example mode: %+v", cfg)
 	}
 }

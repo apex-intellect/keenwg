@@ -151,7 +151,11 @@ func TestRunnerInheritedStdoutCannotHangWait(t *testing.T) {
 	if err == nil {
 		t.Fatal("Run() succeeded while a descendant retained stdout")
 	}
-	if elapsed := time.Since(started); elapsed >= time.Second {
+	// Race instrumentation makes the two helper-process startups noticeably
+	// slower on shared CI runners. The descendant deliberately retains stdout
+	// for five seconds, so a three-second ceiling still proves WaitDelay broke
+	// the inherited-pipe hang instead of merely waiting for that descendant.
+	if elapsed := time.Since(started); elapsed >= 3*time.Second {
 		t.Fatalf("inherited stdout blocked Run for %s", elapsed)
 	}
 }
@@ -223,7 +227,7 @@ func TestNDMQHelperProcess(t *testing.T) {
 		}
 		_, _ = os.Stdout.WriteString(validXML)
 	case "linger-descendant":
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 	case "nonzero":
 		_, _ = os.Stderr.WriteString("router-secret")
 		os.Exit(9)

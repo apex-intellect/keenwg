@@ -12,16 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/app"
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/config"
-	"github.com/goldb/keenwg/xkeen-control/internal/identity"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/app"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/config"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/identity"
 )
 
-var (
-	version = "dev"
-	commit  = "unknown"
-)
+var version = "dev"
 
 const defaultConfigPath = "/opt/etc/keenwg/companion.json"
 
@@ -41,22 +38,19 @@ func command(arguments []string, output io.Writer, root string) error {
 	flags.SetOutput(io.Discard)
 	configPath := flags.String("config", defaultConfigPath, "companion config")
 	check := flags.Bool("check", false, "validate configuration and identity")
-	bootstrapFrom := flags.String("bootstrap-from", "", "legacy controller config")
 	bootstrapRequest := flags.String("bootstrap-request", "", "strict bootstrap request")
+	upgradeConfig := flags.Bool("upgrade-config", false, "upgrade schema v1 config in place")
 	pairingScope := flags.String("create-pairing-offer", "", "create first owner pairing offer")
 	showVersion := flags.Bool("version", false, "print version")
 	if err := flags.Parse(arguments); err != nil || flags.NArg() != 0 {
 		return errInvalidArguments
 	}
-	bootstrapMode := *bootstrapFrom != "" || *bootstrapRequest != ""
-	if bootstrapMode && (*bootstrapFrom == "" || *bootstrapRequest == "") {
-		return errInvalidArguments
-	}
+	bootstrapMode := *bootstrapRequest != ""
 	if *pairingScope != "" && *pairingScope != string(auth.ScopeOwner) {
 		return errInvalidArguments
 	}
 	selected := 0
-	for _, enabled := range []bool{*check, bootstrapMode, *pairingScope != "", *showVersion} {
+	for _, enabled := range []bool{*check, bootstrapMode, *upgradeConfig, *pairingScope != "", *showVersion} {
 		if enabled {
 			selected++
 		}
@@ -65,11 +59,14 @@ func command(arguments []string, output io.Writer, root string) error {
 		return errInvalidArguments
 	}
 	if *showVersion {
-		_, err := fmt.Fprintf(output, "keenwg-companion %s (%s)\n", version, commit)
+		_, err := fmt.Fprintf(output, "keenwg-companion %s\n", version)
 		return err
 	}
+	if *upgradeConfig {
+		return app.UpgradeCompanionConfig(*configPath, root)
+	}
 	if bootstrapMode {
-		_, err := app.BootstrapFromLegacy(*bootstrapFrom, *configPath, *bootstrapRequest, root, time.Now().UTC())
+		_, err := app.BootstrapNative(*configPath, *bootstrapRequest, root, time.Now().UTC())
 		return err
 	}
 	if *pairingScope != "" {

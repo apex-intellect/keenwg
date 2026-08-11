@@ -2,10 +2,17 @@ package ru.anisimov.keenwg.data.installer
 
 data class InstallPlan(
     val version: String,
-    val secureBaseUrl: String,
+    val mode: InstallMode,
+    val secureBaseUrl: String?,
     val requiredBytes: Long,
     val effects: List<String>,
 )
+
+enum class InstallMode {
+    CLEAN_INSTALL,
+    UPDATE,
+    PAIR_ONLY,
+}
 
 data class InstallPreparation(
     val profileId: String,

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/model"
-	"github.com/goldb/keenwg/xkeen-control/internal/support"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/support"
 )
 
 type supportStateStore interface {

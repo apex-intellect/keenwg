@@ -1,12 +1,15 @@
 param(
     [string]$GoExecutable = "go",
     [string]$LinuxGoExecutable = "",
-    [string]$GradleExecutable = "gradle"
+    [string]$GradleExecutable = ""
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $moduleRoot = Join-Path $repoRoot "xkeen-control"
+if ([string]::IsNullOrWhiteSpace($GradleExecutable)) {
+    $GradleExecutable = Join-Path $repoRoot 'gradlew.bat'
+}
 $assetManifestPath = Join-Path $repoRoot "app\src\main\assets\companion\manifest.json"
 $buildText = Get-Content -LiteralPath (Join-Path $repoRoot 'app\build.gradle.kts') -Raw
 $versionMatch = [regex]::Match($buildText, 'versionName\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"')
@@ -36,14 +39,20 @@ if ([string]::IsNullOrWhiteSpace($LinuxGoExecutable)) {
 if ([string]::IsNullOrWhiteSpace($LinuxGoExecutable)) {
     throw "A Linux Go executable is required for the race detector"
 }
-$wslModule = Get-WslPath $moduleRoot
-$raceCommand = "cd $(Quote-Sh $wslModule) && $(Quote-Sh $LinuxGoExecutable) test ./... -race -count=1"
-Invoke-Checked "Go race tests" { & wsl.exe -e sh -lc $raceCommand }
-Invoke-Checked "Go vet" { & $GoExecutable -C $moduleRoot vet ./... }
+foreach ($goModule in @(
+    @{ Name = 'Companion'; Path = $moduleRoot },
+    @{ Name = 'Collector'; Path = (Join-Path $repoRoot 'collector') }
+)) {
+    $wslModule = Get-WslPath $goModule.Path
+    $raceCommand = "cd $(Quote-Sh $wslModule) && $(Quote-Sh $LinuxGoExecutable) test ./... -race -count=1"
+    Invoke-Checked "$($goModule.Name) race tests" { & wsl.exe -e sh -lc $raceCommand }
+    Invoke-Checked "$($goModule.Name) vet" { & $GoExecutable -C $goModule.Path vet ./... }
+}
 
 $wslPackaging = Get-WslPath (Join-Path $moduleRoot "packaging")
-$packagingCommand = "cd $(Quote-Sh $wslPackaging) && sh ./install_test.sh && sh ./install-companion_test.sh"
+$packagingCommand = "cd $(Quote-Sh $wslPackaging) && sh ./install-companion_test.sh"
 Invoke-Checked "Packaging tests in fake roots" { & wsl.exe -e sh -lc $packagingCommand }
+Invoke-Checked "Secure-only current runtime policy" { & (Join-Path $PSScriptRoot 'verify-current-runtime.ps1') }
 
 $env:ANDROID_HOME = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { Join-Path $env:LOCALAPPDATA "Android\Sdk" }
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
@@ -60,7 +69,7 @@ foreach ($stale in @("app-release.apk", "app-release-unsigned.apk")) {
     if (Test-Path -LiteralPath $candidate -PathType Leaf) { Remove-Item -LiteralPath $candidate -Force }
 }
 Invoke-Checked "Android verification" {
-    & $GradleExecutable :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources :app:assembleDebug :app:assembleRelease --console=plain
+    & $GradleExecutable -p $repoRoot :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources :app:assembleDebug :app:assembleRelease --console=plain --no-daemon
 }
 Invoke-Checked "CycloneDX SBOM" { & (Join-Path $PSScriptRoot 'generate-sbom.ps1') -GoExecutable $GoExecutable -GradleExecutable $GradleExecutable }
 

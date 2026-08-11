@@ -6,6 +6,9 @@
     <string name="support_intro_title">Сначала проверить, потом поделиться</string>
     <string name="support_intro_body">KeenWG проверит DNS, IPv4, IPv6, TCP и применимость QUIC. Имена серверов, полные IP, UUID, ключи, MAC-адреса, URL и токены в отчёт не попадут.</string>
     <string name="support_error_title">Отчёт не сформирован</string>
+    <string name="support_pairing_required_title">Этот телефон не привязан к Companion</string>
+    <string name="support_pairing_required_detail">Привяжите активный роутер, чтобы сформировать его безопасный диагностический отчёт.</string>
+    <string name="support_pairing_action">Привязать телефон</string>
     <string name="support_generate">Сформировать отчёт</string>
     <string name="support_generating">Проверяем сеть…</string>
     <string name="support_ready_title">Отчёт готов к просмотру</string>
@@ -20,6 +23,7 @@
     <string name="support_status_failed">Не удалось</string>
     <string name="support_status_unsupported">Не применимо</string>
     <string name="support_layer_network">Сеть</string>
+    <string name="network_writes_blocked_detail">Обновите данные, чтобы Companion подтвердил текущее состояние маршрутов.</string>
     <string name="settings_support_report">Безопасный диагностический отчёт</string>
     <string name="share_support_chooser">Поделиться отчётом KeenWG</string>
     <string name="connection_subscription">Подписка</string>
@@ -43,7 +47,6 @@
     <string name="route_shadowed">Совпали, но расположены ниже: %1$s</string>
     <string name="exclusion_delete_detail">%1$s снова будет маршрутизироваться через XKeen.</string>
     <string name="peers_online_summary">%1$s в сети · %2$s включено</string>
-    <string name="setup_install_companion">Установить companion %1$s</string>
     <string name="device_last_activity">Последняя активность: %1$s</string>
     <string name="xkeen_current_route">Текущий маршрут</string>
     <string name="state_enabled">включено</string>
@@ -85,14 +88,12 @@
     <string name="ui_addpeerscreen_8559311a60">Можно оставить предложенный адрес</string>
     <string name="ui_addpeerscreen_977e224b3c">Например, телефон Анны</string>
     <string name="ui_addpeerscreen_9c365ff920">Передача</string>
-    <string name="ui_addpeerscreen_ab16104db2">Передавайте конфигурацию только владельцу устройства и не сохраняйте её в общих чатах.</string>
     <string name="ui_addpeerscreen_c1f277f4a8">Ищем свободный адрес…</string>
     <string name="ui_addpeerscreen_c83580eaa5">IP не назначен</string>
     <string name="ui_addpeerscreen_d5b491dc6a">Ключ и конфигурация проверены. Теперь их можно передать на устройство.</string>
     <string name="ui_addpeerscreen_d820ccbe3d">Новый доступ</string>
     <string name="ui_addpeerscreen_dadb26499e">Роутер подтвердил новый доступ</string>
     <string name="ui_addpeerscreen_dba20ab538">Устройство</string>
-    <string name="ui_addpeerscreen_dee0b15a2f">  Создать доступ</string>
     <string name="ui_addpeerscreen_df2ce7ac57">IP в WireGuard</string>
     <string name="ui_addpeerscreen_f92eb412b8">Как узнать этот доступ</string>
     <string name="ui_connectionsscreen_051272a3fc">Вставить из буфера</string>
@@ -126,7 +127,7 @@
     <string name="ui_domainrulesheet_569264348e">Через VPN</string>
     <string name="ui_domainrulesheet_68365bcf3e">.рф</string>
     <string name="ui_domainrulesheet_6d0b5e48e0">Домен</string>
-    <string name="ui_domainrulesheet_73ff0c584c">Контроллер проверит Xray, перезапустит XKeen и восстановит прежние файлы при ошибке.</string>
+    <string name="ui_domainrulesheet_73ff0c584c">Companion проверит Xray, перезапустит XKeen и восстановит прежние файлы при ошибке.</string>
     <string name="ui_domainrulesheet_86885217ae">Новое правило</string>
     <string name="ui_domainrulesheet_8fbe9b75cb">Отмена</string>
     <string name="ui_domainrulesheet_9c2c7eeb43">Маршрут</string>
@@ -208,7 +209,7 @@
     <string name="ui_networkscreen_66460f3c57">Удалить IP-исключение?</string>
     <string name="ui_networkscreen_66840f0894">Незавершённое изменение</string>
     <string name="ui_networkscreen_6e61611687">статический</string>
-    <string name="ui_networkscreen_6f11c69c5d">Обновите контроллер XKeen. Устройства продолжают работать.</string>
+    <string name="ui_networkscreen_6f11c69c5d">Обновите Companion. Управление устройствами продолжит работать.</string>
     <string name="ui_networkscreen_71038c53bb">Добавить</string>
     <string name="ui_networkscreen_76f55a988f">Восстановить</string>
     <string name="ui_networkscreen_7a70e219d3">Напрямую, мимо XKeen</string>
@@ -266,12 +267,10 @@
     <string name="ui_peerlistscreen_e15d947af3">этот телефон</string>
     <string name="ui_peerlistscreen_e2ce86b38f">Понятно</string>
 
-    <string name="ui_settingsscreen_026455fc84">Ручное обновление подписки и выбор страны</string>
     <string name="ui_settingsscreen_0737242cfc">Сборщик наблюдений на роутере</string>
     <string name="ui_settingsscreen_103fb24291">Проверьте найденные параметры</string>
     <string name="ui_settingsscreen_1417b7792d">История</string>
     <string name="ui_settingsscreen_151e612124">Публичный ключ сервера</string>
-    <string name="ui_settingsscreen_15bff12905">  Проверить контроллер</string>
     <string name="ui_settingsscreen_2635aebaee">Подсеть</string>
     <string name="ui_settingsscreen_37aab38ece">Применить и проверить</string>
     <string name="ui_settingsscreen_39d3c42bd5">HTTP-порт</string>
@@ -290,17 +289,13 @@
     <string name="ui_settingsscreen_8f508532ef">Интерфейс сервера и адрес подключения клиентов</string>
     <string name="ui_settingsscreen_8fbe9b75cb">Отмена</string>
     <string name="ui_settingsscreen_985b5e0f2c">Настройки</string>
-    <string name="ui_settingsscreen_9ccf8e82a7">Переход с 0.6 завершён</string>
     <string name="ui_settingsscreen_a3c4da8156">  Дополнительно</string>
     <string name="ui_settingsscreen_a4ddfbe571">Keepalive, с</string>
     <string name="ui_settingsscreen_a4ee9eab34">Защищённое хранилище</string>
     <string name="ui_settingsscreen_ae95f45059">  Сохранить и проверить</string>
-    <string name="ui_settingsscreen_b0e2fd18be">Отдельный токен XKeen</string>
     <string name="ui_settingsscreen_b810b420a8">  Получить данные с роутера</string>
     <string name="ui_settingsscreen_cb1a2074b3">Пароль</string>
-    <string name="ui_settingsscreen_d5e71ebfe3">Адрес контроллера</string>
     <string name="ui_settingsscreen_f236f158aa">Проверьте значения</string>
-    <string name="ui_settingsscreen_f3405594cc">Всё работает</string>
     <string name="ui_settingsscreen_fd4b2db378">Адрес сборщика</string>
     <string name="ui_settingsscreen_ff296ddaed">Клиенты</string>
 
@@ -318,8 +313,12 @@
     <string name="ui_setupscreen_b2e75a12c2">Получить fingerprint</string>
     <string name="ui_setupscreen_dccef2005c">Не закрывайте приложение</string>
     <string name="ui_setupscreen_dde7f6b38a">Адрес SSH</string>
-    <string name="ui_setupscreen_edb20a8227">KeenWG проверит HTTPS до переключения legacy-сервиса. При ранней ошибке installer выполнит rollback.</string>
+    <string name="ui_setupscreen_edb20a8227">KeenWG сначала проверит новый Companion по HTTPS. При ошибке установка откатится без изменения маршрутов.</string>
     <string name="ui_setupscreen_f1080dfab1">Ключ совпадает — проверить роутер</string>
+    <string name="setup_install_companion">Установить Companion %1$s</string>
+    <string name="setup_update_companion">Обновить Companion до %1$s</string>
+    <string name="setup_pair_phone">Привязать телефон</string>
+    <string name="setup_companion_address_pending">Будет получен от Companion</string>
 
     <string name="ui_devicesscreen_07d098a986">Даёт только просмотр и действует пять минут. При закрытии приглашение отзывается на роутере.</string>
     <string name="ui_devicesscreen_10e47c4114">Для этого профиля companion не выдал модуль system.devices.</string>
@@ -341,9 +340,9 @@
     <string name="ui_devicesscreen_f6612bd9f1">Отозвать доступ?</string>
     <string name="ui_devicesscreen_fb921ce49a">Последнее подтверждение</string>
 
-    <string name="ui_xkeenscreen_0cffc5c72a">Связь с контроллером прервана. Повторите проверку.</string>
+    <string name="ui_xkeenscreen_0cffc5c72a">Связь с Companion прервана. Повторите проверку.</string>
     <string name="ui_xkeenscreen_0dc7eba110">Сменить страну?</string>
-    <string name="ui_xkeenscreen_0fd6014bb4">Новые изменения выключены до достоверного ответа контроллера.</string>
+    <string name="ui_xkeenscreen_0fd6014bb4">Новые изменения выключены до достоверного ответа Companion.</string>
     <string name="ui_xkeenscreen_1f8c321147">Маршрут XKeen</string>
     <string name="ui_xkeenscreen_215816bf42">Все</string>
     <string name="ui_xkeenscreen_233a8e993a">Предупреждение</string>
@@ -358,7 +357,8 @@
     <string name="ui_xkeenscreen_6c5a2b0849">Переключить</string>
     <string name="ui_xkeenscreen_6f9ee3bf33">Избранные</string>
     <string name="ui_xkeenscreen_72909eb470">Настройте управление XKeen</string>
-    <string name="ui_xkeenscreen_7c8ef82d31">Открыть настройки</string>
+    <string name="ui_xkeenscreen_7c8ef82d31">Привязать Companion</string>
+    <string name="xkeen_pairing_required_detail">Привяжите этот телефон к Companion на роутере. Обновление подписки и смена страны останутся ручными.</string>
     <string name="ui_xkeenscreen_84f94e80b2">Обновить подписку XKeen вручную</string>
     <string name="ui_xkeenscreen_8fbe9b75cb">Отмена</string>
     <string name="ui_xkeenscreen_90028924db">Проверяем доступность…</string>
@@ -394,7 +394,7 @@
     <string name="backup_preview_warning">Применяются только ресурсы KeenWG. Существующие чужие файлы будут пропущены.</string>
     <string name="backup_apply">Проверить и восстановить</string>
     <string name="backup_confirm_title">Применить именно этот план?</string>
-    <string name="backup_confirm_body">Контроллер проверит каждую запись и выполнит откат при подтверждённой ошибке. Если результат нельзя подтвердить, файлы восстановления останутся на роутере.</string>
+    <string name="backup_confirm_body">Companion проверит каждую запись и выполнит откат при подтверждённой ошибке. Если результат нельзя подтвердить, файлы восстановления останутся на роутере.</string>
     <string name="backup_confirm_apply">Восстановить</string>
     <string name="backup_cancel">Отмена</string>
     <string name="backup_restore_complete">Восстановление подтверждено</string>

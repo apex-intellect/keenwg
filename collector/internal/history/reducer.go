@@ -4,7 +4,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/goldb/keenwg/collector/internal/model"
+	"github.com/apex-intellect/keenwg/collector/internal/model"
 )
 
 type Reducer struct{}

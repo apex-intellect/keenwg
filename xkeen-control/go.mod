@@ -1,4 +1,4 @@
-module github.com/goldb/keenwg/xkeen-control
+module github.com/apex-intellect/keenwg/xkeen-control
 
 go 1.26.0
 

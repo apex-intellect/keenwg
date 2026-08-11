@@ -83,7 +83,7 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
             if (state.writesBlocked) item { StatusNotice(
                 "Изменения приостановлены",
                 detail = if (state.recoveryState?.pending == true) stringResource(R.string.ui_networkscreen_994086f49a)
-                    else "Обновите данные: контроллер должен подтвердить текущее состояние маршрутов.",
+                    else stringResource(R.string.network_writes_blocked_detail),
                 isError = true,
             ) }
 

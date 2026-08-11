@@ -165,7 +165,6 @@ private fun CompanionStatusCard(state: DevicesUiState) {
             }
             StatusRow("Версия", state.companionVersion.ifBlank { "—" })
             StatusRow("TLS pin", if (state.pinSuffix.isBlank()) "—" else "…${state.pinSuffix}", mono = true)
-            StatusRow("Мост 0.6", if (state.legacyBridgeEnabled) "Активен" else "Не используется")
         }
     }
 }

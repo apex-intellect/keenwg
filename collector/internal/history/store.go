@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/goldb/keenwg/collector/internal/model"
+	"github.com/apex-intellect/keenwg/collector/internal/model"
 	_ "modernc.org/sqlite"
 )
 

@@ -112,6 +112,6 @@ class CatalogException(val code: CatalogErrorCode) : RuntimeException(
         CatalogErrorCode.PAYLOAD_TOO_LARGE -> "Источник слишком большой"
         CatalogErrorCode.UNAVAILABLE -> "Каталог подключений недоступен"
         CatalogErrorCode.UNSUPPORTED_SCHEMA -> "Схема каталога не поддерживается"
-        CatalogErrorCode.PROTOCOL -> "Некорректный ответ контроллера"
+        CatalogErrorCode.PROTOCOL -> "Некорректный ответ Companion"
     },
 )

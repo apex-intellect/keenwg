@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/diagnostics"
-	"github.com/goldb/keenwg/xkeen-control/internal/model"
-	"github.com/goldb/keenwg/xkeen-control/internal/transaction"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/diagnostics"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/transaction"
 )
 
 func TestXKeenProjectionKeepsDuplicateCountriesExactAndSanitized(t *testing.T) {

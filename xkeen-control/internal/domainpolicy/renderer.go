@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	beginRoutingMarker = "// BEGIN KEENWG DOMAIN POLICY"
-	endRoutingMarker   = "// END KEENWG DOMAIN POLICY"
-	legacyStartMarker  = "// 1C ecosystem — direct"
-	legacyEndMarker    = "// Direct: Russian IP ranges"
+	beginRoutingMarker         = "// BEGIN KEENWG DOMAIN POLICY"
+	endRoutingMarker           = "// END KEENWG DOMAIN POLICY"
+	existingRoutingStartMarker = "// 1C ecosystem — direct"
+	existingRoutingEndMarker   = "// Direct: Russian IP ranges"
 )
 
 type ImportReport struct {
@@ -21,12 +21,12 @@ type ImportReport struct {
 	Warnings         []string `json:"warnings"`
 }
 
-var legacyDomainPattern = regexp.MustCompile(`"domain:([^"\\]+)"`)
+var existingDomainPattern = regexp.MustCompile(`"domain:([^"\\]+)"`)
 
-func ImportLegacy(current []byte) (Policy, ImportReport, error) {
+func ImportExistingRouting(current []byte) (Policy, ImportReport, error) {
 	text := string(current)
-	start := strings.Index(text, legacyStartMarker)
-	end := strings.Index(text, legacyEndMarker)
+	start := strings.Index(text, existingRoutingStartMarker)
+	end := strings.Index(text, existingRoutingEndMarker)
 	if start < 0 || end <= start || strings.Contains(text, beginRoutingMarker) || strings.Contains(text, endRoutingMarker) {
 		return Policy{}, ImportReport{}, ErrInvalidPolicy
 	}
@@ -53,7 +53,7 @@ func ImportLegacy(current []byte) (Policy, ImportReport, error) {
 	if err := add(Rule{Kind: "geosite", Value: "category-gov-ru", Effect: "direct", Label: "Государственные сайты РФ", Enabled: true}); err != nil {
 		return Policy{}, report, err
 	}
-	for _, match := range legacyDomainPattern.FindAllStringSubmatch(region, -1) {
+	for _, match := range existingDomainPattern.FindAllStringSubmatch(region, -1) {
 		label := serviceLabel(match[1])
 		if err := add(Rule{Kind: "domain", Value: match[1], Effect: "direct", Label: label, Enabled: true}); err != nil {
 			return Policy{}, report, err
@@ -97,8 +97,8 @@ func RenderRouting(current []byte, policy Policy) ([]byte, error) {
 		result := append(append(append([]byte{}, before...), block...), after...)
 		return result, nil
 	}
-	start := lineStart(current, bytes.Index(current, []byte(legacyStartMarker)))
-	endIndex := bytes.Index(current, []byte(legacyEndMarker))
+	start := lineStart(current, bytes.Index(current, []byte(existingRoutingStartMarker)))
+	endIndex := bytes.Index(current, []byte(existingRoutingEndMarker))
 	end := lineStart(current, endIndex)
 	if start < 0 || endIndex < 0 || end <= start {
 		return nil, ErrInvalidPolicy

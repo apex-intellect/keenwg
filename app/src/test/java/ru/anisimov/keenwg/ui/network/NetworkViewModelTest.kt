@@ -15,6 +15,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.anisimov.keenwg.data.companion.CompanionEndpoint
 import ru.anisimov.keenwg.data.network.NetworkDevice
 import ru.anisimov.keenwg.data.network.NetworkGateway
 import ru.anisimov.keenwg.data.network.DomainRoutingGateway
@@ -62,7 +63,10 @@ class NetworkViewModelTest {
 
     @Test fun `segments expose domains even when device loading fails`() = runTest(dispatcher) {
         val domains = FakeDomains()
-        val vm = NetworkViewModel(flowOf(ServerSettings()), FailingGateway(), domainGateway = domains)
+        val vm = NetworkViewModel(
+            flowOf(ServerSettings()), FailingGateway(), domainGateway = domains,
+            activeProfileFlow = flowOf(activeCompanionProfile()),
+        )
         advanceUntilIdle()
 
         assertEquals(NetworkSegment.DEVICES, vm.state.value.selectedSegment)
@@ -74,7 +78,10 @@ class NetworkViewModelTest {
 
     @Test fun `uncertain domain mutation blocks writes until successful refresh`() = runTest(dispatcher) {
         val domains = FakeDomains(result = "uncertain")
-        val vm = NetworkViewModel(flowOf(ServerSettings()), FakeGateway(), domainGateway = domains)
+        val vm = NetworkViewModel(
+            flowOf(ServerSettings()), FakeGateway(), domainGateway = domains,
+            activeProfileFlow = flowOf(activeCompanionProfile()),
+        )
         advanceUntilIdle()
         vm.openDomainCreate()
         vm.updateDomainDraft(DomainRuleDraft("domain", "example.com", "direct", "Example", true))
@@ -98,7 +105,10 @@ class NetworkViewModelTest {
     @Test fun `protected domain rule cannot open editor`() = runTest(dispatcher) {
         val protected = domainRule().copy(isProtected = true, source = "system")
         val domains = FakeDomains(status = DomainRoutingStatus(1, 11u, listOf(protected), emptyList(), emptyList()))
-        val vm = NetworkViewModel(flowOf(ServerSettings()), FakeGateway(), domainGateway = domains)
+        val vm = NetworkViewModel(
+            flowOf(ServerSettings()), FakeGateway(), domainGateway = domains,
+            activeProfileFlow = flowOf(activeCompanionProfile()),
+        )
         advanceUntilIdle()
         vm.openDomainEdit(protected)
         assertNull(vm.state.value.domainEditor)
@@ -199,10 +209,10 @@ class NetworkViewModelTest {
         var status: DomainRoutingStatus = DomainRoutingStatus(1, 11u, listOf(domainRule()), emptyList(), emptyList()),
     ) : DomainRoutingGateway {
         var mutations = 0
-        override suspend fun load(settings: ServerSettings) = status
-        override suspend fun create(settings: ServerSettings, status: DomainRoutingStatus, draft: DomainRuleDraft) = mutate()
-        override suspend fun update(settings: ServerSettings, status: DomainRoutingStatus, id: String, draft: DomainRuleDraft) = mutate()
-        override suspend fun delete(settings: ServerSettings, status: DomainRoutingStatus, id: String) = mutate()
+        override suspend fun load(endpoint: CompanionEndpoint) = status
+        override suspend fun create(endpoint: CompanionEndpoint, status: DomainRoutingStatus, draft: DomainRuleDraft) = mutate()
+        override suspend fun update(endpoint: CompanionEndpoint, status: DomainRoutingStatus, id: String, draft: DomainRuleDraft) = mutate()
+        override suspend fun delete(endpoint: CompanionEndpoint, status: DomainRoutingStatus, id: String) = mutate()
         private fun mutate(): DomainRoutingResult { mutations++; return DomainRoutingResult(result, status) }
     }
 

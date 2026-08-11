@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/capability"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/capability"
 )
 
 type DeviceStore interface {
@@ -30,7 +30,7 @@ type CapabilityProvider interface {
 }
 
 type SecureServer struct {
-	legacy       *Server
+	core         *Server
 	devices      DeviceStore
 	capabilities CapabilityProvider
 	catalog      CatalogStore
@@ -73,9 +73,9 @@ func WithBackup(manager BackupManager) SecureOption {
 	return func(server *SecureServer) { server.backup = manager }
 }
 
-func NewSecure(legacy *Server, devices DeviceStore, capabilities CapabilityProvider, options ...SecureOption) *SecureServer {
+func NewSecure(core *Server, devices DeviceStore, capabilities CapabilityProvider, options ...SecureOption) *SecureServer {
 	server := &SecureServer{
-		legacy: legacy, devices: devices, capabilities: capabilities,
+		core: core, devices: devices, capabilities: capabilities,
 		limiter: newAttemptLimiter(5, time.Minute, 1024),
 	}
 	for _, option := range options {
@@ -95,7 +95,7 @@ func (s *SecureServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/v1/health":
 		clone := r.Clone(r.Context())
 		clone.URL.Path = "/v1/xkeen/health"
-		s.legacy.ServeHTTP(w, clone)
+		s.core.ServeHTTP(w, clone)
 	case r.URL.Path == "/v1/pairing/exchange":
 		s.handleExchange(w, r)
 	case r.URL.Path == "/v1/capabilities":
@@ -193,14 +193,14 @@ func (s *SecureServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.handleRevokeDevice(w, request)
 		}
 	default:
-		required, protected := legacyScope(r)
+		required, protected := coreScope(r)
 		if !protected {
-			s.legacy.ServeHTTP(w, r)
+			s.core.ServeHTTP(w, r)
 			return
 		}
 		request, _, ok := s.authenticate(w, r, required)
 		if ok {
-			s.legacy.ServeHTTP(w, request)
+			s.core.ServeHTTP(w, request)
 		}
 	}
 }
@@ -427,7 +427,7 @@ func decodeSecureJSONLimit(w http.ResponseWriter, r *http.Request, destination a
 	return true
 }
 
-func legacyScope(r *http.Request) (auth.Scope, bool) {
+func coreScope(r *http.Request) (auth.Scope, bool) {
 	switch {
 	case r.URL.Path == "/v1/xkeen/status", r.URL.Path == "/v1/diagnostics/nodes", r.URL.Path == "/v1/network/domains":
 		return auth.ScopeViewer, true

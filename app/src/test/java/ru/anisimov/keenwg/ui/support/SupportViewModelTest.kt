@@ -48,15 +48,25 @@ class SupportViewModelTest {
         assertNull(vm.state.value.error)
     }
 
-    @Test fun `missing companion fails without invoking gateway`() = runTest(dispatcher) {
-        val gateway = FakeSupportGateway()
-        val vm = SupportViewModel(flowOf(null), gateway)
+    @Test fun `missing pairing becomes an actionable requirement without invoking gateway`() = runTest(dispatcher) {
+        val incompleteProfiles = listOf(
+            null,
+            active(companionUrl = ""),
+            active(certificatePin = ""),
+            active(companionToken = ""),
+        )
+        incompleteProfiles.forEach { active ->
+            val gateway = FakeSupportGateway()
+            val vm = SupportViewModel(flowOf(active), gateway)
 
-        vm.generate()
-        advanceUntilIdle()
+            vm.generate()
+            advanceUntilIdle()
 
-        assertEquals(0, gateway.calls)
-        assertTrue(vm.state.value.error!!.contains("Companion"))
+            assertEquals(0, gateway.calls)
+            assertEquals(SupportRequirement.COMPANION_PAIRING, vm.state.value.requirement)
+            assertNull(vm.state.value.error)
+            assertNull(vm.state.value.export)
+        }
     }
 
     private class FakeSupportGateway : SupportGateway {
@@ -70,13 +80,17 @@ class SupportViewModelTest {
         }
     }
 
-    private fun active() = ActiveRouterProfile(
+    private fun active(
+        companionUrl: String = "https://192.0.2.1:18779",
+        certificatePin: String = "sha256/test",
+        companionToken: String = "viewer-token",
+    ) = ActiveRouterProfile(
         RouterProfile(
             id = "router", displayName = "Home", host = "192.0.2.1", rciPort = 80,
             interfaceId = "Wireguard0", serverPublicKey = "", endpoint = "", subnetBase = "10.8.0.",
             dns = "192.0.2.1", mtu = 1380, keepalive = 25,
-            companionUrl = "https://192.0.2.1:18779", certificatePin = "sha256/test",
+            companionUrl = companionUrl, certificatePin = certificatePin,
         ),
-        RouterSecrets(companionToken = "viewer-token"),
+        RouterSecrets(companionToken = companionToken),
     )
 }

@@ -10,29 +10,26 @@ import ru.anisimov.keenwg.data.companion.CapabilityDocument
 import ru.anisimov.keenwg.domain.model.RouterProfile
 
 class CapabilityRegistryTest {
-    @Test fun `legacy transports independently reveal only their own capabilities`() {
+    @Test fun `direct transports independently reveal only their own capabilities`() {
         val registry = CapabilityRegistry()
 
         assertEquals(setOf("access.wireguard"), registry.resolve(profile(host = "192.168.1.1")).availableIds())
         assertEquals(setOf("history.wireguard"), registry.resolve(profile(collector = "http://router:18777")).availableIds())
-        assertEquals(
-            setOf("connections.xkeen", "routes.domains", "routes.exclusions"),
-            registry.resolve(profile(xkeen = "http://router:18778")).availableIds(),
-        )
     }
 
-    @Test fun `legacy-only configured profile retains every 0_6 module`() {
+    @Test fun `rci and collector capabilities remain available without companion`() {
         val document = CapabilityRegistry().resolve(
-            profile(host = "192.168.1.1", collector = "http://router:18777", xkeen = "http://router:18778"),
+            profile(host = "192.168.1.1", collector = "http://router:18777"),
         )
 
         assertEquals(
-            setOf("access.wireguard", "history.wireguard", "connections.xkeen", "routes.domains", "routes.exclusions"),
+            setOf("access.wireguard", "history.wireguard"),
             document.availableIds(),
         )
+        assertEquals(setOf("collector", "rci"), document.capabilities.map { it.transport }.toSet())
     }
 
-    @Test fun `companion declaration takes precedence over legacy fallback`() {
+    @Test fun `companion declarations merge with direct transports and stay authoritative`() {
         val companion = CapabilityDocument(
             stateVersion = 9u,
             capabilities = listOf(
@@ -46,16 +43,16 @@ class CapabilityRegistryTest {
             ),
         )
 
-        val resolved = CapabilityRegistry().resolve(profile(xkeen = "http://router:18778"), companion)
+        val resolved = CapabilityRegistry().resolve(profile(host = "192.168.1.1"), companion)
 
         assertFalse(resolved.capabilities.single { it.id == "connections.xkeen" }.available)
-        assertTrue(resolved.capabilities.single { it.id == "routes.domains" }.available)
+        assertTrue(resolved.capabilities.single { it.id == "access.wireguard" }.available)
         assertEquals(9uL, resolved.stateVersion)
     }
 
     private fun CapabilityDocument.availableIds() = capabilities.filter { it.available }.map { it.id }.toSet()
 
-    private fun profile(host: String = "", collector: String = "", xkeen: String = "") = RouterProfile(
+    private fun profile(host: String = "", collector: String = "") = RouterProfile(
         id = "router",
         displayName = "Router",
         host = host,
@@ -68,6 +65,5 @@ class CapabilityRegistryTest {
         mtu = 1380,
         keepalive = 25,
         collectorUrl = collector,
-        legacyXkeenUrl = xkeen,
     )
 }

@@ -32,7 +32,6 @@ object ServerSettingsValidator {
     fun validateForSave(settings: ServerSettings): List<ValidationIssue> =
         validateForMutation(settings) + listOfNotNull(
             validateCollectorUrl(settings.collectorUrl)?.let { issue("collectorUrl", it) },
-            validateXkeenControllerUrl(settings.xkeenControllerUrl)?.let { issue("xkeenControllerUrl", it) },
         )
 
     fun requireForMutation(settings: ServerSettings) {
@@ -50,10 +49,6 @@ object ServerSettingsValidator {
 
     fun validateCollectorUrl(value: String): String? {
         return validatePrivateServiceUrl(value, "сборщика")
-    }
-
-    fun validateXkeenControllerUrl(value: String): String? {
-        return validatePrivateServiceUrl(value, "контроллера XKeen")
     }
 
     private fun validatePrivateServiceUrl(value: String, serviceName: String): String? {

@@ -17,18 +17,12 @@ import ru.anisimov.keenwg.data.collector.CollectorClient
 import ru.anisimov.keenwg.data.collector.CollectorMeta
 import ru.anisimov.keenwg.data.discovery.RouterDiscovery
 import ru.anisimov.keenwg.data.rci.RciClient
-import ru.anisimov.keenwg.data.xkeen.XkeenStatus
 import ru.anisimov.keenwg.domain.ServerSettingsValidator
 import ru.anisimov.keenwg.domain.model.ServerSettings
 
 interface SettingsStoreGateway {
     val settings: Flow<ServerSettings>
     suspend fun save(settings: ServerSettings)
-}
-
-interface MigrationReviewGateway {
-    val pending: Flow<Boolean>
-    suspend fun dismiss()
 }
 
 interface SettingsRciGateway {
@@ -40,30 +34,19 @@ fun interface SettingsCollectorGateway {
     suspend fun probe(settings: ServerSettings): CollectorMeta
 }
 
-fun interface SettingsXkeenGateway {
-    suspend fun probe(settings: ServerSettings): XkeenStatus
-}
-
 class SettingsViewModel(
     private val store: SettingsStoreGateway = serviceSettingsStore(),
     private val rci: SettingsRciGateway = serviceSettingsRci(),
     private val collector: SettingsCollectorGateway = SettingsCollectorGateway { CollectorClient().probe(it) },
-    private val xkeen: SettingsXkeenGateway = SettingsXkeenGateway { ServiceLocator.xkeenRepository.probe(it) },
-    private val migration: MigrationReviewGateway? = null,
 ) : ViewModel() {
     constructor() : this(
         store = serviceSettingsStore(),
         rci = serviceSettingsRci(),
         collector = SettingsCollectorGateway { CollectorClient().probe(it) },
-        xkeen = SettingsXkeenGateway { ServiceLocator.xkeenRepository.probe(it) },
-        migration = serviceMigrationReview(),
     )
 
     val settings: StateFlow<ServerSettings> =
         store.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ServerSettings())
-    val migrationReviewPending: StateFlow<Boolean> = (migration?.pending ?: MutableStateFlow(false))
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     private val operationMutex = Mutex()
     private val _msg = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val msg = _msg.asSharedFlow()
@@ -100,22 +83,9 @@ class SettingsViewModel(
         _msg.emit("Сборщик ${meta.version} доступен, токен принят")
     }
 
-    fun testXkeenController(draft: ServerSettings) = guarded {
-        require(draft.xkeenControllerUrl.isNotBlank()) { "Укажите адрес контроллера XKeen" }
-        ServerSettingsValidator.validateXkeenControllerUrl(draft.xkeenControllerUrl)?.let { error(it) }
-        require(draft.xkeenControllerToken.isNotBlank()) { "Укажите токен контроллера XKeen" }
-        val status = xkeen.probe(draft)
-        _msg.emit("Контроллер XKeen ${status.version} доступен, токен принят")
-    }
-
     fun save(draft: ServerSettings) = saveAndTest(draft)
     fun testConnection(draft: ServerSettings) = saveAndTest(draft)
     fun rediscover(draft: ServerSettings) = discover(draft)
-
-    fun dismissMigrationReview() {
-        val gateway = migration ?: return
-        viewModelScope.launch { gateway.dismiss() }
-    }
 
     private fun guarded(block: suspend () -> Unit) = viewModelScope.launch {
         if (!operationMutex.tryLock()) return@launch
@@ -138,9 +108,4 @@ private fun serviceSettingsRci(): SettingsRciGateway = object : SettingsRciGatew
     private val client = RciClient()
     override suspend fun authenticate(settings: ServerSettings) = client.authenticate(settings)
     override suspend fun get(settings: ServerSettings, path: String) = client.get(settings, path)
-}
-
-private fun serviceMigrationReview(): MigrationReviewGateway = object : MigrationReviewGateway {
-    override val pending get() = ServiceLocator.routerProfileStore.migrationReviewPending
-    override suspend fun dismiss() = ServiceLocator.routerProfileStore.dismissMigrationReview()
 }

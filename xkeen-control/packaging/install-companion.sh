@@ -46,7 +46,7 @@ BINARY_SOURCE=$HERE/keenwg-companion
 VERSION_FILE=$HERE/VERSION
 SUMS=$HERE/SHA256SUMS
 NEW_INIT_SOURCE=$HERE/S96keenwg-companion
-for source in "$BINARY_SOURCE" "$VERSION_FILE" "$SUMS" "$NEW_INIT_SOURCE" "$HERE/uninstall-companion.sh" "$HERE/companion.config.example.json"; do
+for source in "$BINARY_SOURCE" "$VERSION_FILE" "$SUMS" "$NEW_INIT_SOURCE" "$HERE/uninstall-companion.sh" "$HERE/cleanup-obsolete-controller.sh" "$HERE/companion.config.example.json"; do
     [ -f "$source" ] && [ ! -L "$source" ] || fail "missing or unsafe bundle file: $source"
 done
 VERSION=$(sed -n '1p' "$VERSION_FILE")
@@ -64,7 +64,6 @@ if $LIVE; then
 fi
 
 CONFIG_DIR=$ROOT/opt/etc/keenwg
-OLD_CONFIG=$CONFIG_DIR/xkeen-control.json
 CONFIG=$CONFIG_DIR/companion.json
 IDENTITY_DIR=$CONFIG_DIR/identity
 CERT=$IDENTITY_DIR/certificate.pem
@@ -72,7 +71,6 @@ KEY=$IDENTITY_DIR/private-key.pem
 DEVICES=$CONFIG_DIR/devices.json
 OFFERS=$CONFIG_DIR/pairing-offers.json
 BACKUPS=$CONFIG_DIR/backups
-OLD_INIT=$ROOT/opt/etc/init.d/S96keenwg-xkeen-control
 INIT=$ROOT/opt/etc/init.d/S96keenwg-companion
 LIB=$ROOT/opt/lib/keenwg-companion
 RELEASES=$LIB/releases
@@ -80,9 +78,7 @@ RELEASE_ID=$VERSION-$actual
 RELEASE=$RELEASES/$RELEASE_ID
 CURRENT=$LIB/current
 
-for target in "$CONFIG_DIR" "$OLD_CONFIG" "$CONFIG" "$IDENTITY_DIR" "$CERT" "$KEY" "$DEVICES" "$OFFERS" "$BACKUPS" "$OLD_INIT" "$INIT" "$LIB" "$RELEASES" "$RELEASE" "$CURRENT"; do assert_safe_path "$target"; done
-[ -f "$OLD_CONFIG" ] && [ ! -L "$OLD_CONFIG" ] || fail 'legacy controller config unavailable'
-[ -x "$OLD_INIT" ] && [ ! -L "$OLD_INIT" ] || fail 'legacy controller init unavailable'
+for target in "$CONFIG_DIR" "$CONFIG" "$IDENTITY_DIR" "$CERT" "$KEY" "$DEVICES" "$OFFERS" "$BACKUPS" "$INIT" "$LIB" "$RELEASES" "$RELEASE" "$CURRENT"; do assert_safe_path "$target"; done
 
 old_current=
 current_existed=false
@@ -109,11 +105,10 @@ for item in config:$CONFIG init:$INIT cert:$CERT key:$KEY devices:$DEVICES offer
         eval "${name}_existed=true"
     fi
 done
-old_was_running=false; companion_was_running=false
-if KEENWG_DESTDIR="$ROOT" "$OLD_INIT" status >/dev/null 2>&1; then old_was_running=true; fi
+companion_was_running=false
 if [ -x "$INIT" ] && KEENWG_DESTDIR="$ROOT" "$INIT" status >/dev/null 2>&1; then companion_was_running=true; fi
 
-release_created=false; current_switched=false; companion_stopped=false; candidate_started=false; old_stopped=false; committed=false
+release_created=false; current_switched=false; companion_stopped=false; candidate_started=false; committed=false
 rollback() {
     [ "$committed" = false ] || return 0
     if $candidate_started && [ -x "$INIT" ]; then KEENWG_DESTDIR="$ROOT" "$INIT" stop >/dev/null 2>&1 || true; fi
@@ -128,7 +123,6 @@ rollback() {
     fi
     if $release_created; then rm -rf "$RELEASE"; fi
     if $companion_stopped && $companion_was_running && [ -x "$INIT" ]; then KEENWG_DESTDIR="$ROOT" "$INIT" start >/dev/null 2>&1 || true; fi
-    if $old_stopped && $old_was_running; then KEENWG_DESTDIR="$ROOT" "$OLD_INIT" start >/dev/null 2>&1 || true; fi
     rm -rf "$BACKUP"
 }
 trap rollback EXIT
@@ -152,13 +146,19 @@ current_switched=true
 init_tmp=$ROOT/opt/etc/init.d/.S96keenwg-companion.$$
 cp "$NEW_INIT_SOURCE" "$init_tmp"; chmod 755 "$init_tmp"; mv -f "$init_tmp" "$INIT"
 if ! $config_existed; then
-    KEENWG_DESTDIR="$ROOT" "$CURRENT/keenwg-companion" -config "$CONFIG" -bootstrap-from "$OLD_CONFIG" -bootstrap-request "$REQUEST" || fail 'companion bootstrap failed'
+    KEENWG_DESTDIR="$ROOT" "$CURRENT/keenwg-companion" -config "$CONFIG" -bootstrap-request "$REQUEST" || fail 'companion bootstrap failed'
+else
+    schema=$(sed -n 's/^[[:space:]]*"schema_version"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$CONFIG" | sed -n '1p')
+    case "$schema" in
+        # Public 1.0 configs predate schema_version. The binary upgrader
+        # strictly decodes that bounded legacy shape and rejects unknown
+        # fields, so an absent marker is safe to delegate but never assume.
+        ''|1) KEENWG_DESTDIR="$ROOT" "$CURRENT/keenwg-companion" -config "$CONFIG" -upgrade-config || fail 'companion config upgrade failed';;
+        2) ;;
+        *) fail 'unsupported companion config schema';;
+    esac
 fi
 KEENWG_DESTDIR="$ROOT" "$CURRENT/keenwg-companion" -config "$CONFIG" -check || fail 'companion self-check failed'
-if $old_was_running; then
-    KEENWG_DESTDIR="$ROOT" "$OLD_INIT" stop || fail 'could not stop legacy controller'
-    old_stopped=true
-fi
 KEENWG_DESTDIR="$ROOT" "$INIT" start || fail 'companion start failed'
 candidate_started=true
 attempt=0
@@ -168,6 +168,7 @@ while [ "$attempt" -lt 10 ]; do
     [ -n "$ROOT" ] || sleep 1
 done
 [ "$attempt" -lt 10 ] || fail 'companion HTTPS health failed'
+KEENWG_DESTDIR="$ROOT" "$HERE/cleanup-obsolete-controller.sh" || fail 'obsolete controller cleanup failed'
 committed=true
 trap - EXIT HUP INT TERM
 echo "keenwg-companion $VERSION installed"

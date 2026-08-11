@@ -59,6 +59,14 @@ class JschSshTransportContractTest {
         assertTrue(output.truncated)
     }
 
+    @Test fun `probe reads Keenetic firmware from ndmc with file fallback`() {
+        val command = FixedCommand.Probe.render()
+
+        assertTrue(command.contains("ndmc -c 'show version'"))
+        assertTrue(command.contains("[Rr]elease"))
+        assertTrue(command.contains("test -r /etc/version"))
+    }
+
     @Test fun `installer transport source contains no insecure SSH escape hatches`() {
         val directory = Path.of("src/main/java/ru/anisimov/keenwg/data/installer")
         val source = Files.walk(directory).use { files ->

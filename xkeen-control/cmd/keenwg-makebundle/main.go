@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/makebundle"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/makebundle"
 )
 
 func main() {

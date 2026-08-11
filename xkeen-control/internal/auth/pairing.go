@@ -100,6 +100,15 @@ func (s *FileStore) Exchange(ctx context.Context, id, secret, label string) (Pla
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Pairing offers can also be issued by the short-lived root CLI used over
+	// the separately verified SSH channel. Refresh the atomically persisted
+	// offer document so the long-running HTTPS process can exchange it without
+	// a service restart.
+	offers, err := loadOffers(s.offerPath)
+	if err != nil {
+		return PlainCredential{}, err
+	}
+	s.offers = offers
 
 	index := -1
 	for i := range s.offers {

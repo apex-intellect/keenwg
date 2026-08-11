@@ -13,7 +13,6 @@ if [ -n "$ROOT" ]; then
 fi
 
 INIT=$ROOT/opt/etc/init.d/S96keenwg-companion
-OLD_INIT=$ROOT/opt/etc/init.d/S96keenwg-xkeen-control
 LIB=$ROOT/opt/lib/keenwg-companion
 case "$INIT" in "$ROOT/opt/etc/init.d/S96keenwg-companion") ;; *) fail 'unsafe init target';; esac
 case "$LIB" in "$ROOT/opt/lib/keenwg-companion") ;; *) fail 'unsafe library target';; esac
@@ -23,7 +22,4 @@ case "$LIB" in "$ROOT/opt/lib/keenwg-companion") ;; *) fail 'unsafe library targ
 if [ -x "$INIT" ]; then KEENWG_DESTDIR="$ROOT" "$INIT" stop || fail 'could not stop companion'; fi
 rm -f "$INIT"
 if [ -d "$LIB" ]; then rm -rf "$LIB"; fi
-if [ -x "$OLD_INIT" ] && ! KEENWG_DESTDIR="$ROOT" "$OLD_INIT" status >/dev/null 2>&1; then
-    KEENWG_DESTDIR="$ROOT" "$OLD_INIT" start || fail 'could not restart legacy controller'
-fi
-echo 'keenwg-companion removed; identity, pairing data, and legacy XKeen configuration were preserved'
+echo 'keenwg-companion runtime removed; configuration, identity, pairing data, and user state were preserved'

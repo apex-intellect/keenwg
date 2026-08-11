@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/capability"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/capability"
 )
 
 func TestSecureRoutesEnforceViewerOperatorAndOwnerScopes(t *testing.T) {
@@ -51,6 +51,30 @@ func TestSecureRoutesEnforceViewerOperatorAndOwnerScopes(t *testing.T) {
 				t.Fatalf("status=%d want=%d body=%s", recorder.Code, test.want, recorder.Body.Bytes())
 			}
 		})
+	}
+}
+
+func TestSecureRejectsRawControllerTokenAndUnknownPaths(t *testing.T) {
+	core, _, _ := newTestServer(t)
+	devices := newSecureDeviceStore(t)
+	_ = pairDevice(t, devices, auth.ScopeOwner, "Owner")
+	viewer := pairFromOwner(t, devices, auth.ScopeViewer, "Viewer")
+	secure := NewSecure(core, devices, staticCapabilities())
+
+	raw := httptest.NewRequest(http.MethodGet, "/v1/xkeen/status", nil)
+	raw.Header.Set("Authorization", "Bearer "+controlToken)
+	rawRecorder := httptest.NewRecorder()
+	secure.ServeHTTP(rawRecorder, raw)
+	if rawRecorder.Code != http.StatusUnauthorized {
+		t.Fatalf("raw controller token status=%d body=%s", rawRecorder.Code, rawRecorder.Body.Bytes())
+	}
+
+	unknown := httptest.NewRequest(http.MethodGet, "/v1/not-a-route", nil)
+	unknown.Header.Set("Authorization", "Bearer "+viewer.Token)
+	unknownRecorder := httptest.NewRecorder()
+	secure.ServeHTTP(unknownRecorder, unknown)
+	if unknownRecorder.Code != http.StatusNotFound {
+		t.Fatalf("unknown path status=%d body=%s", unknownRecorder.Code, unknownRecorder.Body.Bytes())
 	}
 }
 

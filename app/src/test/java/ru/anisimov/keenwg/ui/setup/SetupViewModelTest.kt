@@ -16,6 +16,7 @@ import org.junit.Before
 import org.junit.Test
 import ru.anisimov.keenwg.data.installer.HostKeyObservation
 import ru.anisimov.keenwg.data.installer.InstallPhase
+import ru.anisimov.keenwg.data.installer.InstallMode
 import ru.anisimov.keenwg.data.installer.InstallPlan
 import ru.anisimov.keenwg.data.installer.InstallPreparation
 import ru.anisimov.keenwg.data.installer.InstallProbe
@@ -98,8 +99,8 @@ class SetupViewModelTest {
             profileId = "home",
             endpoint = SshEndpoint("192.168.1.1", 222, "root"),
             hostKey = key,
-            probe = InstallProbe("aarch64", "4.3.1", 100_000_000, true, true, true, "2.4.1", true, true, null),
-            plan = InstallPlan("0.7.0", "https://192.168.1.1:18779", 20_000_000, listOf("effect")),
+            probe = InstallProbe("aarch64", "4.3.1", 100_000_000, true, false, "2.4.1", true, true, null),
+            plan = InstallPlan("0.7.0", InstallMode.CLEAN_INSTALL, "https://192.168.1.1:18779", 20_000_000, listOf("effect")),
         )
         override suspend fun observeHostKey(endpoint: SshEndpoint): HostKeyObservation { events += "observe"; return key }
         override suspend fun prepare(profileId: String, endpoint: SshEndpoint, hostKey: HostKeyObservation, password: ByteArray): InstallPreparation {
@@ -116,7 +117,7 @@ class SetupViewModelTest {
             onPhase(InstallPhase.INSTALL)
             if (failInstall) throw InstallerException(InstallPhase.INSTALL, "Установка не завершена", true)
             onPhase(InstallPhase.CLEANUP)
-            return InstallReport("0.7.0", preparation.plan.secureBaseUrl, "phone-1", true)
+            return InstallReport("0.7.0", requireNotNull(preparation.plan.secureBaseUrl), "phone-1", true)
         }
     }
 

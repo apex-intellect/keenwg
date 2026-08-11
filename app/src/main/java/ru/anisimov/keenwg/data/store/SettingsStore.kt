@@ -20,6 +20,6 @@ class SettingsStore internal constructor(
     val profileState: Flow<RouterProfilesState> = routerProfiles.state
     val settings: Flow<ServerSettings> = routerProfiles.activeSettings.filterNotNull()
 
-    suspend fun migrateLegacy() = routerProfiles.migrateLegacy()
+    suspend fun initialize() = routerProfiles.initialize()
     suspend fun save(s: ServerSettings) = routerProfiles.saveActive(s)
 }

@@ -135,6 +135,5 @@ class DevicesViewModelTest {
         dns = "192.168.1.1", mtu = 1380, keepalive = 25,
         companionUrl = "https://192.168.1.1:18779",
         certificatePin = "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        legacyXkeenUrl = "http://192.168.1.1:18778",
     )
 }

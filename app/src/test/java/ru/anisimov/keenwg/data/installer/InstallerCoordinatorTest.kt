@@ -22,6 +22,7 @@ class InstallerCoordinatorTest {
         val preparation = fixture.coordinator.prepare("home", fixture.endpoint, fixture.hostKey, probePassword)
 
         assertEquals("aarch64", preparation.probe.architecture)
+        assertEquals(InstallMode.CLEAN_INSTALL, preparation.plan.mode)
         assertEquals(listOf("connect", "exec:Probe", "close"), fixture.events)
         assertTrue(probePassword.all { it == 0.toByte() })
         fixture.events.clear()
@@ -46,6 +47,35 @@ class InstallerCoordinatorTest {
         )
         assertTrue(installPassword.all { it == 0.toByte() })
         assertTrue(report.cleanupSucceeded)
+    }
+
+    @Test fun `installed bundled companion selects pair only and never uploads or installs`() = runTest {
+        val fixture = Fixture(probe = probeOutput(companionConfig = true, companionVersion = "0.7.0"))
+        val preparation = fixture.coordinator.prepare("home", fixture.endpoint, fixture.hostKey, "probe".toByteArray())
+        assertEquals(InstallMode.PAIR_ONLY, preparation.plan.mode)
+        assertEquals(null, preparation.plan.secureBaseUrl)
+        fixture.events.clear()
+
+        fixture.coordinator.install(preparation, "install".toByteArray(), "Pixel")
+
+        assertFalse(fixture.events.any { it.startsWith("upload:") || it == "exec:Install" })
+        assertEquals(
+            listOf("connect", "exec:CreateOwnerPairingOffer", "exchange:offer-1", "save:https://192.168.1.1:18779", "close"),
+            fixture.events,
+        )
+    }
+
+    @Test fun `older companion selects update while absent companion selects clean install`() = runTest {
+        val updateFixture = Fixture(probe = probeOutput(companionConfig = true, companionVersion = "0.6.0"))
+        val update = updateFixture.coordinator.prepare("home", Fixture.ENDPOINT, Fixture.HOST_KEY, "probe".toByteArray())
+        assertEquals(InstallMode.UPDATE, update.plan.mode)
+        updateFixture.events.clear()
+        val updateReport = updateFixture.coordinator.install(update, "install".toByteArray(), "Pixel")
+        assertEquals("0.7.0", updateReport.version)
+
+        val clean = Fixture(probe = probeOutput(companionConfig = false, companionVersion = null))
+            .coordinator.prepare("home", Fixture.ENDPOINT, Fixture.HOST_KEY, "probe".toByteArray())
+        assertEquals(InstallMode.CLEAN_INSTALL, clean.plan.mode)
     }
 
     @Test fun `preparation rejects unsupported architecture and insufficient space without mutation`() = runTest {
@@ -91,8 +121,8 @@ class InstallerCoordinatorTest {
         failurePoint: FailurePoint? = null,
     ) {
         val events = mutableListOf<String>()
-        val endpoint = SshEndpoint("192.168.1.1", 222, "root")
-        val hostKey = HostKeyObservation("ssh-ed25519", "SHA256:OOMwCahJqCUC5vJDQLW6XAEOazkBM4yLc+h2Pubn8eg")
+        val endpoint = ENDPOINT
+        val hostKey = HOST_KEY
         private val asset = "archive".toByteArray()
         private val profileGateway = FakeProfileGateway(events, failurePoint)
         val coordinator = InstallerCoordinator(
@@ -111,7 +141,11 @@ class InstallerCoordinatorTest {
             override fun assetBytes(name: String) = body.copyOf()
         }
 
-        companion object { const val NONCE = "0123456789abcdef0123456789abcdef" }
+        companion object {
+            const val NONCE = "0123456789abcdef0123456789abcdef"
+            val ENDPOINT = SshEndpoint("192.168.1.1", 222, "root")
+            val HOST_KEY = HostKeyObservation("ssh-ed25519", "SHA256:OOMwCahJqCUC5vJDQLW6XAEOazkBM4yLc+h2Pubn8eg")
+        }
     }
 
     private class FakeTransport(
@@ -165,7 +199,6 @@ class InstallerCoordinatorTest {
             id = "home", displayName = "Home", host = "192.168.1.1", rciPort = 80,
             interfaceId = "Wireguard0", serverPublicKey = "", endpoint = "", subnetBase = "10.8.0.",
             dns = "192.168.1.1", mtu = 1380, keepalive = 25,
-            legacyXkeenUrl = "http://192.168.1.1:18778",
         )
         override suspend fun active(profileId: String) = ActiveRouterProfile(profile, RouterSecrets())
         override suspend fun saveCompanion(profileId: String, baseUrl: String, certificatePin: String, deviceToken: String, deviceId: String) {
@@ -177,17 +210,21 @@ class InstallerCoordinatorTest {
     private enum class FailurePoint { UPLOAD, INSTALL, OFFER, EXCHANGE, SAVE }
 }
 
-private fun probeOutput(architecture: String = "aarch64", freeKib: Long = 100_000) = """
+private fun probeOutput(
+    architecture: String = "aarch64",
+    freeKib: Long = 100_000,
+    companionConfig: Boolean = false,
+    companionVersion: String? = null,
+) = """
 architecture=$architecture
 firmware=4.3.1
 opt_free_kib=$freeKib
 entware=present
-legacy_config=present
-legacy_running=yes
+companion_config=${if (companionConfig) "present" else "missing"}
 xkeen=2.4.1
 asc=present
 xray=present
-companion=missing
+companion=${companionVersion?.let { "keenwg-companion $it (test)" } ?: "missing"}
 """.trimIndent() + "\n"
 
 private fun pairingJson() = """{"base_url":"https://192.168.1.1:18779","certificate_pin":"sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","offer_id":"offer-1","secret":"pair-secret","expires_at":"2026-08-09T00:00:00Z"}"""

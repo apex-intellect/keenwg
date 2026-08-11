@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	collectorapi "github.com/goldb/keenwg/collector/internal/api"
-	"github.com/goldb/keenwg/collector/internal/daemon"
-	"github.com/goldb/keenwg/collector/internal/history"
-	"github.com/goldb/keenwg/collector/internal/source"
+	collectorapi "github.com/apex-intellect/keenwg/collector/internal/api"
+	"github.com/apex-intellect/keenwg/collector/internal/daemon"
+	"github.com/apex-intellect/keenwg/collector/internal/history"
+	"github.com/apex-intellect/keenwg/collector/internal/source"
 )
 
 var version = "dev"

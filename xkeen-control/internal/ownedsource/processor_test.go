@@ -8,11 +8,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/adapter"
-	"github.com/goldb/keenwg/xkeen-control/internal/catalog"
-	"github.com/goldb/keenwg/xkeen-control/internal/diagnostics"
-	"github.com/goldb/keenwg/xkeen-control/internal/model"
-	"github.com/goldb/keenwg/xkeen-control/internal/transaction"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/adapter"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/diagnostics"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/transaction"
 )
 
 func TestPrepareProjectsDistinctNodesWithoutSecrets(t *testing.T) {

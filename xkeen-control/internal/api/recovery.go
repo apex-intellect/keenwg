@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/coordinator"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/coordinator"
 )
 
 type RecoveryManager interface {

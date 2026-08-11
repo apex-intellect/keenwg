@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/goldb/keenwg/xkeen-control/internal/auth"
-	"github.com/goldb/keenwg/xkeen-control/internal/coordinator"
-	"github.com/goldb/keenwg/xkeen-control/internal/scenario"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/auth"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/coordinator"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/scenario"
 )
 
 func TestScenarioReviewAllowsViewerButApplyRequiresOperator(t *testing.T) {

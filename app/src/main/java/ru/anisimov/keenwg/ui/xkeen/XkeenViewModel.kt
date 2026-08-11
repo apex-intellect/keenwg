@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import ru.anisimov.keenwg.data.ServiceLocator
+import ru.anisimov.keenwg.data.companion.CompanionEndpoint
+import ru.anisimov.keenwg.data.companion.requireCompanionEndpoint
+import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.data.xkeen.XkeenNode
 import ru.anisimov.keenwg.data.xkeen.XkeenNodeDiagnostic
 import ru.anisimov.keenwg.data.xkeen.XkeenOperation
@@ -22,7 +25,6 @@ import ru.anisimov.keenwg.data.xkeen.XkeenStatus
 import ru.anisimov.keenwg.data.store.XkeenPreferenceGateway
 import ru.anisimov.keenwg.data.store.XkeenPreferences
 import ru.anisimov.keenwg.data.store.serverIdentity
-import ru.anisimov.keenwg.domain.model.ServerSettings
 
 data class XkeenUiState(
     val loading: Boolean = true,
@@ -43,12 +45,12 @@ data class XkeenUiState(
 )
 
 class XkeenViewModel constructor(
-    private val settingsFlow: Flow<ServerSettings>,
+    private val activeProfileFlow: Flow<ActiveRouterProfile?>,
     private val repository: XkeenRepositoryGateway,
     private val preferenceGateway: XkeenPreferenceGateway,
 ) : ViewModel() {
-    constructor() : this(ServiceLocator.settingsStore.settings, ServiceLocator.xkeenRepository, ServiceLocator.xkeenPreferenceStore)
-    constructor(settingsFlow: Flow<ServerSettings>, repository: XkeenRepositoryGateway) : this(settingsFlow, repository, EmptyPreferences)
+    constructor() : this(ServiceLocator.routerProfileStore.activeProfile, ServiceLocator.xkeenRepository, ServiceLocator.xkeenPreferenceStore)
+    constructor(activeProfileFlow: Flow<ActiveRouterProfile?>, repository: XkeenRepositoryGateway) : this(activeProfileFlow, repository, EmptyPreferences)
     private val loadMutex = Mutex()
     private val mutationMutex = Mutex()
     private val diagnosticsMutex = Mutex()
@@ -67,8 +69,8 @@ class XkeenViewModel constructor(
     fun loadStatus(): Job = viewModelScope.launch {
         if (!loadMutex.tryLock()) return@launch
         try {
-            val settings = settingsFlow.first()
-            if (!settings.hasXkeenController()) {
+            val endpoint = runCatching { activeProfileFlow.first()?.requireCompanionEndpoint() }.getOrNull()
+            if (endpoint == null) {
                 _state.value = _state.value.copy(
                     loading = false,
                     needsSetup = true,
@@ -78,7 +80,7 @@ class XkeenViewModel constructor(
             }
             _state.value = _state.value.copy(loading = _state.value.status == null, needsSetup = false, message = null)
             try {
-                applyStatus(repository.status(settings))
+                applyStatus(repository.status(endpoint))
             } catch (_: Exception) {
                 val previous = _state.value.status
                 _state.value = _state.value.copy(
@@ -92,8 +94,8 @@ class XkeenViewModel constructor(
         }
     }
 
-    fun refreshSubscription(): Job = mutate { settings, status ->
-        repository.refreshAndAwait(settings, status.stateVersion)
+    fun refreshSubscription(): Job = mutate { endpoint, status ->
+        repository.refreshAndAwait(endpoint, status.stateVersion)
     }
 
     fun requestSelect(node: XkeenNode) {
@@ -110,8 +112,8 @@ class XkeenViewModel constructor(
 
     fun confirmSelection(): Job {
         val target = _state.value.pendingNode ?: return completedJob()
-        return mutate(target) { settings, status ->
-            repository.selectAndAwait(settings, target.id, status.stateVersion)
+        return mutate(target) { endpoint, status ->
+            repository.selectAndAwait(endpoint, target.id, status.stateVersion)
         }
     }
 
@@ -130,11 +132,11 @@ class XkeenViewModel constructor(
     fun runDiagnostics(): Job = viewModelScope.launch {
         if (!diagnosticsMutex.tryLock()) return@launch
         try {
-            val settings = settingsFlow.first()
-            if (!settings.hasXkeenController() || _state.value.status == null) return@launch
+            val endpoint = runCatching { activeProfileFlow.first()?.requireCompanionEndpoint() }.getOrNull()
+            if (endpoint == null || _state.value.status == null) return@launch
             _state.value = _state.value.copy(diagnosticsBusy = true, message = null)
             try {
-                val report = repository.diagnostics(settings)
+                val report = repository.diagnostics(endpoint)
                 _state.value = _state.value.copy(
                     diagnostics = report.results.associateBy { it.nodeId },
                     diagnosticsCheckedAt = report.checkedAt,
@@ -150,7 +152,7 @@ class XkeenViewModel constructor(
 
     private fun mutate(
         target: XkeenNode? = null,
-        operation: suspend (ServerSettings, XkeenStatus) -> XkeenOperation,
+        operation: suspend (CompanionEndpoint, XkeenStatus) -> XkeenOperation,
     ): Job {
         val before = _state.value
         if (before.busy || before.blocksMutation || before.status == null || !mutationMutex.tryLock()) {
@@ -160,12 +162,12 @@ class XkeenViewModel constructor(
         return viewModelScope.launch {
             try {
                 val status = before.status
-                val settings = settingsFlow.first()
-                if (!settings.hasXkeenController()) {
+                val endpoint = runCatching { activeProfileFlow.first()?.requireCompanionEndpoint() }.getOrNull()
+                if (endpoint == null) {
                     _state.value = _state.value.copy(needsSetup = true)
                     return@launch
                 }
-                val result = operation(settings, status)
+                val result = operation(endpoint, status)
                 if (target != null && result.result == XkeenOperationResult.SUCCESS) {
                     preferenceGateway.recordSelected(serverIdentity(target.host, target.port))
                 }
@@ -175,7 +177,7 @@ class XkeenViewModel constructor(
                     message = resultMessage(result),
                 )
                 try {
-                    applyStatus(repository.status(settings), preserveMessage = true)
+                    applyStatus(repository.status(endpoint), preserveMessage = true)
                 } catch (_: Exception) {
                     _state.value = _state.value.copy(
                         staleStatus = _state.value.status,
@@ -205,8 +207,6 @@ class XkeenViewModel constructor(
 
     private fun XkeenOperation?.blocksMutation(): Boolean = this != null &&
         (state != XkeenOperationState.TERMINAL || result == XkeenOperationResult.UNCERTAIN)
-
-    private fun ServerSettings.hasXkeenController() = xkeenControllerUrl.isNotBlank() && xkeenControllerToken.isNotBlank()
 
     private fun resultMessage(operation: XkeenOperation): String = when (operation.result) {
         XkeenOperationResult.SUCCESS -> if (operation.kind == "refresh") "Подписка обновлена" else "Узел переключён и проверен"

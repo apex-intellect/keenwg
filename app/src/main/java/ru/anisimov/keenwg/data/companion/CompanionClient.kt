@@ -7,20 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import okhttp3.HttpUrl
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import ru.anisimov.keenwg.domain.model.RouterProfile
-import java.io.ByteArrayOutputStream
-import java.io.IOException
-import java.security.SecureRandom
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
 
 interface CompanionClient {
     suspend fun exchange(profile: RouterProfile, offerId: String, secret: String, label: String): PairingCredential
@@ -33,14 +20,13 @@ interface CompanionClient {
 }
 
 class HttpCompanionClient(
+    private val transport: CompanionHttpTransport = CompanionHttpTransport(),
     private val json: Json = Json {
         ignoreUnknownKeys = false
         explicitNulls = false
         encodeDefaults = true
     },
 ) : CompanionClient {
-    private val clients = ConcurrentHashMap<ClientKey, OkHttpClient>()
-
     override suspend fun exchange(
         profile: RouterProfile,
         offerId: String,
@@ -134,59 +120,21 @@ class HttpCompanionClient(
         body: String? = null,
         expectBody: Boolean = true,
     ): String {
-        val base = validatedBaseUrl(profile)
-        val url = base.resolve(path) ?: throw CompanionException(CompanionErrorCode.INVALID_SETTINGS)
-        val requestBody = body?.toRequestBody(JSON_MEDIA_TYPE)
-        val request = Request.Builder()
-            .url(url)
-            .header("Accept", "application/json")
-            .header("Cache-Control", "no-store")
-            .apply { if (token != null) header("Authorization", "Bearer $token") }
-            .method(method, requestBody)
-            .build()
+        val target = try {
+            profile.requireCompanionTarget()
+        } catch (failure: IllegalArgumentException) {
+            throw CompanionException(CompanionErrorCode.INVALID_SETTINGS, failure)
+        }
         val response = try {
-            client(profile, base).newCall(request).execute()
-        } catch (failure: IOException) {
+            transport.execute(target, path, method, token, body, MAX_BODY_BYTES, expectBody)
+        } catch (failure: CompanionResponseTooLargeException) {
+            throw CompanionException(CompanionErrorCode.UNSUPPORTED_SCHEMA, failure)
+        } catch (failure: CompanionTransportException) {
             throw CompanionException(CompanionErrorCode.UNAVAILABLE, failure)
         }
-        response.use {
-            if (!it.isSuccessful) throw statusFailure(it.code)
-            if (!expectBody) {
-                if (it.code != 204) throw CompanionException(CompanionErrorCode.PROTOCOL)
-                return ""
-            }
-            return readBounded(it)
-        }
-    }
-
-    private fun client(profile: RouterProfile, base: HttpUrl): OkHttpClient {
-        val key = ClientKey(base.scheme, base.host, base.port, profile.certificatePin)
-        return clients.getOrPut(key) {
-            val trustManager = try {
-                ExactPinTrustManager(profile.certificatePin)
-            } catch (failure: IllegalArgumentException) {
-                throw CompanionException(CompanionErrorCode.INVALID_SETTINGS, failure)
-            }
-            val context = SSLContext.getInstance("TLS")
-            context.init(null, arrayOf(trustManager), SecureRandom())
-            OkHttpClient.Builder()
-                .sslSocketFactory(context.socketFactory, trustManager)
-                .connectTimeout(5, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .callTimeout(20, TimeUnit.SECONDS)
-                .build()
-        }
-    }
-
-    private fun validatedBaseUrl(profile: RouterProfile): HttpUrl {
-        val url = profile.companionUrl.toHttpUrlOrNull()
-            ?: throw CompanionException(CompanionErrorCode.INVALID_SETTINGS)
-        if (url.scheme != "https" || url.encodedUsername.isNotEmpty() || url.encodedPassword.isNotEmpty() ||
-            url.query != null || url.fragment != null || (url.encodedPath != "/" && url.encodedPath.isNotEmpty())
-        ) {
-            throw CompanionException(CompanionErrorCode.INVALID_SETTINGS)
-        }
-        return url
+        if (response.status !in 200..299) throw statusFailure(response.status)
+        if (!expectBody && response.status != 204) throw CompanionException(CompanionErrorCode.PROTOCOL)
+        return response.body
     }
 
     private inline fun <reified T> decode(body: String): T = try {
@@ -195,23 +143,6 @@ class HttpCompanionClient(
         throw CompanionException(CompanionErrorCode.UNSUPPORTED_SCHEMA, failure)
     } catch (failure: IllegalArgumentException) {
         throw CompanionException(CompanionErrorCode.UNSUPPORTED_SCHEMA, failure)
-    }
-
-    private fun readBounded(response: Response): String {
-        val body = response.body ?: throw CompanionException(CompanionErrorCode.PROTOCOL)
-        if (body.contentLength() > MAX_BODY_BYTES) throw CompanionException(CompanionErrorCode.UNSUPPORTED_SCHEMA)
-        val input = body.byteStream()
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(8192)
-        var total = 0
-        while (true) {
-            val count = input.read(buffer)
-            if (count < 0) break
-            total += count
-            if (total > MAX_BODY_BYTES) throw CompanionException(CompanionErrorCode.UNSUPPORTED_SCHEMA)
-            output.write(buffer, 0, count)
-        }
-        return output.toString(Charsets.UTF_8.name())
     }
 
     private fun statusFailure(status: Int) = CompanionException(
@@ -255,11 +186,8 @@ class HttpCompanionClient(
         val devices: List<PairedDevice>,
     )
 
-    private data class ClientKey(val scheme: String, val host: String, val port: Int, val pin: String)
-
     private companion object {
-        val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         val DEVICE_ID = Regex("[A-Za-z0-9_-]{1,128}")
-        const val MAX_BODY_BYTES = 1_048_576
+        const val MAX_BODY_BYTES = 1_048_576L
     }
 }

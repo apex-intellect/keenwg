@@ -2,7 +2,6 @@ package ru.anisimov.keenwg.data.store
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -10,6 +9,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -24,53 +24,47 @@ import ru.anisimov.keenwg.domain.model.ServerSettings
 class RouterProfileStoreTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
 
-    @Test fun `legacy settings migrate once without losing encrypted credentials`() = runTest {
+    @Test fun `schema one profile upgrades once without losing active encrypted credentials`() = runTest {
         val dataStore = testDataStore("migration.preferences_pb")
         val cipher = PrefixCipher()
-        val legacy = ServerSettings(
-            host = "192.168.1.1",
-            port = 8080,
-            login = "admin-user",
-            password = "router-secret",
-            interfaceId = "Wireguard9",
-            serverPublicKey = "server-key",
-            endpoint = "vpn.example.test:51820",
-            subnetBase = "10.9.0.",
-            dns = "192.168.1.1",
-            mtu = 1360,
-            keepalive = 17,
-            collectorUrl = "http://192.168.1.1:18777",
-            collectorToken = "collector-secret",
-            xkeenControllerUrl = "http://192.168.1.1:18778",
-            xkeenControllerToken = "xkeen-secret",
-        )
-        writeLegacy(dataStore, cipher, legacy)
+        dataStore.edit { preferences ->
+            preferences[stringPreferencesKey("router_profiles_json")] = schemaOneIndex()
+            preferences[stringPreferencesKey("router_secrets_enc")] = cipher.encrypt(schemaOneSecrets())
+            preferences[stringPreferencesKey("host")] = "obsolete-mirror"
+            preferences[stringPreferencesKey("xkeen_controller_url")] = "http://192.168.1.1:18778"
+            preferences[stringPreferencesKey("xkeen_controller_token_enc")] = cipher.encrypt("obsolete-token")
+        }
         val store = RouterProfileStore(dataStore, cipher)
 
-        store.migrateLegacy()
+        store.initialize()
         val firstRaw = dataStore.data.first()[stringPreferencesKey("router_profiles_json")]
-        store.migrateLegacy()
+        store.initialize()
         val secondRaw = dataStore.data.first()[stringPreferencesKey("router_profiles_json")]
 
         val state = store.state.first() as RouterProfilesState.Ready
         assertEquals(1, state.profiles.size)
-        assertEquals(state.profiles.single().id, state.selectedId)
+        assertEquals("home", state.selectedId)
+        assertEquals(2, state.profiles.single().schemaVersion)
         assertEquals(firstRaw, secondRaw)
-        assertEquals(legacy, store.activeSettings.first())
+        val active = store.activeProfile.first()!!
+        assertEquals("router-secret", active.secrets.rciPassword)
+        assertEquals("collector-secret", active.secrets.collectorToken)
+        assertEquals("device-token", active.secrets.companionToken)
+        assertEquals("https://192.168.1.1:18779", active.profile.companionUrl)
         val rawSecrets = dataStore.data.first()[stringPreferencesKey("router_secrets_enc")].orEmpty()
         assertTrue(rawSecrets.startsWith("enc:"))
         assertTrue(!rawSecrets.contains("router-secret"))
-        assertTrue(!rawSecrets.contains("xkeen-secret"))
-        assertTrue(store.migrationReviewPending.first())
-        store.dismissMigrationReview()
-        assertTrue(!store.migrationReviewPending.first())
+        val migratedPreferences = dataStore.data.first()
+        assertEquals(null, migratedPreferences[stringPreferencesKey("host")])
+        assertEquals(null, migratedPreferences[stringPreferencesKey("xkeen_controller_url")])
+        assertEquals(null, migratedPreferences[stringPreferencesKey("xkeen_controller_token_enc")])
     }
 
     @Test fun `multiple profiles keep independent secrets and explicit selection`() = runTest {
         val dataStore = testDataStore("multiple.preferences_pb")
         val cipher = PrefixCipher()
         val store = RouterProfileStore(dataStore, cipher)
-        store.migrateLegacy()
+        store.initialize()
         val first = (store.state.first() as RouterProfilesState.Ready).profiles.single()
         val secondSettings = ServerSettings(host = "10.10.0.1", login = "second", password = "second-secret")
         val second = RouterProfile.fromServerSettings("router-two", "Office", secondSettings)
@@ -85,7 +79,7 @@ class RouterProfileStoreTest {
 
     @Test fun `last profile cannot be deleted`() = runTest {
         val store = RouterProfileStore(testDataStore("delete.preferences_pb"), PrefixCipher())
-        store.migrateLegacy()
+        store.initialize()
         val only = (store.state.first() as RouterProfilesState.Ready).profiles.single()
         val result = runCatching { store.delete(only.id) }
         assertTrue(result.exceptionOrNull() is IllegalStateException)
@@ -95,7 +89,7 @@ class RouterProfileStoreTest {
     @Test fun `secret decrypt failure exposes locked state and no active settings`() = runTest {
         val dataStore = testDataStore("locked.preferences_pb")
         val profile = RouterProfile.fromServerSettings("router-one", "Home", ServerSettings())
-        val index = RouterProfileIndex(schemaVersion = 1, selectedProfileId = profile.id, profiles = listOf(profile))
+        val index = RouterProfileIndex(schemaVersion = 2, selectedProfileId = profile.id, profiles = listOf(profile))
         dataStore.edit { preferences ->
             preferences[stringPreferencesKey("router_profiles_json")] = RouterProfileCodec.encodeIndex(index)
             preferences[stringPreferencesKey("router_secrets_enc")] = "broken"
@@ -112,14 +106,40 @@ class RouterProfileStoreTest {
 
     @Test fun `codec rejects unknown schema version`() {
         val error = runCatching {
-            RouterProfileCodec.decodeIndex("""{"schema_version":2,"selected_profile_id":"x","profiles":[]}""")
+            RouterProfileCodec.decodeIndex("""{"schema_version":3,"selected_profile_id":"x","profiles":[]}""")
         }.exceptionOrNull()
         assertTrue(error is IllegalArgumentException)
     }
 
+    @Test fun `codec upgrades schema one and drops only obsolete xkeen credentials`() {
+        val index = RouterProfileCodec.decodeIndex("""{
+          "schema_version":1,"selected_profile_id":"home","profiles":[{
+            "schemaVersion":1,"id":"home","displayName":"Home","host":"192.168.1.1","rciPort":80,
+            "interfaceId":"Wireguard0","serverPublicKey":"","endpoint":"","subnetBase":"10.8.0.",
+            "dns":"192.168.1.1","mtu":1380,"keepalive":25,
+            "companionUrl":"https://192.168.1.1:18779","certificatePin":"sha256/pin",
+            "collectorUrl":"http://192.168.1.1:18777","legacyXkeenUrl":"http://192.168.1.1:18778"
+          }]
+        }""")
+        val secrets = RouterProfileCodec.decodeSecrets("""{
+          "schema_version":1,"secrets":{"home":{
+            "rciLogin":"admin","rciPassword":"router-secret","companionToken":"device-token",
+            "companionDeviceId":"phone-1","collectorToken":"collector-token","legacyXkeenToken":"obsolete-token"
+          }}
+        }""")
+
+        assertEquals(2, index.schemaVersion)
+        assertEquals(2, index.profiles.single().schemaVersion)
+        assertEquals("https://192.168.1.1:18779", index.profiles.single().companionUrl)
+        assertEquals("device-token", secrets.getValue("home").companionToken)
+        assertEquals("collector-token", secrets.getValue("home").collectorToken)
+        assertFalse(RouterProfileCodec.encodeIndex(index).contains("legacyXkeen"))
+        assertFalse(RouterProfileCodec.encodeSecrets(secrets).contains("legacyXkeen"))
+    }
+
     @Test fun `companion identity and device token are saved in one selected profile update`() = runTest {
         val store = RouterProfileStore(testDataStore("companion.preferences_pb"), PrefixCipher())
-        store.migrateLegacy()
+        store.initialize()
         val selected = (store.state.first() as RouterProfilesState.Ready).selectedId
 
         store.saveCompanion(
@@ -158,26 +178,19 @@ private class PrefixCipher : SecretCipher {
     }
 }
 
-private suspend fun writeLegacy(
-    dataStore: androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>,
-    cipher: SecretCipher,
-    settings: ServerSettings,
-) {
-    dataStore.edit { p ->
-        p[stringPreferencesKey("host")] = settings.host
-        p[intPreferencesKey("port")] = settings.port
-        p[stringPreferencesKey("login")] = settings.login
-        p[stringPreferencesKey("pass_enc")] = cipher.encrypt(settings.password)
-        p[stringPreferencesKey("iface")] = settings.interfaceId
-        p[stringPreferencesKey("srv_key")] = settings.serverPublicKey
-        p[stringPreferencesKey("endpoint")] = settings.endpoint
-        p[stringPreferencesKey("subnet")] = settings.subnetBase
-        p[stringPreferencesKey("dns")] = settings.dns
-        p[intPreferencesKey("mtu")] = settings.mtu
-        p[intPreferencesKey("keepalive")] = settings.keepalive
-        p[stringPreferencesKey("collector_url")] = settings.collectorUrl
-        p[stringPreferencesKey("collector_token_enc")] = cipher.encrypt(settings.collectorToken)
-        p[stringPreferencesKey("xkeen_controller_url")] = settings.xkeenControllerUrl
-        p[stringPreferencesKey("xkeen_controller_token_enc")] = cipher.encrypt(settings.xkeenControllerToken)
-    }
-}
+private fun schemaOneIndex() = """{
+  "schema_version":1,"selected_profile_id":"home","profiles":[{
+    "schemaVersion":1,"id":"home","displayName":"Home","host":"192.168.1.1","rciPort":8080,
+    "interfaceId":"Wireguard9","serverPublicKey":"server-key","endpoint":"vpn.example.test:51820",
+    "subnetBase":"10.9.0.","dns":"192.168.1.1","mtu":1360,"keepalive":17,
+    "companionUrl":"https://192.168.1.1:18779","certificatePin":"sha256/pin",
+    "collectorUrl":"http://192.168.1.1:18777","legacyXkeenUrl":"http://192.168.1.1:18778"
+  }]
+}"""
+
+private fun schemaOneSecrets() = """{
+  "schema_version":1,"secrets":{"home":{
+    "rciLogin":"admin-user","rciPassword":"router-secret","companionToken":"device-token",
+    "companionDeviceId":"phone-1","collectorToken":"collector-secret","legacyXkeenToken":"obsolete-token"
+  }}
+}"""

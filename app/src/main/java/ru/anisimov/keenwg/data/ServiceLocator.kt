@@ -25,6 +25,7 @@ import ru.anisimov.keenwg.data.network.NetworkExclusionClient
 import ru.anisimov.keenwg.data.network.DomainRoutingClient
 import ru.anisimov.keenwg.data.capability.CapabilityRegistry
 import ru.anisimov.keenwg.data.companion.CompanionClient
+import ru.anisimov.keenwg.data.companion.CompanionHttpTransport
 import ru.anisimov.keenwg.data.companion.HttpCompanionClient
 import ru.anisimov.keenwg.data.installer.AndroidCompanionAssetSource
 import ru.anisimov.keenwg.data.installer.CompanionAssetVerifier
@@ -93,16 +94,17 @@ object ServiceLocator {
         val app = context.applicationContext
         settingsStore = SettingsStore(app, cipher)
         routerProfileStore = settingsStore.routerProfiles
-        applicationScope.launch { runCatching { settingsStore.migrateLegacy() } }
+        applicationScope.launch { runCatching { settingsStore.initialize() } }
         lineageStore = PeerLineageStore(app)
         repository = PeerRepository(RciClient(), PeerConfStore(app, cipher), lineageStore, accessPolicyStore = PeerAccessPolicyStore(app))
         statsGateway = CollectorRepository(CollectorClient())
-        xkeenRepository = XkeenRepository(XkeenClient())
+        val companionTransport = CompanionHttpTransport()
+        xkeenRepository = XkeenRepository(XkeenClient(companionTransport))
         xkeenPreferenceStore = XkeenPreferenceStore(app)
         networkRepository = NetworkRepository()
-        networkExclusionClient = NetworkExclusionClient()
-        domainRoutingClient = DomainRoutingClient()
-        companionClient = HttpCompanionClient()
+        networkExclusionClient = NetworkExclusionClient(companionTransport)
+        domainRoutingClient = DomainRoutingClient(companionTransport)
+        companionClient = HttpCompanionClient(companionTransport)
         capabilityRegistry = CapabilityRegistry()
         catalogGateway = CatalogClient()
         routeExplainGateway = RouteExplainClient()

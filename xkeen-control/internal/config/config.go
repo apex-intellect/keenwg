@@ -16,9 +16,8 @@ import (
 var ErrInvalidConfig = errors.New("invalid_config")
 
 type Config struct {
-	ListenAddress       string           `json:"listen_address"`
-	SecureListenAddress string           `json:"secure_listen_address,omitempty"`
-	Token               string           `json:"token"`
+	SchemaVersion       int              `json:"schema_version"`
+	SecureListenAddress string           `json:"secure_listen_address"`
 	SubscriptionURL     string           `json:"subscription_url"`
 	SubscriptionCache   string           `json:"subscription_cache_path"`
 	StatePath           string           `json:"state_path"`
@@ -42,7 +41,6 @@ type Config struct {
 	CatalogPath         string           `json:"catalog_path,omitempty"`
 	CatalogSecretsPath  string           `json:"catalog_secrets_path,omitempty"`
 	RecoveryPath        string           `json:"recovery_path,omitempty"`
-	LegacyAPIEnabled    bool             `json:"legacy_api_enabled"`
 	SingBox             SingBoxConfig    `json:"singbox,omitempty"`
 	AWGManager          AWGManagerConfig `json:"awg_manager,omitempty"`
 }
@@ -67,8 +65,8 @@ type AWGManagerConfig struct {
 }
 
 func Decode(r io.Reader) (Config, error) {
-	cfg := Config{LegacyAPIEnabled: true}
-	decoder := json.NewDecoder(r)
+	var cfg Config
+	decoder := json.NewDecoder(io.LimitReader(r, 1<<20))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&cfg); err != nil {
 		return Config{}, invalid(err)
@@ -85,24 +83,16 @@ func Decode(r io.Reader) (Config, error) {
 }
 
 func (c Config) Validate() error {
-	if err := validateListener(c.ListenAddress); err != nil {
+	if c.SchemaVersion != 2 || c.SecureListenAddress == "" {
+		return invalid(nil)
+	}
+	if err := validateListener(c.SecureListenAddress); err != nil {
 		return err
 	}
-	if c.SecureListenAddress != "" {
-		if err := validateListener(c.SecureListenAddress); err != nil {
+	if c.SubscriptionURL != "" {
+		if err := validateSubscriptionURL(c.SubscriptionURL); err != nil {
 			return err
 		}
-		if c.SecureListenAddress == c.ListenAddress {
-			return invalid(nil)
-		}
-	} else if !c.LegacyAPIEnabled {
-		return invalid(nil)
-	}
-	if len(c.Token) < 32 || len(c.Token) > 256 || strings.TrimSpace(c.Token) != c.Token {
-		return invalid(nil)
-	}
-	if err := validateSubscriptionURL(c.SubscriptionURL); err != nil {
-		return err
 	}
 	for _, value := range []string{
 		c.SubscriptionCache,
@@ -148,6 +138,41 @@ func (c Config) Validate() error {
 		return invalid(nil)
 	}
 	return nil
+}
+
+func Encode(w io.Writer, cfg Config) error {
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	encoder := json.NewEncoder(w)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(cfg); err != nil {
+		return invalid(err)
+	}
+	return nil
+}
+
+func NewSecure(secureListenAddress string) Config {
+	cfg := Config{
+		SchemaVersion:       2,
+		SecureListenAddress: secureListenAddress,
+		SubscriptionCache:   "/opt/etc/keenwg/xkeen-subscription.json",
+		StatePath:           "/opt/etc/keenwg/xkeen-state.json",
+		BackupDir:           "/opt/etc/keenwg/backups",
+		OutboundsPath:       "/opt/etc/xray/configs/04_outbounds.json",
+		ExcludePath:         "/opt/etc/xkeen/ip_exclude.lst",
+		DomainPolicyPath:    "/opt/etc/keenwg/domain-policy.json",
+		DomainPolicyBackup:  "/opt/etc/keenwg/domain-policy.json.bak",
+		RoutingPath:         "/opt/etc/xray/configs/05_routing.json",
+		InitScript:          "/opt/etc/init.d/S05xkeen",
+		XrayBinary:          "/opt/sbin/xray",
+		AssetDir:            "/opt/etc/xray/dat",
+		MaxSubscriptionSize: 262144,
+		MaxNodes:            128,
+	}
+	cfg.applyDefaults()
+	return cfg
 }
 
 func validateAWGManager(config AWGManagerConfig) error {

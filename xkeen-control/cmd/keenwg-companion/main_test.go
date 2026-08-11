@@ -10,26 +10,24 @@ import (
 )
 
 func TestCommandPrintsCompanionVersion(t *testing.T) {
-	previousVersion, previousCommit := version, commit
-	version, commit = "0.7.0", "abc123"
-	t.Cleanup(func() { version, commit = previousVersion, previousCommit })
+	previousVersion := version
+	version = "2.0.0"
+	t.Cleanup(func() { version = previousVersion })
 	var output bytes.Buffer
 	if err := command([]string{"-version"}, &output, ""); err != nil {
 		t.Fatal(err)
 	}
-	if output.String() != "keenwg-companion 0.7.0 (abc123)\n" {
+	if output.String() != "keenwg-companion 2.0.0\n" {
 		t.Fatalf("output=%q", output.String())
 	}
 }
 
 func TestCommandBootstrapsAndPrintsOneFlatPairingObject(t *testing.T) {
 	root := t.TempDir()
-	legacyPath := filepath.Join(root, "legacy.json")
 	targetPath := filepath.Join(root, "companion.json")
 	requestPath := filepath.Join(root, "request.json")
-	writeCommandFixture(t, legacyPath, companionLegacyConfig())
 	writeCommandFixture(t, requestPath, `{"schema_version":1,"secure_listen_address":"10.8.0.1:18779"}`)
-	if err := command([]string{"-config", targetPath, "-bootstrap-from", legacyPath, "-bootstrap-request", requestPath}, &bytes.Buffer{}, root); err != nil {
+	if err := command([]string{"-config", targetPath, "-bootstrap-request", requestPath}, &bytes.Buffer{}, root); err != nil {
 		t.Fatal(err)
 	}
 	var output bytes.Buffer
@@ -57,11 +55,48 @@ func TestCommandBootstrapsAndPrintsOneFlatPairingObject(t *testing.T) {
 	}
 }
 
+func TestCommandBootstrapsWithoutLegacyController(t *testing.T) {
+	root := t.TempDir()
+	targetPath := filepath.Join(root, "companion.json")
+	requestPath := filepath.Join(root, "request.json")
+	writeCommandFixture(t, requestPath, `{"schema_version":1,"secure_listen_address":"10.8.0.1:18779"}`)
+
+	if err := command([]string{"-config", targetPath, "-bootstrap-request", requestPath}, &bytes.Buffer{}, root); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(body, []byte(`"schema_version": 2`)) || bytes.Contains(body, []byte(`"listen_address"`)) {
+		t.Fatalf("unexpected native config: %s", body)
+	}
+}
+
+func TestCommandUpgradesExistingV1Config(t *testing.T) {
+	root := t.TempDir()
+	targetPath := filepath.Join(root, "companion.json")
+	previous := strings.Replace(companionV1Config(), "\n}", ",\n  \"secure_listen_address\":\"192.168.1.1:18779\",\n  \"legacy_api_enabled\":true\n}", 1)
+	writeCommandFixture(t, targetPath, previous)
+
+	if err := command([]string{"-config", targetPath, "-upgrade-config"}, &bytes.Buffer{}, root); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(body, []byte(`"schema_version": 2`)) || bytes.Contains(body, []byte(`"legacy_api_enabled"`)) {
+		t.Fatalf("unexpected upgraded config: %s", body)
+	}
+}
+
 func TestCommandRejectsConflictingAndIncompleteModes(t *testing.T) {
 	for _, arguments := range [][]string{
 		{"-version", "-check"},
 		{"-bootstrap-from", "/tmp/legacy.json"},
-		{"-bootstrap-request", "/tmp/request.json"},
+		{"-bootstrap-request", "/tmp/request.json", "-upgrade-config"},
+		{"-upgrade-config", "-check"},
 		{"-create-pairing-offer", "operator"},
 		{"unexpected"},
 	} {
@@ -78,7 +113,7 @@ func writeCommandFixture(t *testing.T, path, body string) {
 	}
 }
 
-func companionLegacyConfig() string {
+func companionV1Config() string {
 	return `{
   "listen_address":"10.8.0.1:18778",
   "token":"0123456789abcdef0123456789abcdef",

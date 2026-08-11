@@ -49,7 +49,6 @@ data class DevicesUiState(
     val companionVersion: String = "",
     val pinSuffix: String = "",
     val apiState: String = "Не проверен",
-    val legacyBridgeEnabled: Boolean = false,
     val devices: List<DeviceItem> = emptyList(),
     val offer: VisiblePairingOffer? = null,
     val revokeConfirmation: RevokeConfirmation? = null,
@@ -100,7 +99,6 @@ class DevicesViewModel(
                 companionVersion = snapshot.first.version,
                 pinSuffix = selected.profile.certificatePin.takeLast(10),
                 apiState = "Доступен",
-                legacyBridgeEnabled = selected.profile.legacyXkeenUrl.isNotBlank(),
                 devices = snapshot.third.map { device ->
                     DeviceItem(
                         id = device.id,

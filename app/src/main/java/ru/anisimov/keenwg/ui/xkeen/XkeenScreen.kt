@@ -70,7 +70,7 @@ import ru.anisimov.keenwg.data.store.serverIdentity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun XkeenScreen(
-    onSettings: () -> Unit,
+    onSetupCompanion: () -> Unit,
     viewModel: XkeenViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -94,7 +94,7 @@ fun XkeenScreen(
         when {
             state.loading && state.status == null -> LoadingRoute(Modifier.padding(scaffoldPadding))
             state.needsSetup -> SetupRoute(
-                onSettings = onSettings,
+                onSetupCompanion = onSetupCompanion,
                 modifier = Modifier.padding(scaffoldPadding),
             )
             else -> RouteContent(
@@ -395,7 +395,7 @@ private fun LoadingRoute(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SetupRoute(onSettings: () -> Unit, modifier: Modifier = Modifier) {
+private fun SetupRoute(onSetupCompanion: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -404,11 +404,11 @@ private fun SetupRoute(onSettings: () -> Unit, modifier: Modifier = Modifier) {
         Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(44.dp), tint = MaterialTheme.colorScheme.primary)
         Text(stringResource(R.string.ui_xkeenscreen_72909eb470), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 14.dp))
         Text(
-            "Укажите адрес контроллера и отдельный токен. Подписка обновляется только по вашему нажатию.",
+            stringResource(R.string.xkeen_pairing_required_detail),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp, bottom = 18.dp),
         )
-        Button(onClick = onSettings, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.ui_xkeenscreen_7c8ef82d31)) }
+        Button(onClick = onSetupCompanion, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.ui_xkeenscreen_7c8ef82d31)) }
     }
 }
