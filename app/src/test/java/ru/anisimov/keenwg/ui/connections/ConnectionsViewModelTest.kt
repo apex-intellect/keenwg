@@ -124,6 +124,7 @@ class ConnectionsViewModelTest {
         advanceUntilIdle()
         assertEquals(SourceStatus.READY, vm.state.value.catalog!!.sources.last().status)
         assertEquals("owned-node", vm.state.value.catalog!!.nodes.last().id)
+        assertEquals(ConnectionNotice.SubscriptionUpdated(1), vm.state.value.notice)
     }
 
     @Test fun `preview warns when normalized endpoint already exists`() = runTest(dispatcher) {

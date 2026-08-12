@@ -3,6 +3,7 @@ package ru.anisimov.keenwg.ui.connections
 import ru.anisimov.keenwg.R
 
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 
 import android.app.Activity
 import android.content.ClipboardManager
@@ -155,7 +156,21 @@ fun ConnectionsScreen(
                     if (pending.duplicateWarning) Text(stringResource(R.string.ui_connectionsscreen_e707467eef), color = MaterialTheme.colorScheme.secondary)
                     OutlinedTextField(importLabel, { importLabel = it }, label = { Text(stringResource(R.string.ui_connectionsscreen_0918b4ba92)) }, singleLine = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        groups.forEach { group -> FilterChip(selectedGroup == group.id, { importGroup = group.id }, { Text(group.label) }) }
+                        groups.forEach { group ->
+                            FilterChip(
+                                selectedGroup == group.id,
+                                { importGroup = group.id },
+                                {
+                                    Text(
+                                        if (groupDisplayKind(group) == GroupDisplayKind.PRIMARY) {
+                                            stringResource(R.string.connections_group_primary)
+                                        } else {
+                                            group.label
+                                        },
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
             },
@@ -185,25 +200,85 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item { Button(onClick = onAdd, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) { Text(stringResource(R.string.ui_connectionsscreen_19bb65cdf3)) } }
-        state.message?.let { item { StatusNotice(stringResource(R.string.ui_connectionsscreen_225077c6d4), detail = it, isError = it != stringResource(R.string.ui_connectionsscreen_ef05d57959)) } }
+        state.notice?.let { notice ->
+            item {
+                StatusNotice(
+                    stringResource(R.string.connections_notice_title),
+                    detail = connectionNoticeText(notice),
+                    isError = notice !is ConnectionNotice.SubscriptionUpdated,
+                )
+            }
+        }
+        state.message?.let { item { StatusNotice(stringResource(R.string.connections_notice_title), detail = it, isError = true) } }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = state.selectedGroupId == null, onClick = { viewModel.selectGroup(null) }, label = { Text(stringResource(R.string.ui_connectionsscreen_215816bf42)) })
                 catalog.groups.forEach { group ->
-                    FilterChip(selected = state.selectedGroupId == group.id, onClick = { viewModel.selectGroup(group.id) }, label = { Text(group.label) })
+                    FilterChip(
+                        selected = state.selectedGroupId == group.id,
+                        onClick = { viewModel.selectGroup(group.id) },
+                        label = {
+                            Text(
+                                if (groupDisplayKind(group) == GroupDisplayKind.PRIMARY) {
+                                    stringResource(R.string.connections_group_primary)
+                                } else {
+                                    group.label
+                                },
+                            )
+                        },
+                    )
                 }
             }
         }
         items(catalog.sources, key = { "source-${it.id}" }) { source ->
             Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f))) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(source.label, fontWeight = FontWeight.SemiBold)
-                        val readiness = if (source.status.name == "STALE") " · нужно обновить" else ""
-                Text(stringResource(R.string.connection_source_summary, source.nodeCount, source.adapterId, readiness), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val sourceKind = sourceDisplayKind(source)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            if (sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
+                                stringResource(R.string.connections_source_xkeen)
+                            } else {
+                                source.label
+                            },
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            pluralStringResource(R.plurals.connections_server_count, source.nodeCount, source.nodeCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (source.status.name == "STALE") {
+                            Text(
+                                stringResource(R.string.connections_subscription_stale),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary,
+                            )
+                        }
+                        if (sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
+                            Text(
+                                stringResource(R.string.connections_subscription_helper),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     if (source.foreign) TextButton(onClick = { viewModel.refreshSource(source.id) }, enabled = source.id !in state.busySources) {
-                        Icon(Icons.Default.Refresh, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.ui_connectionsscreen_603e460bf5))
+                        if (source.id in state.busySources) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            stringResource(
+                                if (source.id in state.busySources) {
+                                    R.string.connections_subscription_refreshing
+                                } else {
+                                    R.string.connections_subscription_refresh
+                                },
+                            ),
+                        )
                     }
                 }
             }
@@ -221,7 +296,15 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
                         Column(Modifier.weight(1f)) {
                             Text(card.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text(card.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(card.engine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                if (card.sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
+                                    stringResource(R.string.connections_source_xkeen_node)
+                                } else {
+                                    card.customSourceLabel
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
                         if (card.active) Icon(Icons.Default.CheckCircle, stringResource(R.string.active), tint = MaterialTheme.colorScheme.tertiary)
                     }
@@ -233,6 +316,20 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
             }
         }
     }
+}
+
+@Composable
+private fun connectionNoticeText(notice: ConnectionNotice): String = when (notice) {
+    is ConnectionNotice.SubscriptionUpdated -> stringResource(
+        R.string.connections_notice_updated,
+        pluralStringResource(R.plurals.connections_server_count, notice.serverCount, notice.serverCount),
+    )
+    ConnectionNotice.SubscriptionDownloadFailed -> stringResource(R.string.connections_notice_download_failed)
+    ConnectionNotice.InvalidSubscription -> stringResource(R.string.connections_notice_invalid)
+    ConnectionNotice.RouterBusy -> stringResource(R.string.connections_notice_busy)
+    ConnectionNotice.ReloadAndRetry -> stringResource(R.string.connections_notice_reload)
+    ConnectionNotice.ResultUnconfirmed -> stringResource(R.string.connections_notice_unconfirmed)
+    ConnectionNotice.ActionFailed -> stringResource(R.string.connections_notice_failed)
 }
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {

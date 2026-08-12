@@ -40,7 +40,7 @@ class ConnectionsViewModel(
             _state.value = ConnectionsUiState(loading = false, setupRequired = true)
             return@launch
         }
-        _state.value = _state.value.copy(loading = true, loadError = null, message = null)
+        _state.value = _state.value.copy(loading = true, loadError = null, message = null, notice = null)
         runCatching { gateway.snapshot(active.profile, active.secrets.companionToken) }
             .onSuccess { catalog ->
                 val selected = _state.value.selectedGroupId?.takeIf { id -> catalog.groups.any { it.id == id } }
@@ -51,6 +51,7 @@ class ConnectionsViewModel(
                     loading = false,
                     loadError = (failure as? CatalogException)?.code,
                     message = null,
+                    notice = null,
                 )
             }
     }
@@ -66,7 +67,7 @@ class ConnectionsViewModel(
                 node.host.equals(preview.host, ignoreCase = true) && node.port == preview.port &&
                     (preview.protocol == null || node.protocol.name == preview.protocol.name)
             }
-            _state.value = _state.value.copy(pendingImport = PendingImport(preview, duplicate), message = null)
+            _state.value = _state.value.copy(pendingImport = PendingImport(preview, duplicate), message = null, notice = null)
         } catch (_: Exception) {
             source.fill(0)
             drafts.clear()
@@ -124,7 +125,7 @@ class ConnectionsViewModel(
             val tests = if (test != null && test.nodeId == nodeId) {
                 _state.value.tests + (nodeId to TestedNode(test, nextCatalog.stateVersion, nowMillis()))
             } else _state.value.tests
-            _state.value = _state.value.copy(catalog = nextCatalog, tests = tests, message = operationMessage(operation.result, operation.error))
+            _state.value = _state.value.copy(catalog = nextCatalog, tests = tests, message = null, notice = null)
         } catch (_: Exception) {
             reconcile("Не удалось проверить узел")
         }
@@ -163,29 +164,41 @@ class ConnectionsViewModel(
         val catalog = current.catalog ?: return@launch
         if (sourceId in current.busySources) return@launch
         val active = activeProfile.first() ?: return@launch
-        _state.value = current.copy(busySources = current.busySources + sourceId, message = null)
+        _state.value = current.copy(busySources = current.busySources + sourceId, message = null, notice = null)
         try {
-            applyOperation(call(active, active.secrets.companionToken, catalog.stateVersion))
+            val operation = call(active, active.secrets.companionToken, catalog.stateVersion)
+            val serverCount = operation.catalog?.sources
+                ?.firstOrNull { it.id == sourceId }
+                ?.nodeCount
+                ?: catalog.sources.firstOrNull { it.id == sourceId }?.nodeCount
+                ?: 0
+            applyOperation(operation, connectionOperationNotice(operation.result, operation.error, serverCount))
         } catch (_: Exception) {
-            reconcile("Не удалось обновить источник")
+            reconcile("Не удалось загрузить актуальный список серверов", ConnectionNotice.ActionFailed)
         }
         _state.value = _state.value.copy(busySources = _state.value.busySources - sourceId)
     }
 
-    private fun applyOperation(operation: CatalogOperation) {
+    private fun applyOperation(operation: CatalogOperation, notice: ConnectionNotice? = null) {
         val old = _state.value
         val next = operation.catalog ?: old.catalog
         _state.value = old.copy(
             catalog = next,
             tests = if (next?.stateVersion != old.catalog?.stateVersion) emptyMap() else old.tests,
-            message = operationMessage(operation.result, operation.error),
+            message = null,
+            notice = notice,
         )
     }
 
-    private suspend fun reconcile(message: String) {
+    private suspend fun reconcile(message: String, notice: ConnectionNotice? = null) {
         val active = activeProfile.first() ?: return
         val snapshot = runCatching { gateway.snapshot(active.profile, active.secrets.companionToken) }.getOrNull()
-        _state.value = _state.value.copy(catalog = snapshot ?: _state.value.catalog, tests = emptyMap(), message = message)
+        _state.value = _state.value.copy(
+            catalog = snapshot ?: _state.value.catalog,
+            tests = emptyMap(),
+            message = message.takeIf { notice == null },
+            notice = notice,
+        )
     }
 
     companion object { const val TEST_TTL_MILLIS = 5 * 60 * 1000L }

@@ -26,4 +26,5 @@ data class ConnectionsUiState(
     val busyNodes: Set<String> = emptySet(),
     val pendingActivation: CatalogNode? = null,
     val message: String? = null,
+    val notice: ConnectionNotice? = null,
 )
