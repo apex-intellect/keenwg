@@ -1,12 +1,9 @@
 param(
-    [Parameter(Mandatory = $true)]
-    [AllowEmptyCollection()]
-    [object[]]$OutputLines
+    [Parameter(Mandatory = $true)][AllowEmptyString()][string]$OutputText
 )
 
-$text = (@($OutputLines) | ForEach-Object { $_.ToString() }) -join "`n"
 $matches = [regex]::Matches(
-    $text,
+    $OutputText,
     '(?im)^\s*Signer\s+#([0-9]+)\s+certificate\s+SHA-256\s+digest:\s*([0-9a-f]{64})\s*$'
 )
 if ($matches.Count -ne 1 -or $matches[0].Groups[1].Value -ne '1') {

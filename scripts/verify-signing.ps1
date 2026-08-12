@@ -14,20 +14,20 @@ if ([string]::IsNullOrWhiteSpace($ExpectedCertificateSha256)) {
     }
 }
 if ([string]::IsNullOrWhiteSpace($ExpectedCertificateSha256)) { throw 'Pinned signing certificate SHA-256 is required' }
-$apksignerNames = if ($IsWindows -or $env:OS -eq 'Windows_NT') { @('apksigner.bat', 'apksigner') } else { @('apksigner', 'apksigner.bat') }
-$apksigner = Get-ChildItem -LiteralPath (Join-Path $AndroidHome 'build-tools') -Directory |
+$apksignerJar = Get-ChildItem -LiteralPath (Join-Path $AndroidHome 'build-tools') -Directory |
     Sort-Object Name -Descending |
     ForEach-Object {
-        foreach ($name in $apksignerNames) {
-            $candidate = Join-Path $_.FullName $name
-            if (Test-Path -LiteralPath $candidate -PathType Leaf) { $candidate }
-        }
+        $candidate = Join-Path $_.FullName 'lib/apksigner.jar'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { $candidate }
     } |
     Select-Object -First 1
-if ([string]::IsNullOrWhiteSpace($apksigner)) { throw 'apksigner is missing' }
-$output = & $apksigner verify --verbose --print-certs $apkPath 2>&1
-if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed' }
-$actual = & (Join-Path $PSScriptRoot 'parse-apksigner-certificate.ps1') -OutputLines @($output)
+if ([string]::IsNullOrWhiteSpace($apksignerJar)) { throw 'apksigner.jar is missing' }
+$java = (Get-Command java -CommandType Application -ErrorAction Stop).Source
+$result = & (Join-Path $PSScriptRoot 'invoke-captured-process.ps1') -FileName $java -Arguments @(
+    '-jar', $apksignerJar, 'verify', '--verbose', '--print-certs', $apkPath
+)
+if ($result.ExitCode -ne 0) { throw 'APK signature verification failed' }
+$actual = & (Join-Path $PSScriptRoot 'parse-apksigner-certificate.ps1') -OutputText ($result.StandardOutput + "`n" + $result.StandardError)
 $expected = ($ExpectedCertificateSha256 -replace '[^0-9a-fA-F]', '').ToLowerInvariant()
 if ($actual -ne $expected) { throw 'APK signing identity does not match the pinned certificate' }
 Write-Host "Verified APK signer certificate: $actual"
