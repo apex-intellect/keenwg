@@ -26,7 +26,7 @@ $archiveHash = (Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash.ToLow
 if ([long]$signed.archive_size -ne $archiveItem.Length -or [string]$signed.archive_sha256 -ne $archiveHash) { throw "Signed update manifest does not match archive" }
 $entries = @(& tar -tf $Archive)
 if ($LASTEXITCODE -ne 0) { throw "Companion archive cannot be read" }
-$required = @("VERSION", "SHA256SUMS", "keenwg-companion", "S96keenwg-companion", "install-companion.sh", "uninstall-companion.sh", "cleanup-obsolete-controller.sh", "companion.config.example.json")
+$required = @("VERSION", "SHA256SUMS", "keenwg-companion", "keenwg-updater", "S96keenwg-companion", "install-companion.sh", "uninstall-companion.sh", "cleanup-obsolete-controller.sh", "companion.config.example.json")
 foreach ($name in $required) {
     if ($entries -notcontains $name) { throw "Companion archive is missing $name" }
 }

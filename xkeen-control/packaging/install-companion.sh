@@ -43,12 +43,14 @@ assert_safe_path() {
 }
 
 BINARY_SOURCE=$HERE/keenwg-companion
+UPDATER_SOURCE=$HERE/keenwg-updater
 VERSION_FILE=$HERE/VERSION
 SUMS=$HERE/SHA256SUMS
 NEW_INIT_SOURCE=$HERE/S96keenwg-companion
-for source in "$BINARY_SOURCE" "$VERSION_FILE" "$SUMS" "$NEW_INIT_SOURCE" "$HERE/uninstall-companion.sh" "$HERE/cleanup-obsolete-controller.sh" "$HERE/companion.config.example.json"; do
+for source in "$BINARY_SOURCE" "$UPDATER_SOURCE" "$VERSION_FILE" "$SUMS" "$NEW_INIT_SOURCE" "$HERE/install-companion.sh" "$HERE/uninstall-companion.sh" "$HERE/cleanup-obsolete-controller.sh" "$HERE/companion.config.example.json"; do
     [ -f "$source" ] && [ ! -L "$source" ] || fail "missing or unsafe bundle file: $source"
 done
+(cd "$HERE" && sha256sum -c SHA256SUMS >/dev/null) || fail 'bundle checksum mismatch'
 VERSION=$(sed -n '1p' "$VERSION_FILE")
 case "$VERSION" in ''|*[!A-Za-z0-9._-]*) fail 'invalid VERSION';; esac
 expected=$(awk '$2=="keenwg-companion" || $2=="*keenwg-companion" {print $1; exit}' "$SUMS")
@@ -56,6 +58,8 @@ actual=$(sha256sum "$BINARY_SOURCE" | awk '{print $1}')
 [ -n "$expected" ] && [ "$actual" = "$expected" ] || fail 'binary checksum mismatch'
 reported=$($BINARY_SOURCE -version 2>/dev/null | awk '$1=="keenwg-companion" {print $2; exit}')
 [ "$reported" = "$VERSION" ] || fail 'binary version mismatch'
+updater_reported=$($UPDATER_SOURCE -version 2>/dev/null | awk '$1=="keenwg-updater" {print $2; exit}')
+[ "$updater_reported" = "$VERSION" ] || fail 'updater version mismatch'
 
 if $LIVE; then
     [ "$(uname -m)" = aarch64 ] || fail 'companion requires aarch64'
@@ -139,11 +143,15 @@ if $companion_was_running; then
 fi
 if [ ! -e "$RELEASE" ]; then
     mkdir "$RELEASE"; chmod 700 "$RELEASE"; release_created=true
-    cp "$BINARY_SOURCE" "$RELEASE/keenwg-companion"
-    chmod 755 "$RELEASE/keenwg-companion"
-    printf '%s\n' "$VERSION" >"$RELEASE/VERSION"; chmod 444 "$RELEASE/VERSION"
+    for name in keenwg-companion keenwg-updater install-companion.sh uninstall-companion.sh cleanup-obsolete-controller.sh S96keenwg-companion companion.config.example.json VERSION SHA256SUMS; do
+        cp "$HERE/$name" "$RELEASE/$name"
+    done
+    chmod 755 "$RELEASE/keenwg-companion" "$RELEASE/keenwg-updater" "$RELEASE/install-companion.sh" "$RELEASE/uninstall-companion.sh" "$RELEASE/cleanup-obsolete-controller.sh" "$RELEASE/S96keenwg-companion"
+    chmod 600 "$RELEASE/companion.config.example.json" "$RELEASE/SHA256SUMS"
+    chmod 444 "$RELEASE/VERSION"
 fi
 [ "$(sha256sum "$RELEASE/keenwg-companion" | awk '{print $1}')" = "$actual" ] || fail 'staged release checksum mismatch'
+[ -x "$RELEASE/keenwg-updater" ] || fail 'staged updater unavailable'
 ln -sfn "releases/$RELEASE_ID" "$CURRENT"
 [ "$(readlink "$CURRENT")" = "releases/$RELEASE_ID" ] || fail 'current release switch failed'
 current_switched=true

@@ -3,6 +3,7 @@ set -eu
 
 ROOT=${KEENWG_DESTDIR:-}
 BINARY=$ROOT/opt/lib/keenwg-companion/current/keenwg-companion
+UPDATER=$ROOT/opt/lib/keenwg-companion/current/keenwg-updater
 CONFIG=$ROOT/opt/etc/keenwg/companion.json
 PIDFILE=$ROOT/opt/var/run/keenwg-companion.pid
 READY=$ROOT/opt/var/run/keenwg-companion.ready
@@ -66,6 +67,7 @@ stop() {
 
 health() {
     alive || return 1
+    [ -x "$UPDATER" ] || return 1
     if [ -n "$ROOT" ]; then
         [ -f "$READY" ]
         return

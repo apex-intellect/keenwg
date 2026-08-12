@@ -77,6 +77,17 @@ EOF
     chmod 755 "$target"
 }
 
+write_fake_updater() {
+    target=$1
+    version=$2
+    cat >"$target" <<EOF
+#!/bin/sh
+if [ "\${1:-}" = '-version' ]; then echo "keenwg-updater $version"; exit 0; fi
+exit 0
+EOF
+    chmod 755 "$target"
+}
+
 make_bundle() {
     bundle=$1
     mkdir -p "$bundle"
@@ -85,7 +96,14 @@ make_bundle() {
     chmod 755 "$bundle/install-companion.sh" "$bundle/uninstall-companion.sh" "$bundle/cleanup-obsolete-controller.sh" "$bundle/S96keenwg-companion"
     printf '%s\n' '2.0.0' >"$bundle/VERSION"
     write_fake_binary "$bundle/keenwg-companion" '2.0.0'
-    (cd "$bundle" && sha256sum keenwg-companion >SHA256SUMS)
+    write_fake_updater "$bundle/keenwg-updater" '2.0.0'
+    (
+        cd "$bundle"
+        : >SHA256SUMS
+        for name in VERSION S96keenwg-companion cleanup-obsolete-controller.sh companion.config.example.json install-companion.sh keenwg-companion keenwg-updater uninstall-companion.sh; do
+            sha256sum "$name" >>SHA256SUMS
+        done
+    )
 }
 
 make_root() {
@@ -99,6 +117,7 @@ install_previous_companion() {
     root=$1
     mkdir -p "$root/opt/lib/keenwg-companion/releases/1.0.0-test" "$root/opt/etc/keenwg/identity"
     write_fake_binary "$root/opt/lib/keenwg-companion/releases/1.0.0-test/keenwg-companion" '1.0.0'
+    write_fake_updater "$root/opt/lib/keenwg-companion/releases/1.0.0-test/keenwg-updater" '1.0.0'
     ln -s releases/1.0.0-test "$root/opt/lib/keenwg-companion/current"
     cp "$HERE/S96keenwg-companion" "$root/opt/etc/init.d/S96keenwg-companion"
     sed -i 's/\r$//' "$root/opt/etc/init.d/S96keenwg-companion"
@@ -220,6 +239,7 @@ if KEENWG_DESTDIR="$FAIL_ROOT" "$BUNDLE/install-companion.sh" --request "$REQUES
 fi
 grep -q 'companion HTTPS health failed' "$FAIL_LOG" || fail 'candidate failed for an unexpected reason'
 [ "$(readlink "$FAIL_ROOT/opt/lib/keenwg-companion/current")" = 'releases/1.0.0-test' ] || fail 'previous release link was not restored'
+"$FAIL_ROOT/opt/lib/keenwg-companion/current/keenwg-updater" -version | grep -q '1.0.0' || fail 'previous updater was not restored'
 KEENWG_DESTDIR="$FAIL_ROOT" "$FAIL_ROOT/opt/etc/init.d/S96keenwg-companion" health || fail 'previous Companion was not restarted'
 assert_file "$FAIL_ROOT/opt/etc/init.d/S96keenwg-xkeen-control"
 

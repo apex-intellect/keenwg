@@ -21,6 +21,7 @@ $stage = Join-Path ([IO.Path]::GetTempPath()) ("keenwg-companion-" + [Guid]::New
 New-Item -ItemType Directory -Path $stage | Out-Null
 try {
     $binary = Join-Path $stage "keenwg-companion"
+    $updater = Join-Path $stage "keenwg-updater"
     $previousGoos = $env:GOOS
     $previousGoarch = $env:GOARCH
     $previousCgo = $env:CGO_ENABLED
@@ -30,6 +31,8 @@ try {
         $env:CGO_ENABLED = "0"
         & $GoExecutable -C $moduleRoot build -trimpath -ldflags "-s -w -X main.version=$Version" -o $binary ./cmd/keenwg-companion
         if ($LASTEXITCODE -ne 0) { throw "Companion cross-build failed" }
+        & $GoExecutable -C $moduleRoot build -trimpath -ldflags "-s -w -X main.version=$Version" -o $updater ./cmd/keenwg-updater
+        if ($LASTEXITCODE -ne 0) { throw "Updater cross-build failed" }
     } finally {
         $env:GOOS = $previousGoos
         $env:GOARCH = $previousGoarch

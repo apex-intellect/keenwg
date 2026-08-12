@@ -94,7 +94,7 @@ func Build(inputDirectory, outputPath string) error {
 }
 
 func archiveMode(name string) int64 {
-	if name == "keenwg-companion" || strings.HasSuffix(name, ".sh") || strings.HasPrefix(name, "S96") {
+	if name == "keenwg-companion" || name == "keenwg-updater" || strings.HasSuffix(name, ".sh") || strings.HasPrefix(name, "S96") {
 		return 0o755
 	}
 	if strings.HasSuffix(name, ".json") {
