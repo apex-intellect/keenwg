@@ -1,7 +1,6 @@
 package ru.anisimov.keenwg.data.installer
 
 import com.jcraft.jsch.ChannelExec
-import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import java.io.ByteArrayInputStream
@@ -89,6 +88,42 @@ private class RealSshSessionConnector : SshSessionConnector {
     }
 }
 
+internal fun interface ExecChannelFactory {
+    fun open(session: Session): ChannelExec
+}
+
+internal class JschExecUploader(
+    private val channels: ExecChannelFactory = ExecChannelFactory { session ->
+        session.openChannel("exec") as ChannelExec
+    },
+) {
+    fun upload(session: Session, bytes: ByteArray, remotePath: ValidatedTemporaryPath) {
+        val stdout = BoundedByteCollector(MAX_OUTPUT_BYTES)
+        val stderr = BoundedByteCollector(MAX_OUTPUT_BYTES)
+        val channel = channels.open(session)
+        try {
+            ByteArrayInputStream(bytes).use { input ->
+                channel.setPty(false)
+                channel.setInputStream(input, false)
+                channel.setOutputStream(stdout, false)
+                channel.setErrStream(stderr, false)
+                channel.setCommand("umask 077; cat > ${remotePath.value}")
+                channel.connect(CHANNEL_CONNECT_TIMEOUT_MILLIS)
+                val deadline = System.nanoTime() + OPERATION_TIMEOUT_MILLIS * 1_000_000L
+                while (!channel.isClosed) {
+                    if (System.nanoTime() >= deadline) throw SshTransportException(SshErrorCode.COMMAND_TIMEOUT)
+                    Thread.sleep(20)
+                }
+            }
+            if (channel.exitStatus != 0 || stdout.truncated || stderr.truncated) {
+                throw SshTransportException(SshErrorCode.UPLOAD_FAILED)
+            }
+        } finally {
+            channel.disconnect()
+        }
+    }
+}
+
 private class JschSshSession(
     private val session: Session,
 ) : SshSession {
@@ -123,16 +158,12 @@ private class JschSshSession(
     override suspend fun upload(bytes: ByteArray, remotePath: ValidatedTemporaryPath) = withContext(Dispatchers.IO) {
         check(session.isConnected) { "SSH session is closed" }
         require(bytes.size in 1..MAX_UPLOAD_BYTES) { "Upload size is invalid" }
-        val channel = session.openChannel("sftp") as ChannelSftp
         try {
-            channel.connect(CHANNEL_CONNECT_TIMEOUT_MILLIS)
-            ByteArrayInputStream(bytes).use { input ->
-                channel.put(input, remotePath.value, ChannelSftp.OVERWRITE)
-            }
+            JschExecUploader().upload(session, bytes, remotePath)
+        } catch (failure: SshTransportException) {
+            throw failure
         } catch (failure: Exception) {
             throw SshTransportException(SshErrorCode.UPLOAD_FAILED, failure)
-        } finally {
-            channel.disconnect()
         }
     }
 
