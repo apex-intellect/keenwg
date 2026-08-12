@@ -37,6 +37,7 @@ import ru.anisimov.keenwg.ui.system.RouterConnectionScreen
 import ru.anisimov.keenwg.ui.system.SystemScreen
 import ru.anisimov.keenwg.ui.support.SupportScreen
 import ru.anisimov.keenwg.ui.xkeen.XkeenScreen
+import ru.anisimov.keenwg.ui.update.CompanionUpdateScreen
 import ru.anisimov.keenwg.data.companion.CapabilityAccess
 
 @Serializable data object OverviewRoute
@@ -46,6 +47,7 @@ import ru.anisimov.keenwg.data.companion.CapabilityAccess
 @Serializable data object SystemRoute
 @Serializable data object RouterConnectionRoute
 @Serializable data object AboutRoute
+@Serializable data object UpdateRoute
 @Serializable data object AdvancedSettingsRoute
 @Serializable data object SetupRoute
 @Serializable data object DevicesRoute
@@ -153,7 +155,14 @@ fun KeenWgNav() {
                     AboutScreen(
                         onBack = { nav.popBackStack() },
                         onOpenManualSettings = { nav.navigate(AdvancedSettingsRoute) },
+                        onOpenRouterComponent = { nav.navigate(UpdateRoute) },
                         vm = aboutViewModel,
+                    )
+                }
+                composable<UpdateRoute> {
+                    CompanionUpdateScreen(
+                        onBack = { nav.popBackStack() },
+                        onCredentialUpgrade = { nav.navigate(SetupRoute) },
                     )
                 }
                 composable<AdvancedSettingsRoute> {

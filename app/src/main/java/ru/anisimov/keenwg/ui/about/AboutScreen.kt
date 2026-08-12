@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -54,6 +55,7 @@ private const val REPOSITORY_URL = "https://github.com/apex-intellect/keenwg"
 fun AboutScreen(
     onBack: () -> Unit,
     onOpenManualSettings: () -> Unit,
+    onOpenRouterComponent: () -> Unit,
     vm: AboutViewModel = viewModel(),
 ) {
     val expertMode by vm.expertMode.collectAsStateWithLifecycle()
@@ -108,6 +110,21 @@ fun AboutScreen(
                     }
                     Text(
                         stringResource(R.string.about_license),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            OutlinedButton(
+                onClick = onOpenRouterComponent,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Default.SystemUpdate, contentDescription = null)
+                Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                    Text(stringResource(R.string.about_router_component), fontWeight = FontWeight.SemiBold)
+                    Text(
+                        stringResource(R.string.about_router_component_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
