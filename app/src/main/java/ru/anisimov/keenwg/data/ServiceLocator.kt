@@ -40,6 +40,8 @@ import ru.anisimov.keenwg.data.catalog.CatalogClient
 import ru.anisimov.keenwg.data.catalog.CatalogGateway
 import ru.anisimov.keenwg.data.catalog.ImportDraftStore
 import ru.anisimov.keenwg.data.catalog.SharedPreferencesImportDraftPersistence
+import ru.anisimov.keenwg.data.catalog.SourceConfigurationClient
+import ru.anisimov.keenwg.data.catalog.SourceConfigurationGateway
 import ru.anisimov.keenwg.data.routes.RouteExplainClient
 import ru.anisimov.keenwg.data.routes.RouteExplainGateway
 import ru.anisimov.keenwg.data.routes.ScenarioClient
@@ -87,6 +89,8 @@ object ServiceLocator {
         private set
     lateinit var importDraftStore: ImportDraftStore
         private set
+    lateinit var sourceConfigurationGateway: SourceConfigurationGateway
+        private set
     lateinit var routeExplainGateway: RouteExplainGateway
         private set
     lateinit var scenarioGateway: ScenarioGateway
@@ -129,6 +133,7 @@ object ServiceLocator {
         companionClient = HttpCompanionClient(companionTransport)
         capabilityRegistry = CapabilityRegistry()
         catalogGateway = CatalogClient()
+        sourceConfigurationGateway = SourceConfigurationClient(companionTransport)
         routeExplainGateway = RouteExplainClient()
         scenarioGateway = ScenarioClient()
         supportGateway = SupportClient()
