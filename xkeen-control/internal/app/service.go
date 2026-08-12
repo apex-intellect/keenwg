@@ -30,6 +30,7 @@ import (
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/scenario"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/state"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/subscription"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/subscriptionconfig"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/support"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/transaction"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/xray"
@@ -49,6 +50,10 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 		return err
 	}
 	runtimeConfig := rootedConfig(cfg, root)
+	subscriptionURLs, err := subscriptionconfig.New(subscriptionConfigurationPath(runtimeConfig), runtimeConfig.SubscriptionURL)
+	if err != nil {
+		return err
+	}
 	recoveryPending, err := fileExists(runtimeConfig.RecoveryPath)
 	if err != nil {
 		return err
@@ -68,7 +73,7 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	xkeenAvailable := capabilityAvailable(discovery, capability.ConnectionsXKeen)
 	store := state.New(state.Paths{Subscription: runtimeConfig.SubscriptionCache, State: runtimeConfig.StatePath, BackupDir: runtimeConfig.BackupDir}, rand.Reader)
 	system := xray.NewSystem(runtimeConfig)
-	controller, err := buildControllerMode(ctx, runtimeConfig, version, store, system, recoveryPending, xkeenAvailable)
+	controller, err := buildControllerMode(ctx, runtimeConfig, version, store, system, recoveryPending, xkeenAvailable, subscriptionURLs)
 	if err != nil {
 		return err
 	}
@@ -192,6 +197,7 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 		{ID: "domain-policy", Path: runtimeConfig.DomainPolicyPath, Owned: true},
 		{ID: "pairing-store", Path: runtimeConfig.PairingStorePath, Owned: true},
 		{ID: "subscription-cache", Path: runtimeConfig.SubscriptionCache, Owned: true},
+		{ID: "subscription-source", Path: subscriptionConfigurationPath(runtimeConfig), Owned: true},
 		{ID: "tls-certificate", Path: runtimeConfig.TLSCertificatePath, Owned: true},
 		{ID: "tls-private-key", Path: runtimeConfig.TLSPrivateKeyPath, Owned: true},
 		{ID: "xkeen-exclusions", Path: runtimeConfig.ExcludePath, Owned: true},
@@ -233,13 +239,21 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	return err
 }
 
-func buildControllerMode(ctx context.Context, cfg config.Config, version string, store *state.Store, system xray.System, allowDomainRecovery, xkeenAvailable bool) (controllerRuntime, error) {
+func buildControllerMode(
+	ctx context.Context,
+	cfg config.Config,
+	version string,
+	store *state.Store,
+	system xray.System,
+	allowDomainRecovery, xkeenAvailable bool,
+	subscriptionURLs transaction.SubscriptionURLProvider,
+) (controllerRuntime, error) {
 	if !xkeenAvailable {
 		return controllerRuntime{handler: api.NewCore(version, nil, store)}, nil
 	}
 	client := &http.Client{Timeout: 30 * time.Second}
 	fetcher := &subscription.Fetcher{Client: client}
-	engine := transaction.New(cfg, fetcher, subscription.Parse, store, system, time.Now)
+	engine := transaction.NewWithSubscriptionURLProvider(cfg, fetcher, subscription.Parse, store, system, time.Now, subscriptionURLs)
 	bootstrap := BootstrapDomainPolicy
 	if allowDomainRecovery {
 		bootstrap = BootstrapDomainPolicyForRecovery
@@ -253,6 +267,10 @@ func buildControllerMode(ctx context.Context, cfg config.Config, version string,
 		api.WithDomainPolicy(domainService),
 	)
 	return controllerRuntime{handler: handler, engine: engine, domains: domainService}, nil
+}
+
+func subscriptionConfigurationPath(cfg config.Config) string {
+	return filepath.Join(filepath.Dir(cfg.SubscriptionCache), "subscription-source.json")
 }
 
 func capabilityAvailable(document capability.Document, id string) bool {

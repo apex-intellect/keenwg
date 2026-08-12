@@ -22,7 +22,7 @@ func TestBuildControllerModeStartsProtectedAccessWithoutXKeen(t *testing.T) {
 	}, rand.Reader)
 
 	runtime, err := buildControllerMode(
-		context.Background(), cfg, "2.1.0", store, xray.NewSystem(cfg), false, false,
+		context.Background(), cfg, "2.1.0", store, xray.NewSystem(cfg), false, false, nil,
 	)
 	if err != nil {
 		t.Fatal(err)

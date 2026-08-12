@@ -69,6 +69,22 @@ func TestXKeenTestDoesNotActivateAndActivationUsesReviewedExactNode(t *testing.T
 	}
 }
 
+func TestXKeenRefreshPreservesMissingSubscriptionConfigurationCode(t *testing.T) {
+	store := &fakeXKeenStore{controller: model.ControllerState{StateVersion: 12}}
+	engine := &fakeXKeenEngine{operation: model.Operation{
+		State: model.OperationTerminal, Result: model.ResultFailedNoChange, ErrorCode: "subscription_not_configured",
+	}}
+	adapter := NewXKeenAdapter(
+		store, engine, &fakeXKeenDiagnostics{}, func() string { return "31111111-1111-4111-8111-111111111111" },
+	)
+
+	result := adapter.Refresh(context.Background(), xkeenSourceID)
+
+	if result.Result != ResultRejected || result.ErrorCode != "subscription_not_configured" {
+		t.Fatalf("result=%+v", result)
+	}
+}
+
 type fakeXKeenStore struct {
 	subscription model.SubscriptionState
 	controller   model.ControllerState

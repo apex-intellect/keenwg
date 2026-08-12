@@ -31,6 +31,10 @@ type Fetcher interface {
 
 type Parser func([]byte, int) (subscription.Result, error)
 
+type SubscriptionURLProvider interface {
+	Current() (string, bool)
+}
+
 type Store interface {
 	SaveSubscription([]model.Node, time.Time) (model.SubscriptionState, error)
 	LoadSubscription() (model.SubscriptionState, error)
@@ -52,13 +56,31 @@ type Engine struct {
 	store     Store
 	system    xray.System
 	clock     func() time.Time
+	urls      SubscriptionURLProvider
 }
 
 func New(cfg config.Config, fetcher Fetcher, parser Parser, store Store, system xray.System, clock func() time.Time) *Engine {
+	return NewWithSubscriptionURLProvider(
+		cfg, fetcher, parser, store, system, clock, staticSubscriptionURL(cfg.SubscriptionURL),
+	)
+}
+
+func NewWithSubscriptionURLProvider(
+	cfg config.Config,
+	fetcher Fetcher,
+	parser Parser,
+	store Store,
+	system xray.System,
+	clock func() time.Time,
+	urls SubscriptionURLProvider,
+) *Engine {
 	if clock == nil {
 		clock = time.Now
 	}
-	return &Engine{cfg: cfg, fetcher: fetcher, parser: parser, store: store, system: system, clock: clock}
+	if urls == nil {
+		urls = staticSubscriptionURL("")
+	}
+	return &Engine{cfg: cfg, fetcher: fetcher, parser: parser, store: store, system: system, clock: clock, urls: urls}
 }
 
 func (e *Engine) PrepareRefresh(key string, expectedVersion uint64) (model.Operation, Job, error) {
@@ -150,7 +172,12 @@ func (e *Engine) runRefresh(ctx context.Context, operation model.Operation, expe
 	if err := e.store.UpdateOperation(operation, snapshot); err != nil {
 		return
 	}
-	payload, err := e.fetcher.Fetch(ctx, e.cfg.SubscriptionURL, e.cfg.MaxSubscriptionSize)
+	subscriptionURL, configured := e.urls.Current()
+	if !configured {
+		e.finish(operation, model.ResultFailedNoChange, "subscription_not_configured")
+		return
+	}
+	payload, err := e.fetcher.Fetch(ctx, subscriptionURL, e.cfg.MaxSubscriptionSize)
 	if err != nil {
 		e.finish(operation, model.ResultFailedNoChange, "subscription_download_failed")
 		return
@@ -179,6 +206,13 @@ func (e *Engine) runRefresh(ctx context.Context, operation model.Operation, expe
 		return
 	}
 	e.finish(operation, model.ResultSuccess, "")
+}
+
+type staticSubscriptionURL string
+
+func (value staticSubscriptionURL) Current() (string, bool) {
+	raw := string(value)
+	return raw, raw != ""
 }
 
 func (e *Engine) runSelect(ctx context.Context, operation model.Operation, node model.Node, expectedVersion uint64) {

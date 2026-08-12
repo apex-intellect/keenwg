@@ -42,6 +42,25 @@ func TestRefreshNeverCallsRouterMutation(t *testing.T) {
 	}
 }
 
+func TestRefreshWithoutConfiguredURLFailsWithoutDownloadOrRouterMutation(t *testing.T) {
+	deps := newEngineDeps(t)
+	engine := NewWithSubscriptionURLProvider(
+		deps.cfg, deps.fetcher, subscription.Parse, deps.store, deps.system, deps.clock, staticURLProvider{},
+	)
+	operation, job, err := engine.PrepareRefresh("12111111-1111-4111-8111-111111111111", deps.stateVersion)
+	if err != nil || job == nil {
+		t.Fatalf("operation=%+v job=%v err=%v", operation, job, err)
+	}
+	job(context.Background())
+	operation, found, err := deps.store.FindOperation(operation.IdempotencyKey)
+	if err != nil || !found || operation.Result != model.ResultFailedNoChange || operation.ErrorCode != "subscription_not_configured" {
+		t.Fatalf("operation=%+v found=%t err=%v", operation, found, err)
+	}
+	if deps.fetcher.calls != 0 || len(deps.system.events) != 0 {
+		t.Fatalf("unexpected effects: downloads=%d router=%v", deps.fetcher.calls, deps.system.events)
+	}
+}
+
 func TestSelectWritesValidatesRestartsVerifiesThenConfirms(t *testing.T) {
 	deps := newEngineDeps(t)
 	saved, err := deps.store.SaveSubscription([]model.Node{testNode()}, time.Unix(90, 0))
@@ -296,6 +315,10 @@ type fakeFetcher struct {
 	err     error
 	calls   int
 }
+
+type staticURLProvider struct{ value string }
+
+func (p staticURLProvider) Current() (string, bool) { return p.value, p.value != "" }
 
 func (f *fakeFetcher) Fetch(context.Context, string, int64) ([]byte, error) {
 	f.calls++
