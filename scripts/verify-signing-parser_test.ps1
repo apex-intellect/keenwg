@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $parser = Join-Path $PSScriptRoot 'parse-apksigner-certificate.ps1'
 $processRunner = Join-Path $PSScriptRoot 'invoke-captured-process.ps1'
+$javaResolver = Join-Path $PSScriptRoot 'resolve-java-executable.ps1'
 $digest = '5f5379508b3df4b60974fc857353961ea3e70ae9f67d66ac116fab189a4cb76a'
 $certificateLine = "Signer #1 certificate SHA-256 digest: $digest"
 
@@ -32,5 +33,10 @@ try {
     $multipleSignersRejected = $true
 }
 if (-not $multipleSignersRejected) { throw 'Multiple APK signers were accepted' }
+
+$resolvedCandidate = & $javaResolver -JavaHome '' -CandidatePaths @($pwsh, $pwsh)
+if ($resolvedCandidate -isnot [string] -or $resolvedCandidate -ne (Resolve-Path $pwsh).Path) {
+    throw 'Java resolver did not select exactly one executable'
+}
 
 Write-Host 'apksigner certificate parser tests passed'

@@ -22,7 +22,7 @@ $apksignerJar = Get-ChildItem -LiteralPath (Join-Path $AndroidHome 'build-tools'
     } |
     Select-Object -First 1
 if ([string]::IsNullOrWhiteSpace($apksignerJar)) { throw 'apksigner.jar is missing' }
-$java = (Get-Command java -CommandType Application -ErrorAction Stop).Source
+$java = & (Join-Path $PSScriptRoot 'resolve-java-executable.ps1')
 $result = & (Join-Path $PSScriptRoot 'invoke-captured-process.ps1') -FileName $java -Arguments @(
     '-jar', $apksignerJar, 'verify', '--verbose', '--print-certs', $apkPath
 )
