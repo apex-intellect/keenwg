@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -58,6 +60,13 @@ func run(args []string) error {
 		_ = selfupdate.WriteStatus(statusPath, selfupdate.Status{CurrentVersion: version, Supported: true, Phase: "verification", Result: "failed", Error: "invalid_request"})
 		return err
 	}
+	pendingArchive := filepath.Join(updateDirectory, request.ArchiveFile)
+	defer os.Remove(requestPath)
+	defer os.Remove(pendingArchive)
+	if err := verifyExecutingRelease(request); err != nil {
+		_ = selfupdate.WriteStatus(statusPath, selfupdate.Status{CurrentVersion: request.CurrentVersion, Supported: true, Phase: "verification", Result: "failed", TargetVersion: request.TargetVersion, Error: "verification_failed"})
+		return err
+	}
 	trusted, publicKey, err := selfupdate.TrustedKey()
 	if err != nil {
 		return err
@@ -106,8 +115,6 @@ func run(args []string) error {
 	if err := selfupdate.WriteStatus(statusPath, status); err != nil {
 		return err
 	}
-	_ = os.Remove(requestPath)
-	_ = os.Remove(archivePath)
 	return nil
 }
 
@@ -143,4 +150,36 @@ func rooted(root, virtual string) string {
 		return filepath.FromSlash(virtual)
 	}
 	return filepath.Join(root, filepath.FromSlash(strings.TrimPrefix(virtual, "/")))
+}
+
+func verifyExecutingRelease(request selfupdate.PendingRequest) error {
+	if version != request.CurrentVersion {
+		return errors.New("updater version mismatch")
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	releaseDirectory := filepath.Dir(executable)
+	versionBody, err := os.ReadFile(filepath.Join(releaseDirectory, "VERSION"))
+	if err != nil || string(versionBody) != request.CurrentVersion+"\n" {
+		return errors.New("release version mismatch")
+	}
+	companion, err := os.Open(filepath.Join(releaseDirectory, "keenwg-companion"))
+	if err != nil {
+		return err
+	}
+	hasher := sha256.New()
+	_, hashErr := io.Copy(hasher, companion)
+	closeErr := companion.Close()
+	if hashErr != nil {
+		return hashErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if hex.EncodeToString(hasher.Sum(nil)) != request.CurrentBinarySHA256 {
+		return errors.New("current binary mismatch")
+	}
+	return nil
 }

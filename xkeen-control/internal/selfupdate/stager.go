@@ -192,6 +192,14 @@ func (s *Stager) Stage(reader io.Reader) (accepted AcceptedUpdate, resultErr err
 	if err := writeJSONAtomic(requestPath, request, 0o600); err != nil {
 		return accepted, ErrUpdateStorage
 	}
+	status := Status{
+		SchemaVersion: 1, CurrentVersion: s.currentVersion, Supported: true,
+		Phase: "accepted", Result: "running", TargetVersion: manifest.Version,
+	}
+	if err := WriteStatus(filepath.Join(s.updateDirectory, "status.json"), status); err != nil {
+		_ = os.Remove(requestPath)
+		return accepted, ErrUpdateStorage
+	}
 	keepArchive = true
 	return AcceptedUpdate{OperationID: operationID, TargetVersion: manifest.Version}, nil
 }

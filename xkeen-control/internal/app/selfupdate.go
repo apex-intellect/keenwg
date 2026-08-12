@@ -86,7 +86,20 @@ func (u *companionSelfUpdater) Launch(selfupdate.AcceptedUpdate) error {
 		command.Env = append(command.Env, "KEENWG_DESTDIR="+u.root)
 	}
 	command.SysProcAttr = detachedProcessAttributes()
-	return command.Start()
+	if err := command.Start(); err != nil {
+		status := selfupdate.Status{
+			SchemaVersion: 1, CurrentVersion: u.currentVersion, Supported: true,
+			Phase: "complete", Result: "failed", Error: "launch_failed",
+		}
+		_ = selfupdate.WriteStatus(u.statusPath, status)
+		request, readErr := selfupdate.ReadPendingRequest(u.requestPath, u.updateDirectory)
+		if readErr == nil {
+			_ = os.Remove(filepath.Join(u.updateDirectory, request.ArchiveFile))
+		}
+		_ = os.Remove(u.requestPath)
+		return err
+	}
+	return nil
 }
 
 func currentBinaryHash(root string) (string, string, error) {
@@ -118,8 +131,16 @@ func cleanupAbandonedUpdates(directory string) error {
 	if err != nil {
 		return err
 	}
+	requestExists := false
+	if info, statErr := os.Lstat(filepath.Join(directory, "pending.json")); statErr == nil && info.Mode().IsRegular() {
+		requestExists = true
+	}
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), ".upload-") {
+			if err := os.Remove(filepath.Join(directory, entry.Name())); err != nil {
+				return err
+			}
+		} else if !requestExists && strings.HasPrefix(entry.Name(), "pending-") && strings.HasSuffix(entry.Name(), ".tar.gz") {
 			if err := os.Remove(filepath.Join(directory, entry.Name())); err != nil {
 				return err
 			}

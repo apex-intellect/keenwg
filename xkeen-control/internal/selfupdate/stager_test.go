@@ -42,6 +42,10 @@ func TestStagerAcceptsSignedUpgradeAndWritesPrivateRequest(t *testing.T) {
 	if request.OperationID != accepted.OperationID || request.TargetVersion != "2.2.0" {
 		t.Fatal("request mismatch")
 	}
+	status, err := ReadStatus(filepath.Join(fixture.dir, "status.json"))
+	if err != nil || status.Result != "running" || status.TargetVersion != "2.2.0" {
+		t.Fatalf("unexpected staged status: %+v err=%v", status, err)
+	}
 }
 
 func TestStagerRejectsTamperDowngradeAndSameBuild(t *testing.T) {
