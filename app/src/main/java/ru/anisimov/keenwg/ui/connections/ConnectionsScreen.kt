@@ -86,9 +86,11 @@ fun ConnectionsScreen(
             decodeImportQr(bitmap.width, bitmap.height, pixels)
         }.getOrNull()?.let { viewModel.previewImport(it, ImportOrigin.QR) }
     }
-    DisposableEffect(showImport, state.pendingImport) {
+    DisposableEffect(showImport, state.pendingImport, state.editingSubscriptionSourceId) {
         val activity = context.findActivity()
-        if (showImport || state.pendingImport != null) activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        if (showImport || state.pendingImport != null || state.editingSubscriptionSourceId != null) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         onDispose { activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
     }
     Scaffold(topBar = {
@@ -188,6 +190,15 @@ fun ConnectionsScreen(
             dismissButton = { TextButton(onClick = viewModel::dismissActivation) { Text(stringResource(R.string.ui_connectionsscreen_8fbe9b75cb)) } },
         )
     }
+    state.editingSubscriptionSourceId?.let { sourceId ->
+        SubscriptionLinkDialog(
+            sourceId = sourceId,
+            error = state.subscriptionLinkError,
+            saving = state.sourceActions[sourceId] == SourceActionState.SAVING_LINK,
+            onDismiss = viewModel::dismissSubscriptionEditor,
+            onSave = viewModel::saveSubscriptionLink,
+        )
+    }
 }
 
 @Composable
@@ -232,17 +243,44 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
         }
         items(catalog.sources, key = { "source-${it.id}" }) { source ->
             Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f))) {
-                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val sourceKind = sourceDisplayKind(source)
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            if (sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
-                                stringResource(R.string.connections_source_xkeen)
-                            } else {
-                                source.label
-                            },
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                val sourceKind = sourceDisplayKind(source)
+                val action = state.sourceActions[source.id]
+                val mode = subscriptionSourceMode(source, state.sourceConfiguration[source.id], action)
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        if (sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
+                            stringResource(R.string.connections_source_xkeen)
+                        } else {
+                            source.label
+                        },
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    when (mode) {
+                        SubscriptionSourceMode.NEEDS_LINK -> {
+                            Text(
+                                stringResource(R.string.connections_subscription_missing),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary,
+                            )
+                            Text(
+                                stringResource(R.string.connections_subscription_missing_detail),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Button(
+                                onClick = { viewModel.editSubscriptionLink(source.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(18.dp),
+                            ) { Text(stringResource(R.string.connections_subscription_add_link)) }
+                        }
+                        SubscriptionSourceMode.CHECKING -> {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.connections_subscription_checking))
+                            }
+                        }
+                        SubscriptionSourceMode.READY -> {
                         Text(
                             pluralStringResource(R.plurals.connections_server_count, source.nodeCount, source.nodeCount),
                             style = MaterialTheme.typography.bodySmall,
@@ -262,23 +300,40 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    }
-                    if (source.foreign) TextButton(onClick = { viewModel.refreshSource(source.id) }, enabled = source.id !in state.busySources) {
-                        if (source.id in state.busySources) {
-                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        } else {
-                            Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
+                            if (source.foreign) {
+                                Button(
+                                    onClick = { viewModel.refreshSource(source.id) },
+                                    enabled = source.id !in state.busySources,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(18.dp),
+                                ) {
+                                    if (source.id in state.busySources) {
+                                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        stringResource(
+                                            if (source.id in state.busySources) {
+                                                R.string.connections_subscription_refreshing
+                                            } else {
+                                                R.string.connections_subscription_refresh
+                                            },
+                                        ),
+                                    )
+                                }
+                                if (source.id == XKEEN_SUBSCRIPTION_SOURCE_ID &&
+                                    state.sourceConfiguration[source.id] != null
+                                ) {
+                                    TextButton(
+                                        onClick = { viewModel.editSubscriptionLink(source.id) },
+                                        enabled = source.id !in state.busySources,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) { Text(stringResource(R.string.connections_subscription_change_link)) }
+                                }
+                            }
                         }
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            stringResource(
-                                if (source.id in state.busySources) {
-                                    R.string.connections_subscription_refreshing
-                                } else {
-                                    R.string.connections_subscription_refresh
-                                },
-                            ),
-                        )
                     }
                 }
             }
@@ -317,6 +372,81 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
         }
     }
 }
+
+@Composable
+private fun SubscriptionLinkDialog(
+    sourceId: String,
+    error: SubscriptionLinkError?,
+    saving: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (ByteArray) -> Unit,
+) {
+    var value by remember(sourceId) { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text(stringResource(R.string.connections_subscription_link_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    stringResource(R.string.connections_subscription_link_helper),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text(stringResource(R.string.connections_subscription_link_label)) },
+                    singleLine = true,
+                    enabled = !saving,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                error?.let {
+                    Text(
+                        subscriptionLinkErrorText(it),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val secret = value.toByteArray()
+                    value = ""
+                    onSave(secret)
+                },
+                enabled = !saving && value.isNotBlank(),
+            ) {
+                if (saving) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(
+                    stringResource(
+                        if (saving) R.string.connections_subscription_link_saving
+                        else R.string.connections_subscription_link_save,
+                    ),
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !saving) {
+                Text(stringResource(R.string.ui_connectionsscreen_8fbe9b75cb))
+            }
+        },
+    )
+}
+
+@Composable
+private fun subscriptionLinkErrorText(error: SubscriptionLinkError): String = stringResource(
+    when (error) {
+        SubscriptionLinkError.INVALID_LINK -> R.string.connections_subscription_link_invalid
+        SubscriptionLinkError.PERMISSION_DENIED -> R.string.connections_subscription_link_permission
+        SubscriptionLinkError.UNAVAILABLE -> R.string.connections_subscription_link_unavailable
+        SubscriptionLinkError.UNSUPPORTED -> R.string.connections_subscription_link_unsupported
+    },
+)
 
 @Composable
 private fun connectionNoticeText(notice: ConnectionNotice): String = when (notice) {

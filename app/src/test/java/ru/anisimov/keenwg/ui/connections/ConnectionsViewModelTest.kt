@@ -13,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.anisimov.keenwg.data.catalog.CatalogDocument
@@ -30,6 +31,8 @@ import ru.anisimov.keenwg.data.catalog.CatalogSourceKind
 import ru.anisimov.keenwg.data.catalog.ImportDraftGateway
 import ru.anisimov.keenwg.data.catalog.ImportOrigin
 import ru.anisimov.keenwg.data.catalog.SourceStatus
+import ru.anisimov.keenwg.data.catalog.SourceConfigurationGateway
+import ru.anisimov.keenwg.data.catalog.SourceConfigurationStatus
 import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.domain.model.RouterProfile
 import ru.anisimov.keenwg.domain.model.RouterSecrets
@@ -69,6 +72,59 @@ class ConnectionsViewModelTest {
         assertNull(vm.state.value.loadError)
         assertNull(vm.state.value.message)
         assertEquals(2, gateway.snapshotCalls)
+    }
+
+    @Test fun `unconfigured XKeen source asks for link instead of refreshing`() = runTest(dispatcher) {
+        val gateway = FakeCatalogGateway()
+        val configuration = FakeSourceConfigurationGateway(configured = false)
+        val vm = ConnectionsViewModel(
+            flowOf(activeProfile()), gateway, FakeImportDrafts(),
+            nowMillis = { 1_000 }, keyFactory = { "operation-key-0001" }, sourceConfigurations = configuration,
+        )
+        advanceUntilIdle()
+
+        assertEquals(false, vm.state.value.sourceConfiguration["xkeen-subscription"]?.configured)
+        vm.refreshSource("xkeen-subscription")
+
+        assertEquals("xkeen-subscription", vm.state.value.editingSubscriptionSourceId)
+        assertEquals(0, gateway.refreshCalls)
+    }
+
+    @Test fun `saving subscription link refreshes catalog and clears caller bytes`() = runTest(dispatcher) {
+        val gateway = FakeCatalogGateway()
+        val configuration = FakeSourceConfigurationGateway(configured = false)
+        val vm = ConnectionsViewModel(
+            flowOf(activeProfile()), gateway, FakeImportDrafts(),
+            nowMillis = { 1_000 }, keyFactory = { "operation-key-0001" }, sourceConfigurations = configuration,
+        )
+        advanceUntilIdle()
+        vm.refreshSource("xkeen-subscription")
+        val secret = "https://vpn.example.test/sub/private".toByteArray()
+
+        vm.saveSubscriptionLink(secret)
+        advanceUntilIdle()
+
+        assertTrue(secret.all { it == 0.toByte() })
+        assertEquals(1, configuration.replaceCalls)
+        assertEquals(1, gateway.refreshCalls)
+        assertNull(vm.state.value.editingSubscriptionSourceId)
+        assertEquals(ConnectionNotice.SubscriptionUpdated(1), vm.state.value.notice)
+    }
+
+    @Test fun `backend missing link result opens editor without generic failure`() = runTest(dispatcher) {
+        val gateway = FakeCatalogGateway().apply { refreshError = "subscription_not_configured" }
+        val vm = ConnectionsViewModel(
+            flowOf(activeProfile()), gateway, FakeImportDrafts(),
+            nowMillis = { 1_000 }, keyFactory = { "operation-key-0001" },
+        )
+        advanceUntilIdle()
+
+        vm.refreshSource("xkeen-subscription")
+        advanceUntilIdle()
+
+        assertEquals("xkeen-subscription", vm.state.value.editingSubscriptionSourceId)
+        assertEquals(false, vm.state.value.sourceConfiguration["xkeen-subscription"]?.configured)
+        assertNull(vm.state.value.notice)
     }
 
     @Test fun `activation requires fresh reachable test for exact node and version`() = runTest(dispatcher) {
@@ -160,18 +216,22 @@ private class FakeCatalogGateway : CatalogGateway {
     var refreshCalls = 0
     var activateCalls = 0
     var saveCalls = 0
+    var refreshError: String? = null
     private var catalog = document()
     override suspend fun snapshot(profile: RouterProfile, token: String): CatalogDocument {
         snapshotCalls++
         snapshotFailure?.let { throw it }
         return catalog
     }
-    override suspend fun refreshSource(profile: RouterProfile, token: String, stateVersion: ULong, key: String, sourceId: String) =
-        CatalogOperation(1, "committed", catalog.copy(
+    override suspend fun refreshSource(profile: RouterProfile, token: String, stateVersion: ULong, key: String, sourceId: String): CatalogOperation {
+        refreshCalls++
+        refreshError?.let { return CatalogOperation(1, "rejected", catalog, error = it) }
+        return CatalogOperation(1, "committed", catalog.copy(
             stateVersion = catalog.stateVersion + 1u,
             sources = catalog.sources.map { if (it.id == sourceId) it.copy(status = SourceStatus.READY, nodeCount = 1) else it },
             nodes = catalog.nodes + CatalogNode("owned-node", sourceId, "primary", "Личный VPN", "NL", CatalogProtocol.VLESS, "owned.example", 443, active = false, testable = true, activatable = true, warnings = emptyList()),
-        )).also { catalog = it.catalog!!; refreshCalls++ }
+        )).also { catalog = it.catalog!! }
+    }
     override suspend fun testNode(profile: RouterProfile, token: String, stateVersion: ULong, key: String, nodeId: String) =
         CatalogOperation(1, "committed", catalog, CatalogNodeTest(nodeId, true, 42, observedAt = "2026-08-09T00:00:00Z"))
     override suspend fun activateNode(profile: RouterProfile, token: String, stateVersion: ULong, key: String, nodeId: String): CatalogOperation {
@@ -189,6 +249,25 @@ private class FakeCatalogGateway : CatalogGateway {
         return CatalogOperation(1, "committed", catalog)
     }
     override suspend fun deleteSource(profile: RouterProfile, token: String, stateVersion: ULong, key: String, sourceId: String) = error("unused")
+}
+
+private class FakeSourceConfigurationGateway(configured: Boolean) : SourceConfigurationGateway {
+    var current = SourceConfigurationStatus(configured)
+    var replaceCalls = 0
+
+    override suspend fun status(profile: RouterProfile, token: String, sourceId: String) = current
+
+    override suspend fun replace(
+        profile: RouterProfile,
+        token: String,
+        sourceId: String,
+        subscriptionUrl: ByteArray,
+    ): SourceConfigurationStatus {
+        replaceCalls++
+        subscriptionUrl.fill(0)
+        current = SourceConfigurationStatus(true)
+        return current
+    }
 }
 
 private class FakeImportDrafts : ImportDraftGateway {
@@ -210,6 +289,6 @@ private fun activeProfile() = ActiveRouterProfile(
 
 private fun document() = CatalogDocument(
     1, 7u, listOf(CatalogGroup("primary", "Основные", 0)),
-    listOf(CatalogSource("source", "primary", CatalogSourceKind.FOREIGN, "XKeen", "xkeen", SourceStatus.READY, 2, warnings = emptyList(), foreign = true, adapterStateVersion = 7u)),
-    listOf("node-nl-1", "node-nl-2").mapIndexed { index, id -> CatalogNode(id, "source", "primary", "Нидерланды ${index + 1}", "NL", CatalogProtocol.VLESS, "vpn${index + 1}.example", 443, active = index == 0, testable = true, activatable = true, warnings = emptyList()) },
+    listOf(CatalogSource("xkeen-subscription", "primary", CatalogSourceKind.FOREIGN, "XKeen", "xkeen", SourceStatus.READY, 2, warnings = emptyList(), foreign = true, adapterStateVersion = 7u)),
+    listOf("node-nl-1", "node-nl-2").mapIndexed { index, id -> CatalogNode(id, "xkeen-subscription", "primary", "Нидерланды ${index + 1}", "NL", CatalogProtocol.VLESS, "vpn${index + 1}.example", 443, active = index == 0, testable = true, activatable = true, warnings = emptyList()) },
 )

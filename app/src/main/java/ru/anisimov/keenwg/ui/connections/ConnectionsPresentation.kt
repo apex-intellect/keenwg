@@ -3,10 +3,13 @@ package ru.anisimov.keenwg.ui.connections
 import ru.anisimov.keenwg.data.catalog.CatalogDocument
 import ru.anisimov.keenwg.data.catalog.CatalogGroup
 import ru.anisimov.keenwg.data.catalog.CatalogSource
+import ru.anisimov.keenwg.data.catalog.SourceConfigurationStatus
 
 internal enum class SourceDisplayKind { XKEEN_SUBSCRIPTION, CUSTOM }
 
 internal enum class GroupDisplayKind { PRIMARY, CUSTOM }
+
+internal enum class SubscriptionSourceMode { CHECKING, NEEDS_LINK, READY }
 
 sealed interface ConnectionNotice {
     data class SubscriptionUpdated(val serverCount: Int) : ConnectionNotice
@@ -26,6 +29,17 @@ internal fun sourceDisplayKind(source: CatalogSource): SourceDisplayKind =
 
 internal fun groupDisplayKind(group: CatalogGroup): GroupDisplayKind =
     if (group.id == "primary") GroupDisplayKind.PRIMARY else GroupDisplayKind.CUSTOM
+
+internal fun subscriptionSourceMode(
+    source: CatalogSource,
+    status: SourceConfigurationStatus?,
+    action: SourceActionState?,
+): SubscriptionSourceMode = when {
+    source.id != XKEEN_SUBSCRIPTION_SOURCE_ID -> SubscriptionSourceMode.READY
+    action == SourceActionState.CHECKING_CONFIGURATION -> SubscriptionSourceMode.CHECKING
+    status?.configured == false -> SubscriptionSourceMode.NEEDS_LINK
+    else -> SubscriptionSourceMode.READY
+}
 
 internal fun connectionOperationNotice(
     result: String,
@@ -75,3 +89,5 @@ internal fun connectionCards(document: CatalogDocument, groupId: String?): List<
         }
         .toList()
 }
+
+internal const val XKEEN_SUBSCRIPTION_SOURCE_ID = "xkeen-subscription"

@@ -6,6 +6,7 @@ import ru.anisimov.keenwg.data.catalog.CatalogGroup
 import ru.anisimov.keenwg.data.catalog.CatalogSource
 import ru.anisimov.keenwg.data.catalog.CatalogSourceKind
 import ru.anisimov.keenwg.data.catalog.SourceStatus
+import ru.anisimov.keenwg.data.catalog.SourceConfigurationStatus
 
 class ConnectionsPresentationTest {
     @Test fun `reserved backend labels are translated at presentation boundary`() {
@@ -25,6 +26,17 @@ class ConnectionsPresentationTest {
         assertEquals(ConnectionNotice.RouterBusy, connectionOperationNotice("rejected", "busy", 3))
         assertEquals(ConnectionNotice.ReloadAndRetry, connectionOperationNotice("rejected", "stale_state", 3))
         assertEquals(ConnectionNotice.ResultUnconfirmed, connectionOperationNotice("uncertain", null, 3))
+    }
+
+    @Test fun `unconfigured XKeen source has an explicit add link mode`() {
+        assertEquals(
+            SubscriptionSourceMode.NEEDS_LINK,
+            subscriptionSourceMode(source(), SourceConfigurationStatus(false), null),
+        )
+        assertEquals(
+            SubscriptionSourceMode.READY,
+            subscriptionSourceMode(source(), SourceConfigurationStatus(true), null),
+        )
     }
 
     private fun source(
