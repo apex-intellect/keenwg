@@ -69,10 +69,18 @@ func TestDetectorDoesNotInferXKeenFromAnUnsupportedInitScript(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertCapability(t, got, ConnectionsXKeen, AccessNone, false, "xkeen_unsupported")
-	assertCapability(t, got, ConnectionsCatalog, AccessWrite, true, "")
+	assertCapability(t, got, ConnectionsCatalog, AccessNone, false, "connection_adapter_not_found")
 	assertCapability(t, got, ConnectionsSingBox, AccessNone, false, "singbox_not_configured")
 	assertCapability(t, got, ConnectionsAWG, AccessNone, false, "awg_not_configured")
 	assertCapability(t, got, AccessWireGuard, AccessNone, false, "asc_not_found")
+}
+
+func TestDetectorHidesCatalogWithoutAnyConnectionAdapter(t *testing.T) {
+	got, err := NewDetector(t.TempDir()).Detect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertCapability(t, got, ConnectionsCatalog, AccessNone, false, "connection_adapter_not_found")
 }
 
 func TestDetectorReportsConfiguredSingBoxIndependently(t *testing.T) {
@@ -83,6 +91,7 @@ func TestDetectorReportsConfiguredSingBoxIndependently(t *testing.T) {
 	}
 	assertCapability(t, got, ConnectionsSingBox, AccessWrite, true, "")
 	assertCapability(t, got, ConnectionsXKeen, AccessNone, false, "xkeen_not_found")
+	assertCapability(t, got, ConnectionsCatalog, AccessWrite, true, "")
 }
 
 func TestDetectorReportsConfiguredAWGManagerIndependently(t *testing.T) {
@@ -93,6 +102,7 @@ func TestDetectorReportsConfiguredAWGManagerIndependently(t *testing.T) {
 	}
 	assertCapability(t, got, ConnectionsAWG, AccessWrite, true, "")
 	assertCapability(t, got, ConnectionsSingBox, AccessNone, false, "singbox_not_configured")
+	assertCapability(t, got, ConnectionsCatalog, AccessWrite, true, "")
 }
 
 func TestDetectorFailsClosedWhenConfiguredAWGOpenAPIIsUnsupported(t *testing.T) {

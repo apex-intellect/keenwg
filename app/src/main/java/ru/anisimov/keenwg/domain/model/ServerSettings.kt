@@ -2,10 +2,10 @@ package ru.anisimov.keenwg.domain.model
 
 /**
  * All values verified against the live router (2026-06-23): see the design spec §12.
- * Defaults match the user's NetCraze Hopper SE WireGuard server.
+ * Defaults are conservative community-safe values for a typical local Keenetic setup.
  */
 data class ServerSettings(
-    val host: String = "10.8.0.1",
+    val host: String = "192.168.1.1",
     val port: Int = 80,
     val login: String = "admin",
     val password: String = "",

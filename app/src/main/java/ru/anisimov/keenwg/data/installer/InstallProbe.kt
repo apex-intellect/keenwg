@@ -10,12 +10,13 @@ data class InstallProbe(
     val ascPresent: Boolean,
     val xrayPresent: Boolean,
     val companionVersion: String?,
+    val companionBinarySha256: String? = null,
 )
 
 object InstallProbeParser {
     private val keys = setOf(
         "architecture", "firmware", "opt_free_kib", "entware", "companion_config",
-        "xkeen", "asc", "xray", "companion",
+        "xkeen", "asc", "xray", "companion", "companion_binary_sha256",
     )
 
     fun parse(result: CommandResult): InstallProbe {
@@ -31,6 +32,9 @@ object InstallProbeParser {
         require(values.keys == keys) { "Incomplete probe output" }
         val freeKib = values.getValue("opt_free_kib").toLong()
         require(freeKib >= 0 && freeKib <= Long.MAX_VALUE / 1024) { "Invalid free space" }
+        val companionBinarySha256 = values.optional("companion_binary_sha256")?.also {
+            require(it.matches(Regex("[0-9a-f]{64}"))) { "Invalid companion binary hash" }
+        }
         return InstallProbe(
             architecture = values.getValue("architecture"),
             firmware = values.getValue("firmware"),
@@ -44,6 +48,7 @@ object InstallProbeParser {
                 ?.removePrefix("keenwg-companion ")
                 ?.substringBefore(' ')
                 ?.takeIf { it.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?")) },
+            companionBinarySha256 = companionBinarySha256,
         )
     }
 

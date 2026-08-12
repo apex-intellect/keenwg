@@ -18,7 +18,15 @@ import ru.anisimov.keenwg.data.store.RouterProfileStore
 
 interface InstallerProfileGateway {
     suspend fun active(profileId: String): ActiveRouterProfile
-    suspend fun saveCompanion(profileId: String, baseUrl: String, certificatePin: String, deviceToken: String, deviceId: String)
+    suspend fun saveProtectedAccess(
+        profileId: String,
+        endpoint: SshEndpoint,
+        hostKey: HostKeyObservation,
+        baseUrl: String,
+        certificatePin: String,
+        deviceToken: String,
+        deviceId: String,
+    )
 }
 
 interface InstallerWorkflow {
@@ -46,8 +54,16 @@ class RouterProfileInstallerGateway(
         return active
     }
 
-    override suspend fun saveCompanion(profileId: String, baseUrl: String, certificatePin: String, deviceToken: String, deviceId: String) {
-        store.saveCompanion(profileId, baseUrl, certificatePin, deviceToken, deviceId)
+    override suspend fun saveProtectedAccess(
+        profileId: String,
+        endpoint: SshEndpoint,
+        hostKey: HostKeyObservation,
+        baseUrl: String,
+        certificatePin: String,
+        deviceToken: String,
+        deviceId: String,
+    ) {
+        store.saveProtectedAccess(profileId, endpoint, hostKey, baseUrl, certificatePin, deviceToken, deviceId)
     }
 }
 
@@ -75,9 +91,9 @@ class InstallerCoordinator(
             val active = profiles.active(profileId)
             session = ssh.connect(endpoint, password, hostKey)
             val probe = InstallProbeParser.parse(session.exec(FixedCommand.Probe))
-            val mode = selectInstallMode(probe, asset.manifest.version)
-            validateProbe(probe, asset, mode)
-            val baseUrl = if (mode == InstallMode.PAIR_ONLY) null else secureBaseUrl(active.profile.host)
+            val mode = selectInstallMode(probe, asset.manifest.version, asset.manifest.binarySha256)
+            validateCompatibility(probe)
+            val baseUrl = if (mode == InstallMode.PAIR_ONLY) null else secureBaseUrl(endpoint.host)
             InstallPreparation(
                 profileId = profileId,
                 endpoint = endpoint,
@@ -88,7 +104,7 @@ class InstallerCoordinator(
                     mode = mode,
                     secureBaseUrl = baseUrl,
                     requiredBytes = asset.bytes.size.toLong() + MIN_FREE_MARGIN_BYTES,
-                    effects = buildEffects(probe, asset.manifest.version),
+                    effects = buildEffects(probe, asset.manifest.version, asset.manifest.binarySha256),
                 ),
             )
         } finally {
@@ -112,13 +128,19 @@ class InstallerCoordinator(
         var uploaded = false
         var cleaned = false
         var installCommitted = false
+        var pairingCommitted = false
         try {
             onPhase(phase)
             val asset = verifyAsset()
             require(asset.manifest.version == preparation.plan.version) { "Bundled version changed" }
+            try {
+                validateReadiness(preparation.probe, asset, preparation.plan.mode)
+            } catch (failure: IllegalArgumentException) {
+                throw InstallerException(InstallPhase.PROBE, safeMessage(InstallPhase.PROBE), true, failure)
+            }
             val active = profiles.active(preparation.profileId)
             preparation.plan.secureBaseUrl?.let { expected ->
-                require(secureBaseUrl(active.profile.host) == expected) { "Router address changed" }
+                require(secureBaseUrl(preparation.endpoint.host) == expected) { "Router address changed" }
             }
 
             phase = InstallPhase.CONNECT
@@ -128,7 +150,7 @@ class InstallerCoordinator(
                 installNonce = requireNonce(nonce())
                 val archivePath = ValidatedTemporaryPath.archive(installNonce)
                 val requestPath = ValidatedTemporaryPath.request(installNonce)
-                requestBytes = bootstrapRequest(active.profile.host)
+                requestBytes = bootstrapRequest(preparation.endpoint.host)
                 phase = InstallPhase.UPLOAD
                 onPhase(phase)
                 session.upload(asset.bytes, archivePath)
@@ -151,6 +173,9 @@ class InstallerCoordinator(
 
             phase = InstallPhase.PAIRING_EXCHANGE
             onPhase(phase)
+            // The router commits the owner before the HTTP response reaches us.
+            // From this point a transport or parse failure is therefore ambiguous.
+            pairingCommitted = true
             val credential = companion.exchange(pairedProfile, offer.offerId, offer.secret, deviceLabel)
             require(credential.deviceId.isNotBlank() && credential.token.isNotBlank()) { "Invalid pairing credential" }
             phase = InstallPhase.HEALTH
@@ -159,7 +184,15 @@ class InstallerCoordinator(
 
             phase = InstallPhase.SAVE_PROFILE
             onPhase(phase)
-            profiles.saveCompanion(preparation.profileId, offer.baseUrl, offer.certificatePin, credential.token, credential.deviceId)
+            profiles.saveProtectedAccess(
+                preparation.profileId,
+                preparation.endpoint,
+                preparation.hostKey,
+                offer.baseUrl,
+                offer.certificatePin,
+                credential.token,
+                credential.deviceId,
+            )
 
             phase = InstallPhase.CLEANUP
             onPhase(phase)
@@ -172,7 +205,7 @@ class InstallerCoordinator(
             InstallReport(installedVersion, offer.baseUrl, credential.deviceId, cleaned)
         } catch (failure: Exception) {
             val rollbackVerified = when {
-                installCommitted -> false
+                installCommitted || pairingCommitted -> false
                 phase == InstallPhase.INSTALL && session != null -> verifyRollback(session, preparation.probe)
                 else -> true
             }
@@ -208,10 +241,20 @@ class InstallerCoordinator(
         throw InstallerException(InstallPhase.VERIFY_ASSET, safeMessage(InstallPhase.VERIFY_ASSET), true, failure)
     }
 
-    private fun selectInstallMode(probe: InstallProbe, bundledVersion: String): InstallMode {
+    private fun selectInstallMode(probe: InstallProbe, bundledVersion: String, bundledBinarySha256: String): InstallMode {
         if (!probe.companionConfigPresent) return InstallMode.CLEAN_INSTALL
         val installed = probe.companionVersion ?: return InstallMode.UPDATE
-        return if (compareVersions(installed, bundledVersion) >= 0) InstallMode.PAIR_ONLY else InstallMode.UPDATE
+        val comparison = compareVersions(installed, bundledVersion)
+        return when {
+            comparison < 0 -> InstallMode.UPDATE
+            comparison > 0 -> throw InstallerException(
+                InstallPhase.PROBE,
+                "Обновите приложение: компонент на роутере новее",
+                true,
+            )
+            probe.companionBinarySha256 != bundledBinarySha256 -> InstallMode.UPDATE
+            else -> InstallMode.PAIR_ONLY
+        }
     }
 
     private fun compareVersions(left: String, right: String): Int {
@@ -232,16 +275,20 @@ class InstallerCoordinator(
         }
     }
 
-    private fun validateProbe(probe: InstallProbe, asset: VerifiedCompanionAsset, mode: InstallMode) {
+    private fun validateCompatibility(probe: InstallProbe) {
         require(probe.architecture == "aarch64") { "Unsupported architecture" }
-        require(probe.firmware != "unknown" && probe.entwarePresent) { "Keenetic or Entware is unavailable" }
+        require(probe.firmware != "unknown") { "Keenetic firmware is unavailable" }
+    }
+
+    private fun validateReadiness(probe: InstallProbe, asset: VerifiedCompanionAsset, mode: InstallMode) {
         if (mode != InstallMode.PAIR_ONLY) {
+            require(probe.entwarePresent) { "Entware is unavailable" }
             require(probe.optFreeBytes >= asset.bytes.size.toLong() + MIN_FREE_MARGIN_BYTES) { "Not enough free space" }
         }
     }
 
-    private fun buildEffects(probe: InstallProbe, version: String): List<String> = buildList {
-        when (selectInstallMode(probe, version)) {
+    private fun buildEffects(probe: InstallProbe, version: String, binarySha256: String): List<String> = buildList {
+        when (selectInstallMode(probe, version, binarySha256)) {
             InstallMode.CLEAN_INSTALL -> add("Установить Companion $version в /opt/lib/keenwg-companion")
             InstallMode.UPDATE -> add("Обновить Companion ${probe.companionVersion ?: "без версии"} до $version с резервной копией")
             InstallMode.PAIR_ONLY -> add("Привязать этот телефон к установленному Companion ${probe.companionVersion}")
@@ -309,7 +356,9 @@ class InstallerCoordinator(
 
     private suspend fun verifyRollback(session: SshSession, before: InstallProbe): Boolean = runCatching {
         val after = InstallProbeParser.parse(session.exec(FixedCommand.Probe))
-        after.companionConfigPresent == before.companionConfigPresent && after.companionVersion == before.companionVersion
+        after.companionConfigPresent == before.companionConfigPresent &&
+            after.companionVersion == before.companionVersion &&
+            after.companionBinarySha256 == before.companionBinarySha256
     }.getOrDefault(false)
 
     @Serializable
@@ -334,16 +383,16 @@ private fun secureNonce(): String {
 }
 
 private fun safeMessage(phase: InstallPhase): String = when (phase) {
-    InstallPhase.VERIFY_ASSET -> "Встроенный пакет companion повреждён"
-    InstallPhase.CONNECT -> "Не удалось подключиться к роутеру по подтверждённому SSH-ключу"
+    InstallPhase.VERIFY_ASSET -> "Встроенный компонент защищённого доступа повреждён"
+    InstallPhase.CONNECT -> "Не удалось подключиться к подтверждённому роутеру"
     InstallPhase.PROBE -> "Роутер не прошёл безопасную проверку совместимости"
-    InstallPhase.UPLOAD -> "Не удалось передать пакет companion"
-    InstallPhase.INSTALL -> "Установка companion не завершена"
+    InstallPhase.UPLOAD -> "Не удалось передать компонент защищённого доступа"
+    InstallPhase.INSTALL -> "Установка защищённого доступа не завершена"
     InstallPhase.PAIRING_OFFER -> "Не удалось создать одноразовую привязку телефона"
     InstallPhase.PAIRING_EXCHANGE -> "Не удалось подтвердить сертификат и привязать телефон"
-    InstallPhase.HEALTH -> "Новый защищённый API не прошёл проверку"
-    InstallPhase.SAVE_PROFILE -> "Companion установлен, но профиль телефона не сохранён"
-    InstallPhase.CLEANUP -> "Companion установлен, временные файлы требуют очистки"
+    InstallPhase.HEALTH -> "Новый защищённый доступ не прошёл проверку"
+    InstallPhase.SAVE_PROFILE -> "Доступ установлен, но профиль телефона не сохранён"
+    InstallPhase.CLEANUP -> "Доступ установлен, временные файлы требуют очистки"
 }
 
 private const val MIN_FREE_MARGIN_BYTES = 16L * 1024 * 1024

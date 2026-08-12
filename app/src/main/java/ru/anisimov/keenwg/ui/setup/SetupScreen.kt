@@ -1,33 +1,39 @@
 package ru.anisimov.keenwg.ui.setup
 
-import ru.anisimov.keenwg.R
-
-import androidx.compose.ui.res.stringResource
-
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,6 +44,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,17 +55,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import ru.anisimov.keenwg.R
 import ru.anisimov.keenwg.data.installer.InstallPhase
-import ru.anisimov.keenwg.data.installer.InstallMode
+import ru.anisimov.keenwg.data.installer.InstallProbe
 import ru.anisimov.keenwg.data.installer.SshEndpoint
+import ru.anisimov.keenwg.ui.components.KeenGlassSurface
 import ru.anisimov.keenwg.ui.theme.MonoLabel
+
+private const val XKEEN_GUIDE_URL = "https://github.com/Corvus-Malus/XKeen"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,47 +86,56 @@ fun SetupScreen(
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val suggestedHost by vm.suggestedHost.collectAsStateWithLifecycle()
+    val suggestedPort by vm.suggestedPort.collectAsStateWithLifecycle()
+    val suggestedUsername by vm.suggestedUsername.collectAsStateWithLifecycle()
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("222") }
     var username by remember { mutableStateOf("root") }
     var password by remember { mutableStateOf("") }
     var formError by remember { mutableStateOf<String?>(null) }
-    val installing = state is SetupState.Installing
-    BackHandler(enabled = installing) { }
+    var showParameters by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
+    var confirmChangedKey by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
+    val busy = state is SetupState.Checking
 
-    LaunchedEffect(suggestedHost) {
-        if (host.isBlank() && suggestedHost.isNotBlank()) host = suggestedHost
+    BackHandler(enabled = busy) { }
+    LaunchedEffect(suggestedHost, suggestedPort, suggestedUsername) {
+        if (host.isBlank()) host = suggestedHost
+        if (port == "222") port = suggestedPort.toString()
+        if (username == "root") username = suggestedUsername
     }
 
-    fun endpoint(): SshEndpoint? = runCatching {
-        SshEndpoint(host.trim(), port.toInt(), username.trim())
-    }.onFailure { formError = "Проверьте адрес, SSH-порт и пользователя" }.getOrNull()
-
-    fun consumePassword(action: (ByteArray) -> Unit) {
+    fun submit() {
         if (password.isBlank()) {
-            formError = "Введите временный SSH-пароль"
+            formError = "password"
             return
         }
+        val candidate = runCatching { SshEndpoint(host.trim(), port.toInt(), username.trim()) }
+            .getOrElse {
+                formError = "endpoint"
+                return
+            }
         val bytes = password.toByteArray()
         password = ""
         formError = null
-        action(bytes)
+        vm.connect(candidate, bytes, "KeenWG ${Build.MODEL}")
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Companion") },
+                title = { Text(stringResource(R.string.setup_top_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !installing) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.ui_setupscreen_1a9fb1f3cf))
+                    IconButton(onClick = onBack, enabled = !busy) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
         },
     ) { padding ->
         Column(
-            Modifier
+            modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
@@ -117,172 +143,341 @@ fun SetupScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when (val current = state) {
-                SetupState.Idle -> IdleContent(
+                SetupState.Credentials -> CredentialsContent(
                     host = host,
                     port = port,
                     username = username,
+                    password = password,
                     error = formError,
-                    onHost = { host = it; formError = null },
-                    onPort = { port = it.filter(Char::isDigit); formError = null },
-                    onUsername = { username = it; formError = null },
-                    onObserve = { endpoint()?.let(vm::observeHostKey) },
+                    showParameters = showParameters,
+                    onHostChange = { host = it; formError = null },
+                    onPortChange = { port = it.filter(Char::isDigit); formError = null },
+                    onUsernameChange = { username = it; formError = null },
+                    onPasswordChange = { password = it; formError = null },
+                    onToggleParameters = { showParameters = !showParameters },
+                    onHelp = { showHelp = true },
+                    onSubmit = ::submit,
                 )
-                is SetupState.HostKeyApproval -> {
-                    StepHeader("1 из 2", "Подтвердите ключ роутера", Icons.Default.Security)
-                    Text(stringResource(R.string.ui_setupscreen_148cb9cbf6), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    KeyCard(current.key.algorithm, current.key.sha256)
-                    PasswordField(password, { password = it; formError = null })
-                    formError?.let { ErrorText(it) }
-                    Button(
-                        onClick = { consumePassword(vm::approveHostKey) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                    ) { Text(stringResource(R.string.ui_setupscreen_f1080dfab1)) }
-                    OutlinedButton(onClick = vm::reset, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.ui_setupscreen_8fbe9b75cb)) }
-                }
-                is SetupState.Probing -> BusyContent(current.step)
-                is SetupState.Review -> {
-                    StepHeader("2 из 2", "Проверьте план установки", Icons.Default.Router)
-                    ProbeCard(current)
-                    current.plan.effects.forEachIndexed { index, effect ->
-                        InfoRow("${index + 1}", effect)
-                    }
-                    Text(stringResource(R.string.ui_setupscreen_6d6cb8638d), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    PasswordField(password, { password = it; formError = null })
-                    formError?.let { ErrorText(it) }
-                    Button(
-                        onClick = { consumePassword { vm.confirmInstall(it, "KeenWG ${Build.MODEL}") } },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                ) {
-                    Text(
-                        when (current.plan.mode) {
-                            InstallMode.CLEAN_INSTALL -> stringResource(R.string.setup_install_companion, current.plan.version)
-                            InstallMode.UPDATE -> stringResource(R.string.setup_update_companion, current.plan.version)
-                            InstallMode.PAIR_ONLY -> stringResource(R.string.setup_pair_phone)
-                        },
-                    )
-                }
-                    OutlinedButton(onClick = vm::reset, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.ui_setupscreen_8fbe9b75cb)) }
-                }
-                is SetupState.Installing -> InstallingContent(current)
-                is SetupState.Completed -> {
-                    StepHeader("Готово", "Companion подключён", Icons.Default.CheckCircle)
-                    InfoRow("Версия", current.report.version)
-                    InfoRow("HTTPS", current.report.secureBaseUrl)
-                    InfoRow("Телефон", current.report.deviceId)
-                    InfoRow("Очистка", if (current.report.cleanupSucceeded) "Временные файлы удалены" else "Нужна ручная проверка")
-                    Button(onClick = onCompleted, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.ui_setupscreen_a9c74e8d03)) }
-                }
+                is SetupState.Checking -> CheckingContent(current)
+                is SetupState.PrerequisiteMissing -> PrerequisiteContent(
+                    state = current,
+                    onOpenGuide = { runCatching { uriHandler.openUri(XKEEN_GUIDE_URL) } },
+                    onRetry = { vm.retryPrerequisites() },
+                    onReset = vm::reset,
+                )
+                is SetupState.HostKeyChanged -> HostKeyChangedContent(
+                    state = current,
+                    onConfirm = { confirmChangedKey = true },
+                    onReset = vm::reset,
+                )
+                is SetupState.Completed -> CompletedContent(current, onCompleted)
                 is SetupState.Failed -> FailureContent(current, vm::reset)
             }
+            Spacer(Modifier.height(8.dp))
         }
+    }
+
+    if (showHelp) {
+        AlertDialog(
+            onDismissRequest = { showHelp = false },
+            icon = { Icon(Icons.Default.Info, contentDescription = null) },
+            title = { Text(stringResource(R.string.setup_help_title)) },
+            text = { Text(stringResource(R.string.setup_help_body)) },
+            confirmButton = { TextButton(onClick = { showHelp = false }) { Text(stringResource(R.string.action_understood)) } },
+            dismissButton = {
+                TextButton(onClick = { runCatching { uriHandler.openUri(XKEEN_GUIDE_URL) } }) {
+                    Text(stringResource(R.string.setup_open_guide))
+                }
+            },
+        )
+    }
+
+    if (confirmChangedKey) {
+        AlertDialog(
+            onDismissRequest = { confirmChangedKey = false },
+            icon = { Icon(Icons.Default.WarningAmber, contentDescription = null) },
+            title = { Text(stringResource(R.string.setup_key_confirm_title)) },
+            text = { Text(stringResource(R.string.setup_key_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmChangedKey = false
+                    vm.acceptChangedHostKey()
+                }) { Text(stringResource(R.string.setup_key_confirm_action)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmChangedKey = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
     }
 }
 
 @Composable
-private fun IdleContent(
+private fun CredentialsContent(
     host: String,
     port: String,
     username: String,
+    password: String,
     error: String?,
-    onHost: (String) -> Unit,
-    onPort: (String) -> Unit,
-    onUsername: (String) -> Unit,
-    onObserve: () -> Unit,
+    showParameters: Boolean,
+    onHostChange: (String) -> Unit,
+    onPortChange: (String) -> Unit,
+    onUsernameChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onToggleParameters: () -> Unit,
+    onHelp: () -> Unit,
+    onSubmit: () -> Unit,
 ) {
-    StepHeader("Безопасная установка", "Подключите companion к роутеру", Icons.Default.Key)
+    SetupHeader(Icons.Default.Router, stringResource(R.string.setup_connect_title), stringResource(R.string.setup_connect_body))
+    KeenGlassSurface(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.setup_router_label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(host.ifBlank { stringResource(R.string.setup_router_default) }, style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.setup_router_local_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+    OutlinedTextField(
+        value = username,
+        onValueChange = onUsernameChange,
+        label = { Text(stringResource(R.string.setup_username)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    PasswordField(password, onPasswordChange, error == "password")
+    TextButton(onClick = onHelp) {
+        Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(18.dp))
+        Text(stringResource(R.string.setup_where_credentials))
+    }
     Text(
-        "KeenWG сначала получит публичный SSH-ключ без пароля. Установка начнётся только после двух явных подтверждений.",
+        stringResource(R.string.setup_credential_privacy),
+        style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    OutlinedTextField(host, onHost, label = { Text(stringResource(R.string.ui_setupscreen_dde7f6b38a)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
-            port, onPort, label = { Text(stringResource(R.string.ui_setupscreen_90947197f8)) }, singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(0.36f),
-        )
-        OutlinedTextField(username, onUsername, label = { Text(stringResource(R.string.ui_setupscreen_2a5c42af7c)) }, singleLine = true, modifier = Modifier.weight(0.64f))
+    TextButton(onClick = onToggleParameters, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.setup_change_parameters), modifier = Modifier.weight(1f))
+        Icon(if (showParameters) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
     }
-    error?.let { ErrorText(it) }
-    Button(onClick = onObserve, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.ui_setupscreen_b2e75a12c2)) }
+    AnimatedVisibility(showParameters) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = host,
+                onValueChange = onHostChange,
+                label = { Text(stringResource(R.string.setup_router_address)) },
+                singleLine = true,
+                modifier = Modifier.weight(0.68f),
+            )
+            OutlinedTextField(
+                value = port,
+                onValueChange = onPortChange,
+                label = { Text(stringResource(R.string.setup_router_port)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(0.32f),
+            )
+        }
+    }
+    if (error == "endpoint") InlineError(stringResource(R.string.setup_error_endpoint))
+    Button(onClick = onSubmit, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+        Text(stringResource(R.string.setup_connect_action))
+    }
 }
 
 @Composable
-private fun PasswordField(value: String, onValue: (String) -> Unit) {
+private fun PasswordField(value: String, onValueChange: (String) -> Unit, error: Boolean) {
+    var visible by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = value,
-        onValueChange = onValue,
-        label = { Text(stringResource(R.string.ui_setupscreen_6e766fc57a)) },
+        onValueChange = onValueChange,
+        label = { Text(stringResource(R.string.setup_password)) },
+        supportingText = if (error) ({ InlineError(stringResource(R.string.setup_error_password)) }) else null,
+        isError = error,
         singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = { visible = !visible }) {
+                Icon(
+                    if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    stringResource(if (visible) R.string.action_hide_password else R.string.action_show_password),
+                )
+            }
+        },
         modifier = Modifier.fillMaxWidth(),
     )
 }
 
 @Composable
-private fun KeyCard(algorithm: String, fingerprint: String) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        shape = RoundedCornerShape(24.dp),
+private fun CheckingContent(state: SetupState.Checking) {
+    SetupHeader(Icons.Default.Security, stringResource(R.string.setup_checking_title), stringResource(R.string.setup_checking_body))
+    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
+    KeenGlassSurface(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            ProgressRow(stringResource(R.string.setup_check_router), setupRowStatus(state.progress, 0))
+            ProgressRow(stringResource(R.string.setup_check_entware), setupRowStatus(state.progress, 1))
+            ProgressRow(stringResource(R.string.setup_check_modules), setupRowStatus(state.progress, 2))
+            ProgressRow(stringResource(R.string.setup_check_access), setupRowStatus(state.progress, 3))
+        }
+    }
+    InfoNotice(stringResource(R.string.setup_preserve_notice))
+}
+
+@Composable
+private fun ProgressRow(label: String, state: SetupRowStatus) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(algorithm, style = MaterialTheme.typography.labelLarge)
-            Text(fingerprint, style = MonoLabel)
+        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+            when (state) {
+                SetupRowStatus.COMPLETE -> Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                SetupRowStatus.ACTIVE -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                SetupRowStatus.PENDING -> Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+            }
+        }
+        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            stringResource(
+                when (state) {
+                    SetupRowStatus.COMPLETE -> R.string.setup_status_ready
+                    SetupRowStatus.ACTIVE -> R.string.setup_status_now
+                    SetupRowStatus.PENDING -> R.string.setup_status_pending
+                },
+            ),
+            style = MaterialTheme.typography.labelMedium,
+            color = if (state == SetupRowStatus.PENDING) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+@Composable
+private fun PrerequisiteContent(
+    state: SetupState.PrerequisiteMissing,
+    onOpenGuide: () -> Unit,
+    onRetry: () -> Unit,
+    onReset: () -> Unit,
+) {
+    SetupHeader(Icons.Default.Info, stringResource(R.string.setup_prerequisite_title), stringResource(R.string.setup_prerequisite_body))
+    RouterProbeCard(state.probe)
+    KeenGlassSurface(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            state.missing.forEach { missing ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                    Text(stringResource(missing.labelResource()), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            Text(stringResource(R.string.setup_no_format_notice), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-}
-
-@Composable
-private fun ProbeCard(state: SetupState.Review) {
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.ui_setupscreen_25bab021a2), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            InfoRow("Архитектура", state.probe.architecture)
-            InfoRow("Прошивка", state.probe.firmware)
-            InfoRow("Свободно /opt", "${state.probe.optFreeBytes / 1024 / 1024} МиБ")
-            InfoRow("Адрес API", state.plan.secureBaseUrl ?: stringResource(R.string.setup_companion_address_pending))
+    if (SetupPrerequisite.ENTWARE in state.missing) {
+        Button(onClick = onOpenGuide, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+            Text(stringResource(R.string.setup_open_guide))
         }
     }
+    OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+        Text(stringResource(R.string.setup_check_again))
+    }
+    TextButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.setup_enter_again)) }
 }
 
 @Composable
-private fun BusyContent(step: String) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        CircularProgressIndicator()
-        Text(step, style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.ui_setupscreen_dccef2005c), color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun HostKeyChangedContent(
+    state: SetupState.HostKeyChanged,
+    onConfirm: () -> Unit,
+    onReset: () -> Unit,
+) {
+    SetupHeader(Icons.Default.WarningAmber, stringResource(R.string.setup_key_changed_title), stringResource(R.string.setup_key_changed_body))
+    InfoNotice(stringResource(R.string.setup_key_changed_warning), error = true)
+    TechnicalDetails {
+        Text(stringResource(R.string.setup_key_previous), style = MaterialTheme.typography.labelMedium)
+        Text("${state.expected.algorithm} · ${state.expected.sha256}", style = MonoLabel)
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.setup_key_observed), style = MaterialTheme.typography.labelMedium)
+        Text("${state.observed.algorithm} · ${state.observed.sha256}", style = MonoLabel)
+    }
+    Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+        Text(stringResource(R.string.setup_key_changed_continue))
+    }
+    OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+        Text(stringResource(R.string.action_cancel))
     }
 }
 
 @Composable
-private fun InstallingContent(state: SetupState.Installing) {
-    StepHeader("Установка", phaseLabel(state.phase), Icons.Default.Security)
-    LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
-    Text(stringResource(R.string.ui_setupscreen_edb20a8227), color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun CompletedContent(state: SetupState.Completed, onCompleted: () -> Unit) {
+    SetupHeader(Icons.Default.CheckCircle, stringResource(R.string.setup_complete_title), stringResource(R.string.setup_complete_body))
+    KeenGlassSurface(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+            ResultRow(stringResource(R.string.setup_result_protected_access))
+        }
+    }
+    Text(
+        stringResource(R.string.setup_complete_version, state.report.version),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Button(onClick = onCompleted, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+        Text(stringResource(R.string.setup_go_overview))
+    }
+}
+
+@Composable
+private fun ResultRow(label: String) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+        Text(label, modifier = Modifier.weight(1f))
+        Text(stringResource(R.string.setup_status_configured), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+    }
 }
 
 @Composable
 private fun FailureContent(state: SetupState.Failed, onReset: () -> Unit) {
     val clipboard = LocalClipboardManager.current
-    StepHeader("Не завершено", state.safeMessage, Icons.Default.Warning)
-    InfoRow("Этап", phaseLabel(state.phase))
-    InfoRow("Откат", if (state.rollbackVerified) "Проверен" else "Не подтверждён — проверьте отчёт")
+    SetupHeader(
+        Icons.Default.WarningAmber,
+        stringResource(R.string.setup_failed_title),
+        stringResource(state.phase.failureBodyResource()),
+    )
+    InfoNotice(
+        stringResource(if (state.rollbackVerified) R.string.setup_failure_unchanged else R.string.setup_failure_uncertain),
+        error = !state.rollbackVerified,
+    )
+    TechnicalDetails {
+        Text(stringResource(R.string.setup_failure_stage, state.phase.userCode()), style = MonoLabel)
+        Spacer(Modifier.height(6.dp))
+        Text(state.safeMessage, style = MaterialTheme.typography.bodySmall)
+    }
+    Button(onClick = onReset, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+        Text(stringResource(R.string.action_try_again))
+    }
     OutlinedButton(
-        onClick = { clipboard.setText(AnnotatedString("KeenWG: ${state.phase.name}\n${state.safeMessage}\nrollback=${state.rollbackVerified}")) },
+        onClick = {
+            clipboard.setText(AnnotatedString("KeenWG ${state.phase.userCode()}\n${state.safeMessage}\nrouter_unchanged_confirmed=${state.rollbackVerified}"))
+        },
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
     ) {
         Icon(Icons.Default.ContentCopy, contentDescription = null)
-        Text(stringResource(R.string.ui_setupscreen_5f95c40b65))
+        Text(stringResource(R.string.setup_copy_report))
     }
-    Button(onClick = onReset, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.ui_setupscreen_9a885083e0)) }
 }
 
 @Composable
-private fun StepHeader(eyebrow: String, title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Column {
-            Text(eyebrow, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+private fun SetupHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun RouterProbeCard(probe: InstallProbe) {
+    KeenGlassSurface(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.setup_router_compatible), style = MaterialTheme.typography.titleMedium)
+            InfoRow(stringResource(R.string.setup_probe_architecture), probe.architecture)
+            InfoRow(stringResource(R.string.setup_probe_firmware), probe.firmware)
+            InfoRow(stringResource(R.string.setup_probe_storage), stringResource(R.string.setup_storage_mib, probe.optFreeBytes / 1024 / 1024))
         }
     }
 }
@@ -290,22 +485,75 @@ private fun StepHeader(eyebrow: String, title: String, icon: androidx.compose.ui
 @Composable
 private fun InfoRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(0.34f))
-        Text(value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.66f))
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(0.42f))
+        Text(value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.58f))
     }
 }
 
-@Composable private fun ErrorText(message: String) = Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+@Composable
+private fun InfoNotice(message: String, error: Boolean = false) {
+    KeenGlassSurface(Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            Icon(
+                if (error) Icons.Default.WarningAmber else Icons.Default.Lock,
+                contentDescription = null,
+                tint = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            )
+            Text(message, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        }
+    }
+}
 
-private fun phaseLabel(phase: InstallPhase) = when (phase) {
-    InstallPhase.VERIFY_ASSET -> "Проверяем пакет"
-    InstallPhase.CONNECT -> "Подключаемся по SSH"
-    InstallPhase.PROBE -> "Проверяем роутер"
-    InstallPhase.UPLOAD -> "Передаём пакет"
-    InstallPhase.INSTALL -> "Устанавливаем с rollback"
-    InstallPhase.PAIRING_OFFER -> "Создаём одноразовую привязку"
-    InstallPhase.PAIRING_EXCHANGE -> "Проверяем сертификат"
-    InstallPhase.HEALTH -> "Проверяем защищённый API"
-    InstallPhase.SAVE_PROFILE -> "Сохраняем профиль"
-    InstallPhase.CLEANUP -> "Удаляем временные файлы"
+@Composable
+private fun TechnicalDetails(content: @Composable () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    KeenGlassSurface(Modifier.fillMaxWidth()) {
+        Column {
+            TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+                Text(stringResource(R.string.setup_technical_details), modifier = Modifier.weight(1f))
+                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+            }
+            AnimatedVisibility(expanded) {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), content = { content() })
+            }
+        }
+    }
+}
+
+@Composable
+private fun InlineError(message: String) {
+    Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+}
+
+private fun SetupPrerequisite.labelResource(): Int = when (this) {
+    SetupPrerequisite.ENTWARE -> R.string.setup_missing_entware
+    SetupPrerequisite.STORAGE -> R.string.setup_missing_storage
+}
+
+private fun InstallPhase.userCode(): String = when (this) {
+    InstallPhase.VERIFY_ASSET -> "PACKAGE"
+    InstallPhase.CONNECT -> "CONNECT"
+    InstallPhase.PROBE -> "CHECK"
+    InstallPhase.UPLOAD -> "TRANSFER"
+    InstallPhase.INSTALL -> "INSTALL"
+    InstallPhase.PAIRING_OFFER, InstallPhase.PAIRING_EXCHANGE -> "PHONE_ACCESS"
+    InstallPhase.HEALTH -> "VERIFY"
+    InstallPhase.SAVE_PROFILE -> "SAVE"
+    InstallPhase.CLEANUP -> "CLEANUP"
+}
+
+private fun InstallPhase.failureBodyResource(): Int = when (this) {
+    InstallPhase.VERIFY_ASSET -> R.string.setup_failure_package
+    InstallPhase.CONNECT -> R.string.setup_failure_connection
+    InstallPhase.PROBE -> R.string.setup_failure_readiness
+    InstallPhase.UPLOAD,
+    InstallPhase.INSTALL,
+    -> R.string.setup_failure_installation
+    InstallPhase.PAIRING_OFFER,
+    InstallPhase.PAIRING_EXCHANGE,
+    -> R.string.setup_failure_phone_access
+    InstallPhase.HEALTH,
+    InstallPhase.SAVE_PROFILE,
+    InstallPhase.CLEANUP,
+    -> R.string.setup_failure_verification
 }

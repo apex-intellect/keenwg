@@ -31,6 +31,7 @@ import ru.anisimov.keenwg.ui.peers.PeerListScreen
 import ru.anisimov.keenwg.ui.settings.SettingsScreen
 import ru.anisimov.keenwg.ui.setup.SetupScreen
 import ru.anisimov.keenwg.ui.system.DevicesScreen
+import ru.anisimov.keenwg.ui.system.SystemScreen
 import ru.anisimov.keenwg.ui.support.SupportScreen
 import ru.anisimov.keenwg.ui.xkeen.XkeenScreen
 
@@ -39,6 +40,7 @@ import ru.anisimov.keenwg.ui.xkeen.XkeenScreen
 @Serializable data object RoutesRoute
 @Serializable data object AccessRoute
 @Serializable data object SystemRoute
+@Serializable data object AdvancedSettingsRoute
 @Serializable data object SetupRoute
 @Serializable data object DevicesRoute
 @Serializable data object SupportRoute
@@ -117,12 +119,19 @@ fun KeenWgNav() {
                     AddPeerScreen(onBack = { nav.popBackStack() }, onDone = { nav.popBackStack() })
                 }
                 composable<SystemRoute> {
-                    SettingsScreen(
-                        productState = overviewState,
-                        onSetupCompanion = { nav.navigate(SetupRoute) },
+                    SystemScreen(
+                        state = overviewState,
+                        onSetup = { nav.navigate(SetupRoute) },
                         onTrustedDevices = { nav.navigate(DevicesRoute) },
                         onDiagnostics = { nav.navigate(SupportRoute) },
                         onBackup = { nav.navigate(BackupRoute) },
+                        onAdvancedSettings = { nav.navigate(AdvancedSettingsRoute) },
+                    )
+                }
+                composable<AdvancedSettingsRoute> {
+                    SettingsScreen(
+                        productState = overviewState,
+                        onBack = { nav.popBackStack() },
                     )
                 }
                 composable<SupportRoute> {

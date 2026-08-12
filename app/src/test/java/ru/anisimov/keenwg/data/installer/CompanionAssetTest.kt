@@ -16,13 +16,14 @@ class CompanionAssetTest {
         assertTrue(body.contentEquals(verified.bytes))
     }
 
-    @Test fun `modified bytes wrong size architecture and schema fail closed`() {
+    @Test fun `modified bytes wrong size architecture schema and binary hash fail closed`() {
         val body = "companion-archive".toByteArray()
         val cases = listOf(
             FakeAssetSource(manifest(body), "modified".toByteArray()),
             FakeAssetSource(manifest(body).replace("\"size\":${body.size}", "\"size\":1"), body),
             FakeAssetSource(manifest(body).replace("\"arm64\"", "\"x86_64\""), body),
             FakeAssetSource(manifest(body).replace("\"schema_version\":1", "\"schema_version\":2"), body),
+            FakeAssetSource(manifest(body).replace(Regex("\"binary_sha256\":\"[0-9a-f]{64}\""), "\"binary_sha256\":\"invalid\""), body),
         )
 
         cases.forEach { source ->
@@ -32,7 +33,7 @@ class CompanionAssetTest {
 
     private fun manifest(body: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(body).joinToString("") { "%02x".format(it) }
-        return """{"schema_version":1,"version":"0.7.0","architecture":"arm64","asset":"keenwg-companion-arm64.tgz","sha256":"$digest","size":${body.size}}"""
+        return """{"schema_version":1,"version":"0.7.0","architecture":"arm64","asset":"keenwg-companion-arm64.tgz","sha256":"$digest","binary_sha256":"$digest","size":${body.size}}"""
     }
 
     private data class FakeAssetSource(val manifest: String, val asset: ByteArray) : CompanionAssetSource {

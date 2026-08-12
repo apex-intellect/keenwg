@@ -19,10 +19,20 @@ import ru.anisimov.keenwg.domain.model.RouterProfile
 import ru.anisimov.keenwg.domain.model.RouterProfilesState
 import ru.anisimov.keenwg.domain.model.RouterSecrets
 import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.data.installer.HostKeyObservation
+import ru.anisimov.keenwg.data.installer.SshEndpoint
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RouterProfileStoreTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
+
+    @Test fun `fresh install starts with the common local Keenetic address`() = runTest {
+        val store = RouterProfileStore(testDataStore("fresh.preferences_pb"), PrefixCipher())
+
+        store.initialize()
+
+        assertEquals("192.168.1.1", store.activeProfile.first()!!.profile.host)
+    }
 
     @Test fun `schema one profile upgrades once without losing active encrypted credentials`() = runTest {
         val dataStore = testDataStore("migration.preferences_pb")
@@ -44,7 +54,7 @@ class RouterProfileStoreTest {
         val state = store.state.first() as RouterProfilesState.Ready
         assertEquals(1, state.profiles.size)
         assertEquals("home", state.selectedId)
-        assertEquals(2, state.profiles.single().schemaVersion)
+        assertEquals(3, state.profiles.single().schemaVersion)
         assertEquals(firstRaw, secondRaw)
         val active = store.activeProfile.first()!!
         assertEquals("router-secret", active.secrets.rciPassword)
@@ -89,7 +99,7 @@ class RouterProfileStoreTest {
     @Test fun `secret decrypt failure exposes locked state and no active settings`() = runTest {
         val dataStore = testDataStore("locked.preferences_pb")
         val profile = RouterProfile.fromServerSettings("router-one", "Home", ServerSettings())
-        val index = RouterProfileIndex(schemaVersion = 2, selectedProfileId = profile.id, profiles = listOf(profile))
+        val index = RouterProfileIndex(schemaVersion = 3, selectedProfileId = profile.id, profiles = listOf(profile))
         dataStore.edit { preferences ->
             preferences[stringPreferencesKey("router_profiles_json")] = RouterProfileCodec.encodeIndex(index)
             preferences[stringPreferencesKey("router_secrets_enc")] = "broken"
@@ -104,9 +114,18 @@ class RouterProfileStoreTest {
         assertEquals(null, store.activeSettings.first())
     }
 
+    @Test fun `schema two gains ssh defaults without losing router identity`() {
+        val index = RouterProfileCodec.decodeIndex(schemaTwoIndex())
+
+        assertEquals(3, index.schemaVersion)
+        assertEquals("home", index.selectedProfileId)
+        assertEquals("192.168.1.1", index.profiles.single().sshHost)
+        assertEquals("https://192.168.1.1:18779", index.profiles.single().companionUrl)
+    }
+
     @Test fun `codec rejects unknown schema version`() {
         val error = runCatching {
-            RouterProfileCodec.decodeIndex("""{"schema_version":3,"selected_profile_id":"x","profiles":[]}""")
+            RouterProfileCodec.decodeIndex("""{"schema_version":4,"selected_profile_id":"x","profiles":[]}""")
         }.exceptionOrNull()
         assertTrue(error is IllegalArgumentException)
     }
@@ -128,8 +147,8 @@ class RouterProfileStoreTest {
           }}
         }""")
 
-        assertEquals(2, index.schemaVersion)
-        assertEquals(2, index.profiles.single().schemaVersion)
+        assertEquals(3, index.schemaVersion)
+        assertEquals(3, index.profiles.single().schemaVersion)
         assertEquals("https://192.168.1.1:18779", index.profiles.single().companionUrl)
         assertEquals("device-token", secrets.getValue("home").companionToken)
         assertEquals("collector-token", secrets.getValue("home").collectorToken)
@@ -137,13 +156,19 @@ class RouterProfileStoreTest {
         assertFalse(RouterProfileCodec.encodeSecrets(secrets).contains("legacyXkeen"))
     }
 
-    @Test fun `companion identity and device token are saved in one selected profile update`() = runTest {
+    @Test fun `protected access identity trust and device token are saved in one selected profile update`() = runTest {
         val store = RouterProfileStore(testDataStore("companion.preferences_pb"), PrefixCipher())
         store.initialize()
         val selected = (store.state.first() as RouterProfilesState.Ready).selectedId
+        val observation = HostKeyObservation(
+            "ssh-ed25519",
+            "SHA256:OOMwCahJqCUC5vJDQLW6XAEOazkBM4yLc+h2Pubn8eg",
+        )
 
-        store.saveCompanion(
+        store.saveProtectedAccess(
             selected,
+            SshEndpoint("192.168.1.2", 222, "root"),
+            observation,
             "https://10.8.0.1:18779",
             "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
             "device-token",
@@ -155,6 +180,9 @@ class RouterProfileStoreTest {
         assertEquals("sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", active.profile.certificatePin)
         assertEquals("device-token", active.secrets.companionToken)
         assertEquals("phone-1", active.secrets.companionDeviceId)
+        assertEquals("192.168.1.1", active.profile.host)
+        assertEquals("192.168.1.2", active.profile.sshHost)
+        assertEquals(observation.sha256, active.profile.sshHostKeySha256)
 
         store.clearCompanion(selected)
         val cleared = store.activeProfile.first()!!
@@ -193,4 +221,14 @@ private fun schemaOneSecrets() = """{
     "rciLogin":"admin-user","rciPassword":"router-secret","companionToken":"device-token",
     "companionDeviceId":"phone-1","collectorToken":"collector-secret","legacyXkeenToken":"obsolete-token"
   }}
+}"""
+
+private fun schemaTwoIndex() = """{
+  "schema_version":2,"selected_profile_id":"home","profiles":[{
+    "schemaVersion":2,"id":"home","displayName":"Home","host":"192.168.1.1","rciPort":8080,
+    "interfaceId":"Wireguard9","serverPublicKey":"server-key","endpoint":"vpn.example.test:51820",
+    "subnetBase":"10.9.0.","dns":"192.168.1.1","mtu":1360,"keepalive":17,
+    "companionUrl":"https://192.168.1.1:18779","certificatePin":"sha256/pin",
+    "collectorUrl":"http://192.168.1.1:18777"
+  }]
 }"""

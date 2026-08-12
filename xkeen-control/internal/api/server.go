@@ -417,6 +417,10 @@ func (s *Server) handleMutation(w http.ResponseWriter, r *http.Request, kind, no
 		methodNotAllowed(w, http.MethodPost)
 		return
 	}
+	if s.engine == nil {
+		writeError(w, http.StatusServiceUnavailable, "feature_unavailable")
+		return
+	}
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mediaType != "application/json" {
 		writeError(w, http.StatusBadRequest, "invalid_request")

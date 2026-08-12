@@ -1,10 +1,10 @@
-# Модель безопасности KeenWG 2.0
+# Модель безопасности KeenWG 2.x
 
 ## Границы доверия
 
 Companion слушает один конкретный приватный IPv4-адрес роутера на HTTPS-порту `18779`. Wildcard, loopback, публичный адрес, hostname, URL с userinfo, query или fragment отклоняются конфигурацией. Публичный/WAN listener не поддерживается.
 
-Android получает SSH host key до отправки пароля. После явного подтверждения мастер создаёт или получает локальную identity Companion, а приложение сохраняет точный SHA-256 pin его сертификата. Системные и пользовательские CA не заменяют pin; изменившийся сертификат или SSH host key приводит к отказу до авторизации.
+Android получает host key до отправки пароля. Для нового профиля используется trust-on-success: key сохраняется только после успешной установки, HTTPS-проверки и выдачи токена телефону, поэтому первую настройку нужно выполнять в доверенной локальной сети. Уже сохранённый key сравнивается до авторизации; его изменение блокирует отправку пароля и требует отдельного подтверждения сброса или замены роутера. Адрес первичной настройки, host key, точный SHA-256 pin сертификата и токен телефона сохраняются одной транзакцией профиля; адрес Keenetic API хранится отдельно. Системные и пользовательские CA не заменяют pin.
 
 RCI Keenetic и необязательный Collector являются отдельными модулями. Их cleartext HTTP допустим только внутри доверенной LAN или уже настроенного WireGuard. Они не должны публиковаться в WAN.
 
@@ -19,7 +19,7 @@ RCI Keenetic и необязательный Collector являются отде
 
 ## Секреты
 
-Android шифрует пароли, device tokens, Collector token и конфигурации через Android Keystore/AES-GCM. Backup приложения отключён. Временный SSH-пароль используется только одной операцией и не записывается в профиль.
+Android шифрует сохранённые пароли Keenetic API, device tokens, Collector token и конфигурации через Android Keystore/AES-GCM. Backup приложения отключён. Пароль установки вводится один раз, принадлежит активному Setup ViewModel, передаётся в операции только копиями и стирается при успехе, ошибке, отмене или уничтожении ViewModel. В профиль он не записывается.
 
 Subscription URL, VLESS URI, UUID, Reality key, short ID, SNI и сырой Xray-конфиг остаются на роутере. API возвращает только нормализованные публичные поля, состояние операции и санитизированные ошибки.
 
@@ -42,4 +42,4 @@ Subscription URL, VLESS URI, UUID, Reality key, short ID, SNI и сырой Xray
 
 ## Что нельзя публиковать
 
-SSH/admin password, device/Collector token, pairing secret, subscription URL, VLESS URI, private WireGuard key, router backup и полный QR. Для issue используйте только санитизированный отчёт.
+Пароль доступа к роутеру, device/Collector token, pairing secret, subscription URL, VLESS URI, private WireGuard key, router backup и полный QR. Для issue используйте только санитизированный отчёт.

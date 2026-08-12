@@ -159,7 +159,7 @@ private fun CompanionStatusCard(state: DevicesUiState) {
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Default.Devices, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
                 Column(Modifier.padding(start = 12.dp).weight(1f)) {
-                    Text("KeenWG companion", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.system_connection_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text("API: ${state.apiState}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -240,7 +240,7 @@ private fun RevokeDialog(confirmation: RevokeConfirmation, busy: Boolean, onDism
         text = {
             Text(
                 when {
-                    current && confirmation.finalWarning -> "После отзыва этот телефон сразу потеряет доступ к companion. Вернуть доступ можно будет только новым приглашением владельца."
+                    current && confirmation.finalWarning -> "После отзыва этот телефон сразу потеряет защищённый доступ. Вернуть его можно будет только новым приглашением владельца."
                     current -> "Вы выбрали текущий телефон. Потребуется ещё одно явное подтверждение."
                     else -> "${confirmation.device.label} больше не сможет подключаться к этому роутеру через KeenWG."
                 },

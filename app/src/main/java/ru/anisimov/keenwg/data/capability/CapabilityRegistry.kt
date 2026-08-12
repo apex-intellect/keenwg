@@ -3,18 +3,38 @@ package ru.anisimov.keenwg.data.capability
 import ru.anisimov.keenwg.data.companion.Capability
 import ru.anisimov.keenwg.data.companion.CapabilityAccess
 import ru.anisimov.keenwg.data.companion.CapabilityDocument
+import ru.anisimov.keenwg.domain.ServerSettingsValidator
 import ru.anisimov.keenwg.domain.model.RouterProfile
+import ru.anisimov.keenwg.domain.model.RouterSecrets
 
 class CapabilityRegistry {
-    fun resolve(profile: RouterProfile, companion: CapabilityDocument? = null): CapabilityDocument {
+    fun resolve(
+        profile: RouterProfile,
+        secrets: RouterSecrets,
+        companion: CapabilityDocument? = null,
+    ): CapabilityDocument {
         val merged = companion?.capabilities.orEmpty().associateByTo(linkedMapOf()) { it.id }
+        val settings = profile.toServerSettings(secrets)
 
-        if (profile.host.isNotBlank() && profile.rciPort in 1..65535) {
-            merged.putIfAbsent("access.wireguard", optional("access.wireguard", CapabilityAccess.WRITE, "rci"))
-        }
-        if (profile.collectorUrl.isNotBlank()) {
-            merged.putIfAbsent("history.wireguard", optional("history.wireguard", CapabilityAccess.READ, "collector"))
-        }
+        val rciReady = ServerSettingsValidator.validateForMutation(settings).isEmpty()
+        merged["access.wireguard"] = direct(
+            id = "access.wireguard",
+            access = CapabilityAccess.WRITE,
+            transport = "rci",
+            available = rciReady,
+            unavailableReason = "rci_not_configured",
+        )
+
+        val collectorReady = profile.collectorUrl.isNotBlank() &&
+            secrets.collectorToken.isNotBlank() &&
+            ServerSettingsValidator.validateCollectorUrl(profile.collectorUrl) == null
+        merged["history.wireguard"] = direct(
+            id = "history.wireguard",
+            access = CapabilityAccess.READ,
+            transport = "collector",
+            available = collectorReady,
+            unavailableReason = "collector_not_configured",
+        )
 
         return CapabilityDocument(
             stateVersion = companion?.stateVersion ?: 0u,
@@ -22,10 +42,17 @@ class CapabilityRegistry {
         )
     }
 
-    private fun optional(id: String, access: CapabilityAccess, transport: String) = Capability(
+    private fun direct(
+        id: String,
+        access: CapabilityAccess,
+        transport: String,
+        available: Boolean,
+        unavailableReason: String,
+    ) = Capability(
         id = id,
-        access = access,
-        available = true,
+        access = if (available) access else CapabilityAccess.NONE,
+        available = available,
         transport = transport,
+        reason = unavailableReason.takeUnless { available },
     )
 }

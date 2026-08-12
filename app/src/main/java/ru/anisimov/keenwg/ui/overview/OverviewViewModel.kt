@@ -93,7 +93,7 @@ class OverviewViewModel(
             return
         }
 
-        val optionalModules = registry.resolve(selected)
+        val optionalModules = registry.resolve(selected, active.secrets)
         val companionFields = listOf(selected.companionUrl, selected.certificatePin, active.secrets.companionToken)
         val companionComplete = companionFields.all { it.isNotBlank() }
         val companionPartial = companionFields.any { it.isNotBlank() } && !companionComplete
@@ -110,7 +110,7 @@ class OverviewViewModel(
             showProfileSelector = state.profiles.size > 1,
             capabilities = optionalModules,
             destinations = visibleTopLevelDestinations(optionalModules, locked = false),
-            message = if (companionPartial) "Настройка защищённого companion не завершена" else null,
+            message = if (companionPartial) "Настройка защищённого доступа не завершена" else null,
             mutationsEnabled = true,
         )
 
@@ -134,7 +134,7 @@ class OverviewViewModel(
 
         try {
             val companionDocument = companion.capabilities(selected, active.secrets.companionToken)
-            val merged = registry.resolve(selected, companionDocument)
+            val merged = registry.resolve(selected, active.secrets, companionDocument)
             _state.value = _state.value.copy(
                 loading = false,
                 health = OverviewHealth.HEALTHY,

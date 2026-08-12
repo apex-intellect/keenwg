@@ -36,8 +36,11 @@ class OverviewViewModelTest {
     @After fun teardown() = Dispatchers.resetMain()
 
     @Test fun `single profile hides selector and exposes only configured direct modules`() = runTest(dispatcher) {
-        val profile = profile(host = "192.168.1.1")
-        val harness = harness(RouterProfilesState.Ready(listOf(profile), profile.id), active(profile))
+        val profile = profile(host = "192.168.1.1", wireGuardConfigured = true)
+        val harness = harness(
+            RouterProfilesState.Ready(listOf(profile), profile.id),
+            active(profile, rciConfigured = true),
+        )
 
         advanceUntilIdle()
 
@@ -45,6 +48,18 @@ class OverviewViewModelTest {
         assertEquals("Home", harness.vm.state.value.selectedProfileName)
         assertTrue(harness.vm.state.value.destinations.contains(TopLevelDestination.ACCESS))
         assertFalse(harness.vm.state.value.destinations.contains(TopLevelDestination.CONNECTIONS))
+    }
+
+    @Test fun `fresh profile does not expose optional direct modules from defaults`() = runTest(dispatcher) {
+        val profile = profile(host = "192.168.1.1")
+        val harness = harness(RouterProfilesState.Ready(listOf(profile), profile.id), active(profile))
+
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(TopLevelDestination.OVERVIEW, TopLevelDestination.SYSTEM),
+            harness.vm.state.value.destinations,
+        )
     }
 
     @Test fun `multiple profiles show selector and selection delegates to profile store`() = runTest(dispatcher) {
@@ -118,22 +133,33 @@ class OverviewViewModelTest {
         return Harness(vm)
     }
 
-    private fun active(profile: RouterProfile, companionToken: String = "") =
-        ActiveRouterProfile(profile, RouterSecrets(companionToken = companionToken))
+    private fun active(
+        profile: RouterProfile,
+        companionToken: String = "",
+        rciConfigured: Boolean = false,
+    ) = ActiveRouterProfile(
+        profile,
+        RouterSecrets(
+            rciLogin = if (rciConfigured) "admin" else "",
+            rciPassword = if (rciConfigured) "router-password" else "",
+            companionToken = companionToken,
+        ),
+    )
 
     private fun profile(
         id: String = "home",
         host: String = "",
         companionUrl: String = "",
         pin: String = "",
+        wireGuardConfigured: Boolean = false,
     ) = RouterProfile(
         id = id,
         displayName = if (id == "home") "Home" else "Office",
         host = host,
         rciPort = if (host.isBlank()) 0 else 80,
         interfaceId = "Wireguard0",
-        serverPublicKey = "",
-        endpoint = "",
+        serverPublicKey = if (wireGuardConfigured) "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" else "",
+        endpoint = if (wireGuardConfigured) "vpn.example.com:51820" else "",
         subnetBase = "10.8.0.",
         dns = "192.168.1.1",
         mtu = 1380,

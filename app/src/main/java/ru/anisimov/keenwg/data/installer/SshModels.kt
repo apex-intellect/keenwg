@@ -79,13 +79,14 @@ sealed class FixedCommand {
             "printf 'firmware='; firmware=\$(ndmc -c 'show version' 2>/dev/null | sed -n 's/^[[:space:]]*[Rr]elease[[:space:]]*:[[:space:]]*//p' | sed -n '1p'); " +
             "if test -z \"\$firmware\" && test -r /etc/version; then firmware=\$(sed -n '1p' /etc/version); fi; " +
             "if test -n \"\$firmware\"; then printf '%s\\n' \"\$firmware\"; else echo unknown; fi; " +
-            "printf 'opt_free_kib='; df -Pk /opt | awk 'NR==2 {print \$4}'; " +
+            "printf 'opt_free_kib='; free=\$(df -Pk /opt 2>/dev/null | awk 'NR==2 {print \$4}'); if test -n \"\$free\"; then echo \"\$free\"; else echo 0; fi; " +
             "printf 'entware='; if test -d /opt/etc; then echo present; else echo missing; fi; " +
             "printf 'companion_config='; if test -f /opt/etc/keenwg/companion.json; then echo present; else echo missing; fi; " +
             "printf 'xkeen='; if test -x /opt/bin/xkeen; then /opt/bin/xkeen -version 2>/dev/null | sed -n '1p'; elif test -r /opt/etc/xray/version; then sed -n '1p' /opt/etc/xray/version; elif test -d /opt/etc/xray; then echo unknown; else echo missing; fi; " +
             "printf 'asc='; if command -v asc >/dev/null 2>&1; then echo present; else echo missing; fi; " +
             "printf 'xray='; if command -v xray >/dev/null 2>&1; then echo present; else echo missing; fi; " +
-            "printf 'companion='; if test -x /opt/lib/keenwg-companion/current/keenwg-companion; then /opt/lib/keenwg-companion/current/keenwg-companion -version; else echo missing; fi"
+            "printf 'companion='; if test -x /opt/lib/keenwg-companion/current/keenwg-companion; then /opt/lib/keenwg-companion/current/keenwg-companion -version; else echo missing; fi; " +
+            "printf 'companion_binary_sha256='; if test -x /opt/lib/keenwg-companion/current/keenwg-companion; then sha256sum /opt/lib/keenwg-companion/current/keenwg-companion | awk '{print \$1}'; else echo missing; fi"
     }
 }
 

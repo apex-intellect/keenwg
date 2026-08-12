@@ -4,11 +4,16 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class RouterProfile(
-    val schemaVersion: Int = 2,
+    val schemaVersion: Int = 3,
     val id: String,
     val displayName: String,
     val host: String,
     val rciPort: Int,
+    val sshHost: String = "",
+    val sshPort: Int = 222,
+    val sshUsername: String = "root",
+    val sshHostKeyAlgorithm: String = "",
+    val sshHostKeySha256: String = "",
     val interfaceId: String,
     val serverPublicKey: String,
     val endpoint: String,
@@ -26,6 +31,7 @@ data class RouterProfile(
             displayName = displayName,
             host = settings.host,
             rciPort = settings.port,
+            sshHost = settings.host,
             interfaceId = settings.interfaceId,
             serverPublicKey = settings.serverPublicKey,
             endpoint = settings.endpoint,

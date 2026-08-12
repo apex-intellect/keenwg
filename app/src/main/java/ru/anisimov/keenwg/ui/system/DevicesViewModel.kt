@@ -78,7 +78,7 @@ class DevicesViewModel(
         val selected = activeProfileFlow.first()
         active = selected
         if (selected == null || selected.profile.companionUrl.isBlank() || selected.secrets.companionToken.isBlank()) {
-            _state.value = DevicesUiState(error = "Companion не подключён")
+            _state.value = DevicesUiState(error = "Защищённый доступ не настроен")
             return@launch
         }
         _state.value = _state.value.copy(loading = true, error = null, message = null)
@@ -209,7 +209,7 @@ class DevicesViewModel(
         is CompanionException -> when (failure.code) {
             CompanionErrorCode.UNAUTHORIZED -> "Доступ этого телефона отозван"
             CompanionErrorCode.FORBIDDEN -> "Недостаточно прав владельца"
-            CompanionErrorCode.UNAVAILABLE -> "Companion недоступен"
+            CompanionErrorCode.UNAVAILABLE -> "Защищённый доступ недоступен"
             CompanionErrorCode.CONFLICT -> "Операция конфликтует с текущим состоянием"
             else -> "Не удалось выполнить операцию"
         }
