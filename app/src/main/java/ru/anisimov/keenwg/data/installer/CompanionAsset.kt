@@ -17,6 +17,8 @@ data class CompanionAssetManifest(
     val sha256: String,
     @SerialName("binary_sha256") val binarySha256: String,
     val size: Int,
+    @SerialName("key_id") val keyId: String,
+    val signature: String,
 )
 
 data class VerifiedCompanionAsset(
@@ -56,7 +58,8 @@ class CompanionAssetVerifier(
         if (manifest.schemaVersion != 1 || manifest.architecture != "arm64" ||
             manifest.asset != EXPECTED_ASSET_NAME || !manifest.version.matches(VERSION) ||
             manifest.size !in 1..MAX_ASSET_BYTES || !manifest.sha256.matches(SHA256) ||
-            !manifest.binarySha256.matches(SHA256)
+            !manifest.binarySha256.matches(SHA256) || !manifest.keyId.matches(KEY_ID) ||
+            !manifest.signature.matches(SIGNATURE)
         ) {
             throw AssetVerificationException()
         }
@@ -78,6 +81,8 @@ class CompanionAssetVerifier(
     private companion object {
         val VERSION = Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?")
         val SHA256 = Regex("[0-9a-f]{64}")
+        val KEY_ID = Regex("[a-z0-9][a-z0-9-]{2,63}")
+        val SIGNATURE = Regex("[A-Za-z0-9+/]{86}")
     }
 }
 

@@ -13,6 +13,7 @@ class CompanionAssetTest {
         val verified = CompanionAssetVerifier(source).load()
 
         assertEquals("0.7.0", verified.manifest.version)
+        assertEquals("release-test", verified.manifest.keyId)
         assertTrue(body.contentEquals(verified.bytes))
     }
 
@@ -24,6 +25,8 @@ class CompanionAssetTest {
             FakeAssetSource(manifest(body).replace("\"arm64\"", "\"x86_64\""), body),
             FakeAssetSource(manifest(body).replace("\"schema_version\":1", "\"schema_version\":2"), body),
             FakeAssetSource(manifest(body).replace(Regex("\"binary_sha256\":\"[0-9a-f]{64}\""), "\"binary_sha256\":\"invalid\""), body),
+            FakeAssetSource(manifest(body).replace("\"key_id\":\"release-test\"", "\"key_id\":\"INVALID\""), body),
+            FakeAssetSource(manifest(body).replace(Regex("\"signature\":\"[A-Za-z0-9_-]+\""), "\"signature\":\"broken\""), body),
         )
 
         cases.forEach { source ->
@@ -33,7 +36,7 @@ class CompanionAssetTest {
 
     private fun manifest(body: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(body).joinToString("") { "%02x".format(it) }
-        return """{"schema_version":1,"version":"0.7.0","architecture":"arm64","asset":"keenwg-companion-arm64.tgz","sha256":"$digest","binary_sha256":"$digest","size":${body.size}}"""
+        return """{"schema_version":1,"version":"0.7.0","architecture":"arm64","asset":"keenwg-companion-arm64.tgz","sha256":"$digest","binary_sha256":"$digest","size":${body.size},"key_id":"release-test","signature":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}"""
     }
 
     private data class FakeAssetSource(val manifest: String, val asset: ByteArray) : CompanionAssetSource {

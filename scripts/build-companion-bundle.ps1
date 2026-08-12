@@ -1,5 +1,6 @@
 param(
     [Parameter(Mandatory = $true)][string]$Version,
+    [Parameter(Mandatory = $true)][string]$KeyId,
     [string]$GoExecutable = "go",
     [string]$OutputDirectory = ""
 )
@@ -8,6 +9,7 @@ $ErrorActionPreference = "Stop"
 if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$') {
     throw "Version must be a semantic version"
 }
+if ($KeyId -notmatch '^[a-z0-9][a-z0-9-]{2,63}$') { throw "KeyId is invalid" }
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $moduleRoot = Join-Path $repoRoot "xkeen-control"
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
@@ -51,7 +53,21 @@ try {
     & $GoExecutable -C $moduleRoot run ./cmd/keenwg-makebundle -input $stage -output $archive
     if ($LASTEXITCODE -ne 0) { throw "Deterministic archive creation failed" }
     $archiveHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+    $archiveItem = Get-Item -LiteralPath $archive
+    $unsignedManifest = [ordered]@{
+        schema_version = 1
+        version = $Version
+        architecture = "arm64"
+        archive_sha256 = $archiveHash
+        archive_size = $archiveItem.Length
+        binary_sha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant()
+        key_id = $KeyId
+        signature = ""
+    }
+    $unsignedPath = Join-Path $OutputDirectory "keenwg-companion-arm64-$Version.update.json"
+    [IO.File]::WriteAllText($unsignedPath, (($unsignedManifest | ConvertTo-Json -Compress) + "`n"), [Text.UTF8Encoding]::new($false))
     Write-Output "$archive $archiveHash"
+    Write-Output $unsignedPath
 } finally {
     if (Test-Path -LiteralPath $stage) {
         Remove-Item -LiteralPath $stage -Recurse -Force
