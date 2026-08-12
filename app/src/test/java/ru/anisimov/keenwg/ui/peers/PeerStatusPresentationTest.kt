@@ -7,16 +7,20 @@ import ru.anisimov.keenwg.domain.model.HandshakeStatus
 import ru.anisimov.keenwg.domain.model.Peer
 
 class PeerStatusPresentationTest {
-    @Test fun `list distinguishes online disabled never and missing telemetry`() {
-        assertEquals("Подключён", peerStatusLabel(peer(online = true)))
-        assertEquals("Отключён", peerStatusLabel(peer(enabled = false)))
+    @Test fun `list distinguishes current recent disabled never and missing telemetry`() {
+        assertEquals(PeerConnectionState.CONNECTED_NOW, peerConnectionState(peer(online = true)))
+        assertEquals(PeerConnectionState.ACCESS_DISABLED, peerConnectionState(peer(enabled = false)))
         assertEquals(
-            "Подключений пока не было",
-            peerStatusLabel(peer(handshake = HandshakeStatus(HandshakeKind.NEVER))),
+            PeerConnectionState.RECENTLY_CONNECTED,
+            peerConnectionState(peer(handshake = HandshakeStatus(HandshakeKind.AGE, 300))),
         )
         assertEquals(
-            "Нет данных о последнем подключении",
-            peerStatusLabel(peer(handshake = HandshakeStatus(HandshakeKind.INVALID))),
+            PeerConnectionState.NEVER_CONNECTED,
+            peerConnectionState(peer(handshake = HandshakeStatus(HandshakeKind.NEVER))),
+        )
+        assertEquals(
+            PeerConnectionState.NO_CONNECTION_DATA,
+            peerConnectionState(peer(handshake = HandshakeStatus(HandshakeKind.INVALID))),
         )
     }
 

@@ -71,7 +71,7 @@ fun AddPeerScreen(
                 title = { Text(if (state.result == null) stringResource(R.string.ui_addpeerscreen_d820ccbe3d) else stringResource(R.string.ui_addpeerscreen_1e3072c041)) },
                 navigationIcon = {
                     IconButton(onClick = onBack, enabled = !state.busy) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
             )
@@ -134,7 +134,7 @@ fun AddPeerScreen(
                 if (state.busy) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(
-                        "Применяем настройки на роутере, читаем их обратно и сохраняем только после проверки.",
+                        stringResource(R.string.access_apply_progress),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -243,7 +243,7 @@ private fun AddPeerForm(
         ) {
             Text(stringResource(R.string.ui_addpeerscreen_f92eb412b8), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Название видно только вам в KeenWG и на роутере.",
+                stringResource(R.string.access_name_helper),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -258,7 +258,7 @@ private fun AddPeerForm(
             )
             if (state.name.isNotBlank()) {
                 Text(
-                    "Имя на роутере: ${normalizePeerName(state.name)}",
+                    stringResource(R.string.access_router_name_preview, normalizePeerName(state.name)),
                     style = MonoLabel,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

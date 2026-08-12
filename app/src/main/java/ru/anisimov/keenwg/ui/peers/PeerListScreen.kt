@@ -78,7 +78,6 @@ import ru.anisimov.keenwg.ui.components.SessionRail
 import ru.anisimov.keenwg.ui.components.StatusNotice
 import ru.anisimov.keenwg.ui.theme.MonoLabel
 import ru.anisimov.keenwg.ui.util.bytesLabel
-import ru.anisimov.keenwg.ui.util.handshakeLabel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -135,7 +134,7 @@ fun PeerListScreen(
                 },
                 actions = {
                     IconButton(onClick = vm::refresh, enabled = !state.initialLoading) {
-                        Icon(Icons.Default.Refresh, "Обновить")
+                        Icon(Icons.Default.Refresh, stringResource(R.string.access_refresh_description))
                     }
                 },
             )
@@ -299,14 +298,18 @@ private fun PeerRow(
                     )
                 }
                 Text(
-                    peer.ip ?: "IP не назначен",
+                    peer.ip ?: stringResource(R.string.access_ip_unassigned),
                     style = MonoLabel,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
                 )
                 if (peer.clientDownloadBytes > 0 || peer.clientUploadBytes > 0) {
                     Text(
-                        "С запуска интерфейса: на устройство ${bytesLabel(peer.clientDownloadBytes)} · с устройства ${bytesLabel(peer.clientUploadBytes)}",
+                        stringResource(
+                            R.string.access_traffic_summary,
+                            bytesLabel(peer.clientDownloadBytes),
+                            bytesLabel(peer.clientUploadBytes),
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -330,7 +333,7 @@ private fun PeerActions(peer: Peer, busy: Boolean, onSetEnabled: (Boolean) -> Un
             }
         } else {
             IconButton(onClick = { expanded = true }) {
-                Icon(Icons.Default.MoreVert, "Действия с ${peerDisplayName(peer)}")
+                Icon(Icons.Default.MoreVert, stringResource(R.string.access_peer_actions_description, peerDisplayName(peer)))
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -377,12 +380,13 @@ private fun statusColor(peer: Peer): Color = when {
     else -> MaterialTheme.colorScheme.secondary
 }
 
-internal fun peerStatusLabel(peer: Peer): String = when {
-    !peer.enabled -> "Отключён"
-    peer.online -> "Подключён"
-    peer.handshake.kind == HandshakeKind.UNKNOWN || peer.handshake.kind == HandshakeKind.INVALID ->
-        "Нет данных о последнем подключении"
-    else -> handshakeLabel(peer.handshake)
+@Composable
+internal fun peerStatusLabel(peer: Peer): String = when (peerConnectionState(peer)) {
+    PeerConnectionState.CONNECTED_NOW -> stringResource(R.string.access_status_connected_now)
+    PeerConnectionState.RECENTLY_CONNECTED -> stringResource(R.string.access_status_recently_connected)
+    PeerConnectionState.ACCESS_DISABLED -> stringResource(R.string.access_status_disabled)
+    PeerConnectionState.NEVER_CONNECTED -> stringResource(R.string.access_status_never_connected)
+    PeerConnectionState.NO_CONNECTION_DATA -> stringResource(R.string.access_status_no_data)
 }
 
 private fun peerDisplayName(peer: Peer): String = peer.name.ifBlank { peer.publicKey.take(10) + "…" }

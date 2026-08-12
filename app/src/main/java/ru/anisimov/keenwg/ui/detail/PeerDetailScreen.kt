@@ -165,7 +165,7 @@ fun PeerDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -173,7 +173,7 @@ fun PeerDetailScreen(
                         onClick = { vm.load(pub); vm.refreshStats(pub) },
                         enabled = !state.initialLoading && state.operation == null && !safetyCheckInProgress,
                     ) {
-                        Icon(Icons.Default.Refresh, "Обновить")
+                        Icon(Icons.Default.Refresh, stringResource(R.string.access_refresh_description))
                     }
                 },
             )
@@ -532,7 +532,7 @@ private fun ConfigurationSection(hasOperation: Boolean, canRename: Boolean, onSh
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stringResource(R.string.ui_peerdetailscreen_f67a185fb3), style = MaterialTheme.typography.titleMedium)
             Text(
-                "QR и .conf доступны только для конфигураций, сохранённых на этом телефоне после подтверждения роутером.",
+                stringResource(R.string.access_configuration_helper),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -616,7 +616,7 @@ private fun DangerZone(
             if (expanded) {
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        "Обе операции делают старую конфигурацию нерабочей. Перед изменением убедитесь, что роутер доступен через домашнюю сеть.",
+                        stringResource(R.string.access_danger_helper),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     OutlinedButton(onClick = onRotate, enabled = !busy, modifier = Modifier.fillMaxWidth()) {

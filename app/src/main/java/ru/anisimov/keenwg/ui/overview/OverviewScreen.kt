@@ -70,7 +70,7 @@ fun OverviewScreen(
                     Column {
                         Text("KeenWG")
                         Text(
-                            "Управление роутером",
+                            stringResource(R.string.home_subtitle),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -96,7 +96,7 @@ fun OverviewScreen(
                 ProfileSelector(state, onSelectProfile)
             } else {
                 Text(
-                    state.selectedProfileName ?: "Роутер не выбран",
+                    state.selectedProfileName ?: stringResource(R.string.home_router_not_selected),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -107,15 +107,15 @@ fun OverviewScreen(
             state.activeXkeenNode?.let { node ->
                 InfoCard(
                     icon = Icons.Default.Language,
-                    title = stringResource(R.string.ui_overviewscreen_c2b3f47b7d),
+                    title = stringResource(R.string.home_active_vpn_server),
                     body = node,
                 )
             }
 
-            Text(stringResource(R.string.ui_overviewscreen_2891064cfa), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            ModuleCard("Связи", "connections.", Icons.Default.Language, state)
-            ModuleCard("Маршруты", "routes.", Icons.Default.Route, state)
-            ModuleCard("Удалённый доступ", "access.", Icons.Default.Devices, state)
+            Text(stringResource(R.string.home_sections), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            ModuleCard("connections.", Icons.Default.Language, state)
+            ModuleCard("routes.", Icons.Default.Route, state)
+            ModuleCard("access.", Icons.Default.Devices, state)
 
             if (state.health == OverviewHealth.SETUP_REQUIRED || state.health == OverviewHealth.DEGRADED || state.health == OverviewHealth.LOCKED) {
                 OutlinedButton(
@@ -170,12 +170,13 @@ private fun ProfileSelector(state: OverviewState, onSelectProfile: (String) -> U
 
 @Composable
 private fun RouterHealthCard(state: OverviewState) {
+    val copy = overviewHealthCopy(state.health)
     val presentation = when (state.health) {
-        OverviewHealth.LOADING -> HealthPresentation("Проверяем роутер", "Получаем актуальные возможности", Icons.Default.Router)
-        OverviewHealth.HEALTHY -> HealthPresentation("Роутер на связи", "Защищённый доступ подключён", Icons.Default.CheckCircle)
-        OverviewHealth.DEGRADED -> HealthPresentation("Связь ограничена", state.message ?: "Проверьте соединение", Icons.Default.Warning)
-        OverviewHealth.SETUP_REQUIRED -> HealthPresentation("Нужна настройка", state.message ?: "Подключите роутер", Icons.Default.Warning)
-        OverviewHealth.LOCKED -> HealthPresentation("Профили заблокированы", state.message ?: "Нужно восстановление", Icons.Default.Lock)
+        OverviewHealth.LOADING -> HealthPresentation(stringResource(copy.titleResource), stringResource(copy.bodyResource), Icons.Default.Router)
+        OverviewHealth.HEALTHY -> HealthPresentation(stringResource(copy.titleResource), stringResource(copy.bodyResource), Icons.Default.CheckCircle)
+        OverviewHealth.DEGRADED -> HealthPresentation(stringResource(copy.titleResource), state.message ?: stringResource(copy.bodyResource), Icons.Default.Warning)
+        OverviewHealth.SETUP_REQUIRED -> HealthPresentation(stringResource(copy.titleResource), state.message ?: stringResource(copy.bodyResource), Icons.Default.Warning)
+        OverviewHealth.LOCKED -> HealthPresentation(stringResource(copy.titleResource), state.message ?: stringResource(copy.bodyResource), Icons.Default.Lock)
     }
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -201,16 +202,16 @@ private fun RouterHealthCard(state: OverviewState) {
 }
 
 @Composable
-private fun ModuleCard(title: String, prefix: String, icon: ImageVector, state: OverviewState) {
+private fun ModuleCard(prefix: String, icon: ImageVector, state: OverviewState) {
     val capabilities = state.capabilities?.capabilities.orEmpty().filter { it.id.startsWith(prefix) }
     val available = capabilities.filter { it.available }
     val writable = available.any { it.access == CapabilityAccess.WRITE }
     val detail = when {
-        available.isEmpty() -> "Не настроено"
-        writable -> "Доступно управление"
-        else -> "Доступно для просмотра"
+        available.isEmpty() -> stringResource(R.string.home_not_configured)
+        writable -> stringResource(R.string.home_management_available)
+        else -> stringResource(R.string.home_view_available)
     }
-    InfoCard(icon, title, detail, enabled = available.isNotEmpty())
+    InfoCard(icon, stringResource(overviewModuleTitle(prefix)), detail, enabled = available.isNotEmpty())
 }
 
 @Composable
@@ -235,7 +236,7 @@ private fun InfoCard(icon: ImageVector, title: String, body: String, enabled: Bo
                 Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(if (enabled) stringResource(R.string.ui_overviewscreen_ef05d57959) else "—", style = MaterialTheme.typography.labelMedium)
+            Text(if (enabled) stringResource(R.string.home_available) else "—", style = MaterialTheme.typography.labelMedium)
         }
     }
 }
