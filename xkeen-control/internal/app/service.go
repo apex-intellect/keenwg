@@ -205,6 +205,10 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	if err != nil {
 		return err
 	}
+	selfUpdater, err := newCompanionSelfUpdater(version, root)
+	if err != nil {
+		return err
+	}
 	secureOptions := []api.SecureOption{
 		api.WithCatalog(catalogStore),
 		api.WithConnectionCoordinator(coordinator),
@@ -212,6 +216,7 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 		api.WithBackup(backupManager{backupService}),
 		api.WithRouterLocal(routerlocal.NewService(routerlocal.ExecRunner{Executable: rootedPath(root, "/opt/bin/ndmq")})),
 		api.WithSubscriptionConfiguration(subscriptionURLs),
+		api.WithSelfUpdater(selfUpdater),
 	}
 	if routeService != nil {
 		secureOptions = append(secureOptions, api.WithRouteExplainer(routeService))

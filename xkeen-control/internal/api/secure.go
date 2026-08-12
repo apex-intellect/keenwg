@@ -42,6 +42,8 @@ type SecureServer struct {
 	backup                    BackupManager
 	routerLocal               RouterLocalService
 	subscriptionConfiguration SubscriptionConfiguration
+	selfUpdater               SelfUpdater
+	updateLock                sync.Mutex
 	limiter                   *attemptLimiter
 }
 
@@ -108,6 +110,15 @@ func (s *SecureServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		request, principal, ok := s.authenticate(w, r, auth.ScopeViewer)
 		if ok {
 			s.handleCapabilities(w, request, principal)
+		}
+	case r.URL.Path == "/v1/system/update" && s.selfUpdater != nil:
+		required := auth.ScopeViewer
+		if r.Method == http.MethodPost {
+			required = auth.ScopeOwner
+		}
+		request, principal, ok := s.authenticate(w, r, required)
+		if ok {
+			s.handleSelfUpdate(w, request, principal)
 		}
 	case r.URL.Path == "/v1/connections/catalog" && s.catalog != nil:
 		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)

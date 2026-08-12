@@ -177,6 +177,13 @@ func ReadTrustedPublicKey(path string) (TrustedPublicKey, error) {
 	if err != nil || len(raw) == 0 || len(raw) > 4096 {
 		return TrustedPublicKey{}, errors.New("trusted key unavailable")
 	}
+	return decodeTrustedPublicKey(raw)
+}
+
+func decodeTrustedPublicKey(raw []byte) (TrustedPublicKey, error) {
+	if len(raw) == 0 || len(raw) > 4096 {
+		return TrustedPublicKey{}, errors.New("trusted key unavailable")
+	}
 	if err := rejectDuplicateTopLevelKeys(raw); err != nil {
 		return TrustedPublicKey{}, err
 	}
