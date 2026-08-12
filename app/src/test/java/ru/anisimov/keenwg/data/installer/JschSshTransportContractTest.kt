@@ -1,6 +1,10 @@
 package ru.anisimov.keenwg.data.installer
 
+import com.jcraft.jsch.ChannelExec
+import com.jcraft.jsch.JSch
+import java.io.InputStream
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -9,6 +13,29 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class JschSshTransportContractTest {
+    @Test fun `upload uses exec stdin because router may not provide sftp`() = runTest {
+        val rawSession = JSch().getSession("root", "192.168.1.1", 222)
+        val channel = RecordingExecChannel(exitCode = 0)
+        val uploader = JschExecUploader(
+            channels = ExecChannelFactory { received ->
+                assertTrue(received === rawSession)
+                channel
+            },
+        )
+        val content = byteArrayOf(0, 1, 2, 127, -1)
+        val path = ValidatedTemporaryPath.request("0123456789abcdef0123456789abcdef")
+
+        uploader.upload(rawSession, content, path)
+
+        assertEquals(
+            "umask 077; cat > /opt/tmp/keenwg-0123456789abcdef0123456789abcdef.json",
+            channel.capturedCommand,
+        )
+        assertArrayEquals(content, channel.input)
+        assertEquals(false, channel.pty)
+        assertTrue(channel.disconnected)
+    }
+
     @Test fun `password bytes are zeroed after successful authentication`() = runTest {
         val password = "temporary-secret".toByteArray()
         val expected = observation()
@@ -90,5 +117,33 @@ class JschSshTransportContractTest {
         override suspend fun exec(command: FixedCommand) = CommandResult(0, "", "")
         override suspend fun upload(bytes: ByteArray, remotePath: ValidatedTemporaryPath) = Unit
         override fun close() = Unit
+    }
+
+    private class RecordingExecChannel(
+        private val exitCode: Int,
+    ) : ChannelExec() {
+        var capturedCommand: String? = null
+        var input: ByteArray? = null
+        var pty: Boolean? = null
+        var disconnected = false
+
+        override fun setCommand(command: String) {
+            capturedCommand = command
+        }
+
+        override fun setInputStream(input: InputStream, dontclose: Boolean) {
+            this.input = input.readBytes()
+        }
+
+        override fun setPty(enable: Boolean) {
+            pty = enable
+        }
+
+        override fun connect(connectTimeout: Int) = Unit
+        override fun isClosed() = true
+        override fun getExitStatus() = exitCode
+        override fun disconnect() {
+            disconnected = true
+        }
     }
 }
