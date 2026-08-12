@@ -3,6 +3,7 @@ package catalog
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -10,6 +11,70 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestSnapshotJSONUsesArraysForEmptyCollections(t *testing.T) {
+	store, _ := newCatalogStore(t)
+	document, err := store.Snapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload struct {
+		Sources json.RawMessage `json:"sources"`
+		Nodes   json.RawMessage `json:"nodes"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if string(payload.Sources) != "[]" || string(payload.Nodes) != "[]" {
+		t.Fatalf("catalog collections must be arrays: %s", body)
+	}
+}
+
+func TestSnapshotJSONUsesArraysForEmptyWarnings(t *testing.T) {
+	store, _ := newCatalogStore(t)
+	document, err := store.ReplaceAdapterProjection(
+		context.Background(),
+		1,
+		"sync-empty-warnings-0001",
+		strings.Repeat("a", 64),
+		"xkeen",
+		[]Source{{
+			ID: "xkeen-subscription", GroupID: "primary", Kind: SourceForeign, Label: "XKeen",
+			AdapterID: "xkeen", Status: SourceReady, NodeCount: 1, Foreign: true, AdapterStateVersion: 1,
+		}},
+		[]Node{{
+			ID: "xkeen-node", SourceID: "xkeen-subscription", GroupID: "primary", DisplayName: "Netherlands",
+			Protocol: ProtocolVLESS, Host: "vpn.example", Port: 443, Active: true, Testable: true, Activatable: true,
+		}},
+		RecordedResult{Kind: "sync", Result: "committed"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload struct {
+		Sources []struct {
+			Warnings json.RawMessage `json:"warnings"`
+		} `json:"sources"`
+		Nodes []struct {
+			Warnings json.RawMessage `json:"warnings"`
+		} `json:"nodes"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Sources) != 1 || len(payload.Nodes) != 1 ||
+		string(payload.Sources[0].Warnings) != "[]" || string(payload.Nodes[0].Warnings) != "[]" {
+		t.Fatalf("catalog warnings must be arrays: %s", body)
+	}
+}
 
 func TestStorePersistsSourceSecretSeparatelyAndZerosInput(t *testing.T) {
 	store, paths := newCatalogStore(t)

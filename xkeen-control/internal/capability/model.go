@@ -16,6 +16,7 @@ const (
 	ConnectionsXKeen   = "connections.xkeen"
 	RoutesDomains      = "routes.domains"
 	RoutesExclusions   = "routes.exclusions"
+	NetworkHomeDevices = "network.home_devices"
 	AccessWireGuard    = "access.wireguard"
 	HistoryWireGuard   = "history.wireguard"
 	SystemDevices      = "system.devices"

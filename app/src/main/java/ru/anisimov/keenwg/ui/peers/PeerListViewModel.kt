@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import ru.anisimov.keenwg.data.ServiceLocator
+import ru.anisimov.keenwg.data.xkeen.XkeenErrorCode
+import ru.anisimov.keenwg.data.xkeen.XkeenException
 import ru.anisimov.keenwg.domain.model.Peer
 import ru.anisimov.keenwg.domain.model.ServerSettings
 import ru.anisimov.keenwg.ui.util.startForegroundRefresh
@@ -32,9 +34,15 @@ data class PeerListUiState(
     val initialLoading: Boolean = true,
     val refreshing: Boolean = false,
     val busyKeys: Set<String> = emptySet(),
-    val refreshError: String? = null,
+    val refreshError: PeerListError? = null,
     val lastUpdated: Long? = null,
 )
+
+enum class PeerListError {
+    UNAVAILABLE,
+    UPDATE_REQUIRED,
+    RECONNECT_REQUIRED,
+}
 
 class PeerListViewModel @JvmOverloads constructor(
     private val gateway: PeerListGateway = servicePeerListGateway(),
@@ -70,8 +78,8 @@ class PeerListViewModel @JvmOverloads constructor(
                 initialLoading = false,
                 lastUpdated = clock.now(),
             )
-        }.onFailure {
-            _state.value = _state.value.copy(refreshError = REFRESH_ERROR)
+        }.onFailure { failure ->
+            _state.value = _state.value.copy(refreshError = failure.peerListError())
         }
         _state.value = _state.value.copy(busyKeys = _state.value.busyKeys - publicKey)
     }
@@ -94,11 +102,11 @@ class PeerListViewModel @JvmOverloads constructor(
                     refreshing = false,
                     lastUpdated = clock.now(),
                 )
-            }.onFailure {
+            }.onFailure { failure ->
                 _state.value = _state.value.copy(
                     initialLoading = false,
                     refreshing = false,
-                    refreshError = REFRESH_ERROR,
+                    refreshError = failure.peerListError(),
                 )
             }
         } finally {
@@ -113,4 +121,8 @@ private fun servicePeerListGateway(): PeerListGateway = object : PeerListGateway
         ServiceLocator.repository.setEnabled(settings, publicKey, enabled)
 }
 
-private const val REFRESH_ERROR = "Не удалось обновить данные роутера."
+private fun Throwable.peerListError(): PeerListError = when ((this as? XkeenException)?.code) {
+    XkeenErrorCode.UNSUPPORTED_SCHEMA -> PeerListError.UPDATE_REQUIRED
+    XkeenErrorCode.UNAUTHORIZED -> PeerListError.RECONNECT_REQUIRED
+    else -> PeerListError.UNAVAILABLE
+}

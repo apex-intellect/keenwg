@@ -22,6 +22,7 @@ type Detector struct {
 	root                 string
 	xkeenInitPath        string
 	ascPath              string
+	ndmqPath             string
 	collectorPath        string
 	singBoxConfigured    bool
 	awgManagerConfigured bool
@@ -32,6 +33,7 @@ type Detector struct {
 type Paths struct {
 	XKeenInitPath        string
 	ASCPath              string
+	NDMQPath             string
 	CollectorPath        string
 	SingBoxConfigured    bool
 	AWGManagerConfigured bool
@@ -44,6 +46,7 @@ func NewDetector(root string) Detector {
 		root:          root,
 		xkeenInitPath: "/opt/etc/init.d/S05xkeen",
 		ascPath:       "/opt/sbin/asc",
+		ndmqPath:      "/opt/bin/ndmq",
 		collectorPath: "/opt/etc/init.d/S95keenwg",
 	}
 }
@@ -55,6 +58,9 @@ func NewDetectorWithPaths(root string, paths Paths) Detector {
 	}
 	if paths.ASCPath != "" {
 		detector.ascPath = paths.ASCPath
+	}
+	if paths.NDMQPath != "" {
+		detector.ndmqPath = paths.NDMQPath
 	}
 	if paths.CollectorPath != "" {
 		detector.collectorPath = paths.CollectorPath
@@ -72,7 +78,7 @@ func (d Detector) Detect(ctx context.Context) (Document, error) {
 	}
 
 	xkeenAvailable, xkeenReason := d.detectXKeen()
-	ascAvailable := d.isRegularFile(d.ascPath)
+	ndmqAvailable := d.isRegularFile(d.ndmqPath)
 	collectorAvailable := d.isRegularFile(d.collectorPath)
 	singBoxAvailable, singBoxWritable, singBoxReason := optionalAdapterAvailability(ctx, d.singBoxConfigured, "singbox_not_configured", d.singBoxProbe)
 	awgAvailable, awgWritable, awgReason := optionalAdapterAvailability(ctx, d.awgManagerConfigured, "awg_not_configured", d.awgManagerProbe)
@@ -86,8 +92,9 @@ func (d Detector) Detect(ctx context.Context) (Document, error) {
 		withAvailability(ConnectionsXKeen, AccessWrite, xkeenAvailable, xkeenReason),
 		withAvailability(RoutesDomains, AccessWrite, xkeenAvailable, xkeenReason),
 		withAvailability(RoutesExclusions, AccessWrite, xkeenAvailable, xkeenReason),
-		withAvailability(AccessWireGuard, AccessWrite, ascAvailable, "asc_not_found"),
+		withAvailability(AccessWireGuard, AccessWrite, ndmqAvailable, "ndmq_not_found"),
 		withAvailability(HistoryWireGuard, AccessRead, collectorAvailable, "collector_not_found"),
+		withAvailability(NetworkHomeDevices, AccessWrite, ndmqAvailable, "ndmq_not_found"),
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
 

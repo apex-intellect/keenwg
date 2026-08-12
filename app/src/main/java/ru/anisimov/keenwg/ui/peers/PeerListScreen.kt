@@ -89,6 +89,7 @@ fun PeerListScreen(
     onSettings: () -> Unit,
     onAdd: () -> Unit,
     onPeer: (String) -> Unit,
+    writable: Boolean = true,
     vm: PeerListViewModel = viewModel(),
 ) {
     val newAccessLabel = stringResource(R.string.ui_peerlistscreen_d820ccbe3d)
@@ -100,6 +101,7 @@ fun PeerListScreen(
     var blockedPeer by remember { mutableStateOf<Peer?>(null) }
     var selfKeys by remember { mutableStateOf(emptySet<String>()) }
     var safetyBusyKeys by remember { mutableStateOf(emptySet<String>()) }
+    val refreshErrorText = state.refreshError?.let { peerListErrorText(it) }
 
     LaunchedEffect(lifecycle, vm) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -111,8 +113,8 @@ fun PeerListScreen(
             }
         }
     }
-    LaunchedEffect(state.refreshError) {
-        if (state.peers.isNotEmpty()) state.refreshError?.let { snackbar.showSnackbar(it) }
+    LaunchedEffect(state.refreshError, refreshErrorText) {
+        if (state.peers.isNotEmpty()) refreshErrorText?.let { snackbar.showSnackbar(it) }
     }
     LaunchedEffect(state.peers, state.lastUpdated) {
         selfKeys = runCatching { selfGuard.unsafeKeys(state.peers) }.getOrDefault(emptySet())
@@ -123,9 +125,9 @@ fun PeerListScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("KeenWG")
+                        Text(stringResource(R.string.access_title))
                         Text(
-                            "Журнал сигнала",
+                            stringResource(R.string.access_subtitle),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -140,34 +142,43 @@ fun PeerListScreen(
         },
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAdd,
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text(newAccessLabel) },
-                modifier = Modifier.semantics { contentDescription = newAccessLabel },
-            )
+            if (writable) {
+                ExtendedFloatingActionButton(
+                    onClick = onAdd,
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text(newAccessLabel) },
+                    modifier = Modifier.semantics { contentDescription = newAccessLabel },
+                )
+            }
         },
     ) { contentPadding ->
         Box(Modifier.padding(contentPadding).fillMaxSize()) {
             when {
                 state.initialLoading -> PeerListSkeleton()
                 state.peers.isEmpty() && state.refreshError != null -> InitialLoadError(
-                    message = state.refreshError.orEmpty(),
+                    message = refreshErrorText.orEmpty(),
                     onRetry = vm::refresh,
                     onSettings = onSettings,
                 )
-                state.peers.isEmpty() -> EmptyPeers(onAdd = onAdd)
+                state.peers.isEmpty() -> EmptyPeers(writable = writable, onAdd = onAdd)
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 104.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    if (!writable) item {
+                        StatusNotice(
+                            title = stringResource(R.string.access_read_only_title),
+                            detail = stringResource(R.string.access_read_only_detail),
+                        )
+                    }
                     item {
                         RouterFreshnessCard(state)
                     }
                     items(state.peers, key = Peer::publicKey) { peer ->
                         PeerRow(
                             peer = peer,
+                            writable = writable,
                             isSelf = peer.publicKey in selfKeys,
                             busy = peer.publicKey in state.busyKeys || peer.publicKey in safetyBusyKeys,
                             onClick = { onPeer(peer.publicKey) },
@@ -244,6 +255,7 @@ private fun RouterFreshnessCard(state: PeerListUiState) {
 @Composable
 private fun PeerRow(
     peer: Peer,
+    writable: Boolean,
     isSelf: Boolean,
     busy: Boolean,
     onClick: () -> Unit,
@@ -303,7 +315,7 @@ private fun PeerRow(
                     )
                 }
             }
-            PeerActions(peer = peer, busy = busy, onSetEnabled = onSetEnabled)
+            if (writable) PeerActions(peer = peer, busy = busy, onSetEnabled = onSetEnabled)
         }
     }
 }
@@ -421,7 +433,7 @@ private fun InitialLoadError(message: String, onRetry: () -> Unit, onSettings: (
 }
 
 @Composable
-private fun EmptyPeers(onAdd: () -> Unit) {
+private fun EmptyPeers(writable: Boolean, onAdd: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -430,11 +442,20 @@ private fun EmptyPeers(onAdd: () -> Unit) {
         Icon(Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
         Text(stringResource(R.string.ui_peerlistscreen_b100b551e4), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
         Text(
-            "Создайте первый проверенный WireGuard-доступ.",
+            stringResource(if (writable) R.string.access_empty_detail else R.string.access_empty_read_only_detail),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 6.dp),
         )
-        Button(onClick = onAdd, modifier = Modifier.padding(top = 18.dp)) { Text(stringResource(R.string.ui_peerlistscreen_3adaf4bd83)) }
+        if (writable) Button(onClick = onAdd, modifier = Modifier.padding(top = 18.dp)) { Text(stringResource(R.string.ui_peerlistscreen_3adaf4bd83)) }
     }
 }
+
+@Composable
+private fun peerListErrorText(error: PeerListError): String = stringResource(
+    when (error) {
+        PeerListError.UNAVAILABLE -> R.string.access_error_unavailable
+        PeerListError.UPDATE_REQUIRED -> R.string.access_error_update_required
+        PeerListError.RECONNECT_REQUIRED -> R.string.access_error_reconnect_required
+    },
+)

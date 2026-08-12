@@ -34,6 +34,7 @@ import ru.anisimov.keenwg.ui.system.DevicesScreen
 import ru.anisimov.keenwg.ui.system.SystemScreen
 import ru.anisimov.keenwg.ui.support.SupportScreen
 import ru.anisimov.keenwg.ui.xkeen.XkeenScreen
+import ru.anisimov.keenwg.data.companion.CapabilityAccess
 
 @Serializable data object OverviewRoute
 @Serializable data object ConnectionsRoute
@@ -66,6 +67,9 @@ fun KeenWgNav() {
     }
     val isTopLevel = destination == null || destination.hasRoute<OverviewRoute>() || destination.hasRoute<ConnectionsRoute>() ||
         destination.hasRoute<RoutesRoute>() || destination.hasRoute<AccessRoute>() || destination.hasRoute<SystemRoute>()
+    val wireGuardWritable = overviewState.capabilities?.capabilities.orEmpty().any {
+        it.id == "access.wireguard" && it.available && it.access == CapabilityAccess.WRITE
+    }
 
     LaunchedEffect(selected, overviewState.destinations, isTopLevel) {
         if (isTopLevel && preserveTopLevelDestination(selected, overviewState.destinations) != selected) {
@@ -113,6 +117,7 @@ fun KeenWgNav() {
                         onSettings = { nav.navigate(SystemRoute) },
                         onAdd = { nav.navigate(AddPeerRoute) },
                         onPeer = { publicKey -> nav.navigate(PeerDetailRoute(publicKey)) },
+                        writable = wireGuardWritable,
                     )
                 }
                 composable<AddPeerRoute> {
@@ -166,6 +171,7 @@ fun KeenWgNav() {
                     val route = routeEntry.toRoute<PeerDetailRoute>()
                     PeerDetailScreen(
                         pub = route.publicKey,
+                        writable = wireGuardWritable,
                         onBack = { nav.popBackStack() },
                         onNavigateToPeer = { newPublicKey ->
                             nav.popBackStack()

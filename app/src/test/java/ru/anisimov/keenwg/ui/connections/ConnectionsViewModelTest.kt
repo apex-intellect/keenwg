@@ -16,6 +16,8 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import ru.anisimov.keenwg.data.catalog.CatalogDocument
+import ru.anisimov.keenwg.data.catalog.CatalogErrorCode
+import ru.anisimov.keenwg.data.catalog.CatalogException
 import ru.anisimov.keenwg.data.catalog.CatalogGateway
 import ru.anisimov.keenwg.data.catalog.CatalogGroup
 import ru.anisimov.keenwg.data.catalog.CatalogNode
@@ -45,6 +47,28 @@ class ConnectionsViewModelTest {
         assertEquals(1, gateway.snapshotCalls)
         assertEquals(0, gateway.refreshCalls)
         assertEquals(listOf("node-nl-1", "node-nl-2"), vm.state.value.catalog!!.nodes.map { it.id })
+    }
+
+    @Test fun `catalog load exposes typed failure and retry recovers`() = runTest(dispatcher) {
+        val gateway = FakeCatalogGateway().apply {
+            snapshotFailure = CatalogException(CatalogErrorCode.UNSUPPORTED_SCHEMA)
+        }
+        val vm = ConnectionsViewModel(flowOf(activeProfile()), gateway, FakeImportDrafts(), { 1_000 }, { "operation-key-0001" })
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.catalog)
+        assertFalse(vm.state.value.loading)
+        assertEquals(CatalogErrorCode.UNSUPPORTED_SCHEMA, vm.state.value.loadError)
+        assertNull(vm.state.value.message)
+
+        gateway.snapshotFailure = null
+        vm.loadCatalog()
+        advanceUntilIdle()
+
+        assertNotNull(vm.state.value.catalog)
+        assertNull(vm.state.value.loadError)
+        assertNull(vm.state.value.message)
+        assertEquals(2, gateway.snapshotCalls)
     }
 
     @Test fun `activation requires fresh reachable test for exact node and version`() = runTest(dispatcher) {
@@ -131,11 +155,16 @@ class ConnectionsViewModelTest {
 
 private class FakeCatalogGateway : CatalogGateway {
     var snapshotCalls = 0
+    var snapshotFailure: RuntimeException? = null
     var refreshCalls = 0
     var activateCalls = 0
     var saveCalls = 0
     private var catalog = document()
-    override suspend fun snapshot(profile: RouterProfile, token: String) = catalog.also { snapshotCalls++ }
+    override suspend fun snapshot(profile: RouterProfile, token: String): CatalogDocument {
+        snapshotCalls++
+        snapshotFailure?.let { throw it }
+        return catalog
+    }
     override suspend fun refreshSource(profile: RouterProfile, token: String, stateVersion: ULong, key: String, sourceId: String) =
         CatalogOperation(1, "committed", catalog.copy(
             stateVersion = catalog.stateVersion + 1u,

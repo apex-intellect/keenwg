@@ -69,7 +69,7 @@ class CapabilityRegistryTest {
         assertEquals(9uL, resolved.stateVersion)
     }
 
-    @Test fun `remote discovery cannot expose a direct module without its local credentials`() {
+    @Test fun `companion modules remain available without local rci credentials`() {
         val companion = CapabilityDocument(
             capabilities = listOf(
                 Capability(
@@ -97,11 +97,8 @@ class CapabilityRegistryTest {
             companion,
         )
 
-        assertEquals(emptySet<String>(), resolved.availableIds())
-        assertEquals(
-            setOf("collector_not_configured", "rci_not_configured"),
-            resolved.capabilities.mapNotNull { it.reason }.toSet(),
-        )
+        assertEquals(setOf("access.wireguard", "history.wireguard"), resolved.availableIds())
+        assertEquals(setOf("companion"), resolved.capabilities.map { it.transport }.toSet())
     }
 
     private fun CapabilityDocument.availableIds() = capabilities.filter { it.available }.map { it.id }.toSet()

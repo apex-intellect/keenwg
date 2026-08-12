@@ -20,6 +20,8 @@ import ru.anisimov.keenwg.domain.model.HandshakeKind
 import ru.anisimov.keenwg.domain.model.HandshakeStatus
 import ru.anisimov.keenwg.domain.model.Peer
 import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.data.xkeen.XkeenErrorCode
+import ru.anisimov.keenwg.data.xkeen.XkeenException
 import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -51,7 +53,30 @@ class PeerListViewModelTest {
         vm.refresh(); advanceUntilIdle(); vm.refresh(); advanceUntilIdle()
 
         assertEquals(listOf(peerA), vm.state.value.peers)
-        assertEquals("Не удалось обновить данные роутера.", vm.state.value.refreshError)
+        assertEquals(PeerListError.UNAVAILABLE, vm.state.value.refreshError)
+    }
+
+    @Test fun `unsupported companion schema asks for update`() = runTest(dispatcher) {
+        val gateway = QueueGateway(mutableListOf({
+            throw XkeenException(XkeenErrorCode.UNSUPPORTED_SCHEMA, "technical detail")
+        }))
+        val vm = viewModel(gateway)
+
+        vm.refresh(); advanceUntilIdle()
+
+        assertEquals(PeerListError.UPDATE_REQUIRED, vm.state.value.refreshError)
+        assertTrue(vm.state.value.peers.isEmpty())
+    }
+
+    @Test fun `revoked token asks to reconnect protected access`() = runTest(dispatcher) {
+        val gateway = QueueGateway(mutableListOf({
+            throw XkeenException(XkeenErrorCode.UNAUTHORIZED, "secret response")
+        }))
+        val vm = viewModel(gateway)
+
+        vm.refresh(); advanceUntilIdle()
+
+        assertEquals(PeerListError.RECONNECT_REQUIRED, vm.state.value.refreshError)
     }
 
     @Test fun `duplicate refresh is coalesced`() = runTest(dispatcher) {

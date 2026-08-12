@@ -98,6 +98,7 @@ fun PeerDetailScreen(
     pub: String,
     onBack: () -> Unit,
     onNavigateToPeer: (String) -> Unit = {},
+    writable: Boolean = true,
     vm: PeerDetailViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -197,6 +198,12 @@ fun PeerDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (!writable) {
+                    StatusNotice(
+                        title = stringResource(R.string.access_read_only_title),
+                        detail = stringResource(R.string.access_read_only_detail),
+                    )
+                }
                 state.refreshError?.let {
                     StatusNotice(stringResource(R.string.ui_peerdetailscreen_b9f61453dd), detail = it, isError = true)
                 }
@@ -221,29 +228,34 @@ fun PeerDetailScreen(
                 }
                 ConfigurationSection(
                     hasOperation = state.operation != null || safetyCheckInProgress,
+                    canRename = writable,
                     onShowConf = { vm.showConf(pub) },
                     onRename = { showRename = true },
                 )
-                CurrentManagementSection(
-                    peer = peer,
-                    busy = state.operation != null || safetyCheckInProgress,
-                    onToggle = {
-                        if (peer.enabled) runIfSafe(peer) { vm.setEnabled(pub, false) }
-                        else vm.setEnabled(pub, true)
-                    },
-                )
+                if (writable) {
+                    CurrentManagementSection(
+                        peer = peer,
+                        busy = state.operation != null || safetyCheckInProgress,
+                        onToggle = {
+                            if (peer.enabled) runIfSafe(peer) { vm.setEnabled(pub, false) }
+                            else vm.setEnabled(pub, true)
+                        },
+                    )
+                }
                 ExpandableTechnical(
                     expanded = showTechnical,
                     onToggle = { showTechnical = !showTechnical },
                     peer = peer,
                 )
-                DangerZone(
-                    expanded = showDanger,
-                    onToggle = { showDanger = !showDanger },
-                    busy = state.operation != null || safetyCheckInProgress,
-                    onRotate = { showRotateConfirm = true },
-                    onDelete = { showDeleteConfirm = true },
-                )
+                if (writable) {
+                    DangerZone(
+                        expanded = showDanger,
+                        onToggle = { showDanger = !showDanger },
+                        busy = state.operation != null || safetyCheckInProgress,
+                        onRotate = { showRotateConfirm = true },
+                        onDelete = { showDeleteConfirm = true },
+                    )
+                }
                 Spacer(Modifier.height(20.dp))
             }
         }
@@ -275,7 +287,7 @@ fun PeerDetailScreen(
         )
     }
 
-    if (showRename && peer != null) {
+    if (showRename && peer != null && writable) {
         var newName by remember(peer.publicKey) { mutableStateOf(peer.name) }
         AlertDialog(
             onDismissRequest = { showRename = false },
@@ -306,7 +318,7 @@ fun PeerDetailScreen(
         )
     }
 
-    if (showDeleteConfirm && peer != null) {
+    if (showDeleteConfirm && peer != null && writable) {
         AlertDialog(
             onDismissRequest = { if (state.operation == null) showDeleteConfirm = false },
             title = { Text(stringResource(R.string.peer_delete_title, peer.name)) },
@@ -325,7 +337,7 @@ fun PeerDetailScreen(
         )
     }
 
-    if (showRotateConfirm && peer != null) {
+    if (showRotateConfirm && peer != null && writable) {
         AlertDialog(
             onDismissRequest = { if (state.operation == null) showRotateConfirm = false },
             title = { Text(stringResource(R.string.ui_peerdetailscreen_09d07af144)) },
@@ -515,7 +527,7 @@ private fun MetricCard(label: String, value: String, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun ConfigurationSection(hasOperation: Boolean, onShowConf: () -> Unit, onRename: () -> Unit) {
+private fun ConfigurationSection(hasOperation: Boolean, canRename: Boolean, onShowConf: () -> Unit, onRename: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stringResource(R.string.ui_peerdetailscreen_f67a185fb3), style = MaterialTheme.typography.titleMedium)
@@ -528,9 +540,11 @@ private fun ConfigurationSection(hasOperation: Boolean, onShowConf: () -> Unit, 
                 Icon(Icons.Default.QrCode2, contentDescription = null)
                 Text(stringResource(R.string.ui_peerdetailscreen_1394e56458))
             }
-            TextButton(onClick = onRename, enabled = !hasOperation, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Edit, contentDescription = null)
-                Text(stringResource(R.string.ui_peerdetailscreen_2b30c7105c))
+            if (canRename) {
+                TextButton(onClick = onRename, enabled = !hasOperation, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Edit, contentDescription = null)
+                    Text(stringResource(R.string.ui_peerdetailscreen_2b30c7105c))
+                }
             }
         }
     }

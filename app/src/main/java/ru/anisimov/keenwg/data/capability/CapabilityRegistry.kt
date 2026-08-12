@@ -17,23 +17,29 @@ class CapabilityRegistry {
         val settings = profile.toServerSettings(secrets)
 
         val rciReady = ServerSettingsValidator.validateForMutation(settings).isEmpty()
-        merged["access.wireguard"] = direct(
-            id = "access.wireguard",
-            access = CapabilityAccess.WRITE,
-            transport = "rci",
-            available = rciReady,
-            unavailableReason = "rci_not_configured",
+        merged.putIfAbsent(
+            "access.wireguard",
+            direct(
+                id = "access.wireguard",
+                access = CapabilityAccess.WRITE,
+                transport = "rci",
+                available = rciReady,
+                unavailableReason = "rci_not_configured",
+            ),
         )
 
         val collectorReady = profile.collectorUrl.isNotBlank() &&
             secrets.collectorToken.isNotBlank() &&
             ServerSettingsValidator.validateCollectorUrl(profile.collectorUrl) == null
-        merged["history.wireguard"] = direct(
-            id = "history.wireguard",
-            access = CapabilityAccess.READ,
-            transport = "collector",
-            available = collectorReady,
-            unavailableReason = "collector_not_configured",
+        merged.putIfAbsent(
+            "history.wireguard",
+            direct(
+                id = "history.wireguard",
+                access = CapabilityAccess.READ,
+                transport = "collector",
+                available = collectorReady,
+                unavailableReason = "collector_not_configured",
+            ),
         )
 
         return CapabilityDocument(

@@ -1,0 +1,5 @@
+<response>
+  <lease><ip>192.168.1.10</ip><mac>02:00:00:00:00:01</mac><hostname>phone.local</hostname><name>Phone</name><expires>infinity</expires></lease>
+  <lease><ip>192.168.1.20</ip><mac>02:00:00:00:00:04</mac><hostname>camera.local</hostname><name>Camera</name><expires>3600</expires></lease>
+  <lease><ip>192.168.1.30</ip><mac>02:00:00:00:00:05</mac><hostname>nas.local</hostname><name>NAS</name><expires>infinity</expires></lease>
+</response>

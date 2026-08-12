@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.anisimov.keenwg.data.ServiceLocator
+import ru.anisimov.keenwg.data.catalog.CatalogException
 import ru.anisimov.keenwg.data.catalog.CatalogGateway
 import ru.anisimov.keenwg.data.catalog.CatalogOperation
 import ru.anisimov.keenwg.data.catalog.CatalogSourceDraft
@@ -39,13 +40,19 @@ class ConnectionsViewModel(
             _state.value = ConnectionsUiState(loading = false, setupRequired = true)
             return@launch
         }
-        _state.value = _state.value.copy(loading = true, message = null)
+        _state.value = _state.value.copy(loading = true, loadError = null, message = null)
         runCatching { gateway.snapshot(active.profile, active.secrets.companionToken) }
             .onSuccess { catalog ->
                 val selected = _state.value.selectedGroupId?.takeIf { id -> catalog.groups.any { it.id == id } }
-                _state.value = _state.value.copy(loading = false, catalog = catalog, selectedGroupId = selected)
+                _state.value = _state.value.copy(loading = false, loadError = null, catalog = catalog, selectedGroupId = selected)
             }
-            .onFailure { _state.value = _state.value.copy(loading = false, message = "Не удалось загрузить подключения") }
+            .onFailure { failure ->
+                _state.value = _state.value.copy(
+                    loading = false,
+                    loadError = (failure as? CatalogException)?.code,
+                    message = null,
+                )
+            }
     }
 
     fun selectGroup(id: String?) { _state.value = _state.value.copy(selectedGroupId = id) }

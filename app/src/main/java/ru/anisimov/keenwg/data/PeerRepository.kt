@@ -48,6 +48,18 @@ fun interface KeyGenerator {
 
 fun interface AccessClock { fun nowEpochSeconds(): Long }
 
+interface PeerRepositoryGateway {
+    val cachedPeers: StateFlow<List<Peer>>
+    suspend fun list(settings: ServerSettings): List<Peer>
+    suspend fun add(settings: ServerSettings, name: String, ip: String? = null, policy: AccessPolicy? = null): AddResult
+    suspend fun regenerate(settings: ServerSettings, publicKey: String): AddResult
+    suspend fun remove(settings: ServerSettings, publicKey: String)
+    suspend fun rename(settings: ServerSettings, publicKey: String, newName: String)
+    suspend fun setEnabled(settings: ServerSettings, publicKey: String, enabled: Boolean)
+    suspend fun confFor(publicKey: String): String?
+    suspend fun accessPolicyFor(publicKey: String): AccessPolicy?
+}
+
 class PeerRepository(
     private val client: RciClient,
     private val confStore: ConfStore,
@@ -55,12 +67,12 @@ class PeerRepository(
     private val keyGenerator: KeyGenerator = KeyGenerator(WgKeys::generate),
     private val accessPolicyStore: AccessPolicyStore = EmptyAccessPolicyStore,
     private val clock: AccessClock = AccessClock { System.currentTimeMillis() / 1_000L },
-) {
+) : PeerRepositoryGateway {
     private val mutationLocks = ConcurrentHashMap<String, Mutex>()
     private val _cachedPeers = MutableStateFlow<List<Peer>>(emptyList())
-    val cachedPeers: StateFlow<List<Peer>> = _cachedPeers.asStateFlow()
+    override val cachedPeers: StateFlow<List<Peer>> = _cachedPeers.asStateFlow()
 
-    suspend fun list(settings: ServerSettings): List<Peer> {
+    override suspend fun list(settings: ServerSettings): List<Peer> {
         val dtos = RciResponse.peers(client.get(settings, "show/interface/${settings.interfaceId}"))
         val ips = RciResponse.configuredPeers(client.get(settings, "show/running-config"), settings.interfaceId)
             .associate { it.publicKey to it.allowIp }
@@ -78,7 +90,7 @@ class PeerRepository(
         }.also { _cachedPeers.value = it }
     }
 
-    suspend fun add(settings: ServerSettings, name: String, ip: String? = null, policy: AccessPolicy? = null): AddResult {
+    override suspend fun add(settings: ServerSettings, name: String, ip: String?, policy: AccessPolicy?): AddResult {
         ServerSettingsValidator.requireForMutation(settings)
         val effectivePolicy = policy ?: AccessPolicy(dnsServers = listOf(settings.dns))
         AccessPolicyValidator.requireValid(effectivePolicy, clock.nowEpochSeconds())
@@ -108,7 +120,7 @@ class PeerRepository(
         }
     }
 
-    suspend fun regenerate(settings: ServerSettings, publicKey: String): AddResult {
+    override suspend fun regenerate(settings: ServerSettings, publicKey: String): AddResult {
         ServerSettingsValidator.requireForMutation(settings)
         return lockFor(settings).withLock {
             val snapshot = configuredSnapshot(settings)
@@ -151,7 +163,7 @@ class PeerRepository(
         }
     }
 
-    suspend fun remove(settings: ServerSettings, publicKey: String) {
+    override suspend fun remove(settings: ServerSettings, publicKey: String) {
         ServerSettingsValidator.requireForMutation(settings)
         lockFor(settings).withLock {
             val old = configuredSnapshot(settings).firstOrNull { it.publicKey == publicKey } ?: throw RciException("Доступ не найден")
@@ -173,7 +185,7 @@ class PeerRepository(
         }
     }
 
-    suspend fun rename(settings: ServerSettings, publicKey: String, newName: String) {
+    override suspend fun rename(settings: ServerSettings, publicKey: String, newName: String) {
         ServerSettingsValidator.requireForMutation(settings)
         lockFor(settings).withLock {
             val peer = configuredSnapshot(settings).firstOrNull { it.publicKey == publicKey } ?: throw RciException("Доступ не найден")
@@ -190,7 +202,7 @@ class PeerRepository(
         }
     }
 
-    suspend fun setEnabled(settings: ServerSettings, publicKey: String, enabled: Boolean) {
+    override suspend fun setEnabled(settings: ServerSettings, publicKey: String, enabled: Boolean) {
         ServerSettingsValidator.requireForMutation(settings)
         lockFor(settings).withLock {
             val peer = configuredSnapshot(settings).firstOrNull { it.publicKey == publicKey } ?: throw RciException("Доступ не найден")
@@ -205,8 +217,8 @@ class PeerRepository(
         }
     }
 
-    suspend fun confFor(publicKey: String): String? = confStore.take(publicKey)
-    suspend fun accessPolicyFor(publicKey: String): AccessPolicy? = accessPolicyStore.get(publicKey)
+    override suspend fun confFor(publicKey: String): String? = confStore.take(publicKey)
+    override suspend fun accessPolicyFor(publicKey: String): AccessPolicy? = accessPolicyStore.get(publicKey)
 
     private fun lockFor(settings: ServerSettings) = mutationLocks.computeIfAbsent(settings.interfaceId) { Mutex() }
 

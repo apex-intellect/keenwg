@@ -61,6 +61,11 @@ if $LIVE; then
     [ "$(uname -m)" = aarch64 ] || fail 'companion requires aarch64'
     [ "$(id -u)" = 0 ] || fail 'installer must run as root'
     command -v curl >/dev/null 2>&1 || fail 'curl is required for HTTPS health verification'
+    if ! command -v ndmq >/dev/null 2>&1; then
+        command -v opkg >/dev/null 2>&1 || fail 'opkg is required to install ndmq'
+        opkg install ndmq >/dev/null 2>&1 || fail 'could not install ndmq'
+    fi
+    command -v ndmq >/dev/null 2>&1 || fail 'ndmq is required for local router management'
 fi
 
 CONFIG_DIR=$ROOT/opt/etc/keenwg

@@ -1,0 +1,19 @@
+<response>
+  <message>ip dhcp host 02:00:00:00:00:01 192.168.1.10</message>
+  <message>ip dhcp host 02:00:00:00:00:05 192.168.1.30</message>
+  <message>interface Wireguard0</message>
+  <message>ip address 10.8.0.1 255.255.255.0</message>
+  <message>wireguard listen-port 51820</message>
+  <message>wireguard peer AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE= !artem_phone</message>
+  <message>allow-ips 10.8.0.2 255.255.255.255</message><message>keepalive-interval 25</message><message>connect</message><message>!</message>
+  <message>wireguard peer AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI= !laptop</message>
+  <message>allow-ips 10.8.0.3 255.255.255.255</message><message>keepalive-interval 25</message><message>connect</message><message>!</message>
+  <message>wireguard peer AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM= !tablet</message>
+  <message>allow-ips 10.8.0.4 255.255.255.255</message><message>no connect</message><message>!</message>
+  <message>wireguard peer BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ= !tv</message>
+  <message>allow-ips 10.8.0.5 255.255.255.255</message><message>connect</message><message>!</message>
+  <message>wireguard peer BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU= !backup</message>
+  <message>allow-ips 10.8.0.6 255.255.255.255</message><message>connect</message><message>!</message>
+  <message>wireguard peer BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgY= !travel</message>
+  <message>allow-ips 10.8.0.7 255.255.255.255</message><message>connect</message><message>!</message>
+</response>

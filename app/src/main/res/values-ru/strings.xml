@@ -118,6 +118,10 @@
     <string name="ui_connectionsscreen_ebac69e24e">Настройте защищённое соединение с роутером.</string>
     <string name="ui_connectionsscreen_eef29a39f7">Доступные маршруты</string>
     <string name="ui_connectionsscreen_ef05d57959">Готово</string>
+    <string name="connections_load_failed_title">Подключения недоступны</string>
+    <string name="connections_load_failed_detail">Не удалось загрузить подключения с роутера.</string>
+    <string name="connections_schema_unsupported">Роутер вернул неподдерживаемый формат подключений. Обновите Companion и повторите попытку.</string>
+    <string name="connections_retry">Повторить</string>
     <string name="ui_connectionsscreen_fe230e6f5b">Подключения</string>
     <string name="ui_domainrulesheet_01ec28b25e">Изменить правило</string>
     <string name="ui_domainrulesheet_08069c7b92">Зона</string>
@@ -488,4 +492,13 @@
     <string name="nav_routes_description">Маршруты и исключения</string>
     <string name="nav_access_description">Удалённый доступ WireGuard</string>
     <string name="nav_system_description">Система и настройки</string>
+    <string name="access_title">Доступ WireGuard</string>
+    <string name="access_subtitle">Устройства с удалённым доступом</string>
+    <string name="access_read_only_title">Только просмотр</string>
+    <string name="access_read_only_detail">Этот телефон может видеть WireGuard-доступы, но не изменять их.</string>
+    <string name="access_empty_detail">Создайте первый проверенный WireGuard-доступ.</string>
+    <string name="access_empty_read_only_detail">На роутере пока нет WireGuard-доступов.</string>
+    <string name="access_error_unavailable">Не удалось связаться с защищённым компонентом роутера. Проверьте подключение и повторите попытку.</string>
+    <string name="access_error_update_required">Формат WireGuard не поддерживается этой версией защищённого компонента. Обновите его в разделе «Система».</string>
+    <string name="access_error_reconnect_required">Доступ этого телефона отозван или устарел. Подключите телефон к роутеру заново.</string>
 </resources>

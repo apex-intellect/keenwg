@@ -118,6 +118,10 @@
     <string name="ui_connectionsscreen_ebac69e24e">Set up a secure connection to the router.</string>
     <string name="ui_connectionsscreen_eef29a39f7">Available routes</string>
     <string name="ui_connectionsscreen_ef05d57959">Ready</string>
+    <string name="connections_load_failed_title">Connections unavailable</string>
+    <string name="connections_load_failed_detail">Could not load connections from the router.</string>
+    <string name="connections_schema_unsupported">The router returned an unsupported connections format. Update Companion and try again.</string>
+    <string name="connections_retry">Try again</string>
     <string name="ui_connectionsscreen_fe230e6f5b">Connections</string>
     <string name="ui_domainrulesheet_01ec28b25e">Change rule</string>
     <string name="ui_domainrulesheet_08069c7b92">Zone</string>
@@ -488,4 +492,13 @@
     <string name="nav_routes_description">Routes and exclusions</string>
     <string name="nav_access_description">Remote WireGuard access</string>
     <string name="nav_system_description">System and settings</string>
+    <string name="access_title">WireGuard access</string>
+    <string name="access_subtitle">Devices with remote access</string>
+    <string name="access_read_only_title">Read only</string>
+    <string name="access_read_only_detail">This phone can view WireGuard access entries but cannot change them.</string>
+    <string name="access_empty_detail">Create the first verified WireGuard access.</string>
+    <string name="access_empty_read_only_detail">There are no WireGuard access entries on the router yet.</string>
+    <string name="access_error_unavailable">Could not reach the router’s protected component. Check the connection and try again.</string>
+    <string name="access_error_update_required">This protected-component version does not support the WireGuard format. Update it in System.</string>
+    <string name="access_error_reconnect_required">This phone’s access was revoked or expired. Connect the phone to the router again.</string>
 </resources>

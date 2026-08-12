@@ -23,7 +23,7 @@ fun visibleTopLevelDestinations(
     return buildList {
         add(TopLevelDestination.OVERVIEW)
         if (available.any { it.startsWith("connections.") }) add(TopLevelDestination.CONNECTIONS)
-        if (available.any { it.startsWith("routes.") }) add(TopLevelDestination.ROUTES)
+        if (available.any { it.startsWith("routes.") || it == "network.home_devices" }) add(TopLevelDestination.ROUTES)
         if (available.any { it.startsWith("access.") }) add(TopLevelDestination.ACCESS)
         add(TopLevelDestination.SYSTEM)
     }

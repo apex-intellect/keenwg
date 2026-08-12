@@ -1,0 +1,14 @@
+<response>
+  <interface>
+    <id>Wireguard0</id><description>Remote access</description><mtu>1420</mtu>
+    <wireguard>
+      <public-key>BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=</public-key>
+      <peer><public-key>AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=</public-key><online>true</online><enabled>true</enabled><last-handshake>45</last-handshake><rxbytes>1200</rxbytes><txbytes>800</txbytes></peer>
+      <peer><public-key>AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=</public-key><online>false</online><enabled>true</enabled><rxbytes>0</rxbytes><txbytes>0</txbytes></peer>
+      <peer><public-key>AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM=</public-key><online>false</online><enabled>false</enabled><rxbytes>1</rxbytes><txbytes>2</txbytes></peer>
+      <peer><public-key>BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=</public-key><online>false</online><enabled>true</enabled><rxbytes>3</rxbytes><txbytes>4</txbytes></peer>
+      <peer><public-key>BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU=</public-key><online>false</online><enabled>true</enabled><rxbytes>5</rxbytes><txbytes>6</txbytes></peer>
+      <peer><public-key>BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgY=</public-key><online>false</online><enabled>true</enabled><rxbytes>7</rxbytes><txbytes>8</txbytes></peer>
+    </wireguard>
+  </interface>
+</response>

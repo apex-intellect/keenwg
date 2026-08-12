@@ -1,0 +1,5 @@
+<response>
+  <host><mac>02:00:00:00:00:01</mac><ip>192.168.1.10</ip><hostname>phone.local</hostname><name>Phone</name><interface><name>Home</name></interface><active>yes</active><rssi>-62</rssi></host>
+  <host><mac>02:00:00:00:00:02</mac><ip>192.168.1.11</ip><hostname>apple-tv.local</hostname><name>Apple TV</name><interface><name>Home</name></interface><active>yes</active><rssi>-54</rssi></host>
+  <host><mac>02:00:00:00:00:03</mac><ip>0.0.0.0</ip><hostname>tablet.local</hostname><name>Tablet</name><interface><name>Home</name></interface><active>no</active></host>
+</response>

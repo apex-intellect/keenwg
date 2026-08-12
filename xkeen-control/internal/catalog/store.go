@@ -684,7 +684,7 @@ func publicDocument(document catalogDocument) Document {
 	return Document{
 		SchemaVersion: document.SchemaVersion,
 		StateVersion:  document.StateVersion,
-		Groups:        append([]Group(nil), document.Groups...),
+		Groups:        append([]Group{}, document.Groups...),
 		Sources:       cloneSources(document.Sources),
 		Nodes:         cloneNodes(document.Nodes),
 	}
@@ -728,9 +728,9 @@ func cloneSecretDocument(value secretDocument) secretDocument {
 }
 
 func cloneSources(values []Source) []Source {
-	result := append([]Source(nil), values...)
+	result := append([]Source{}, values...)
 	for index := range result {
-		result[index].Warnings = append([]string(nil), result[index].Warnings...)
+		result[index].Warnings = append([]string{}, result[index].Warnings...)
 		if result[index].LastRefresh != nil {
 			copyValue := *result[index].LastRefresh
 			result[index].LastRefresh = &copyValue
@@ -740,9 +740,9 @@ func cloneSources(values []Source) []Source {
 }
 
 func cloneNodes(values []Node) []Node {
-	result := append([]Node(nil), values...)
+	result := append([]Node{}, values...)
 	for index := range result {
-		result[index].Warnings = append([]string(nil), result[index].Warnings...)
+		result[index].Warnings = append([]string{}, result[index].Warnings...)
 	}
 	return result
 }

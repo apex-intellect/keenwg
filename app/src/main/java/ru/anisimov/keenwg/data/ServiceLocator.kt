@@ -21,6 +21,9 @@ import ru.anisimov.keenwg.data.store.XkeenPreferenceStore
 import ru.anisimov.keenwg.data.xkeen.XkeenClient
 import ru.anisimov.keenwg.data.xkeen.XkeenRepository
 import ru.anisimov.keenwg.data.network.NetworkRepository
+import ru.anisimov.keenwg.data.network.NetworkGateway
+import ru.anisimov.keenwg.data.network.AdaptiveNetworkRepository
+import ru.anisimov.keenwg.data.network.CompanionHomeDeviceClient
 import ru.anisimov.keenwg.data.network.NetworkExclusionClient
 import ru.anisimov.keenwg.data.network.DomainRoutingClient
 import ru.anisimov.keenwg.data.capability.CapabilityRegistry
@@ -44,6 +47,8 @@ import ru.anisimov.keenwg.data.support.SupportClient
 import ru.anisimov.keenwg.data.support.SupportGateway
 import ru.anisimov.keenwg.data.backup.BackupClient
 import ru.anisimov.keenwg.data.backup.BackupGateway
+import ru.anisimov.keenwg.data.wireguard.CompanionPeerRepository
+import ru.anisimov.keenwg.data.wireguard.CompanionWireGuardClient
 
 /** Minimal manual DI — initialised once from MainActivity. */
 @SuppressLint("StaticFieldLeak") // Stores receive applicationContext only; no Activity is retained.
@@ -53,7 +58,7 @@ object ServiceLocator {
         private set
     lateinit var routerProfileStore: RouterProfileStore
         private set
-    lateinit var repository: PeerRepository
+    lateinit var repository: PeerRepositoryGateway
         private set
     lateinit var statsGateway: StatsGateway
         private set
@@ -63,7 +68,7 @@ object ServiceLocator {
         private set
     lateinit var xkeenPreferenceStore: XkeenPreferenceStore
         private set
-    lateinit var networkRepository: NetworkRepository
+    lateinit var networkRepository: NetworkGateway
         private set
     lateinit var networkExclusionClient: NetworkExclusionClient
         private set
@@ -96,12 +101,25 @@ object ServiceLocator {
         routerProfileStore = settingsStore.routerProfiles
         applicationScope.launch { runCatching { settingsStore.initialize() } }
         lineageStore = PeerLineageStore(app)
-        repository = PeerRepository(RciClient(), PeerConfStore(app, cipher), lineageStore, accessPolicyStore = PeerAccessPolicyStore(app))
-        statsGateway = CollectorRepository(CollectorClient())
         val companionTransport = CompanionHttpTransport()
+        val confStore = PeerConfStore(app, cipher)
+        val accessPolicyStore = PeerAccessPolicyStore(app)
+        val legacyPeers = PeerRepository(RciClient(), confStore, lineageStore, accessPolicyStore = accessPolicyStore)
+        val companionPeers = CompanionPeerRepository(
+            CompanionWireGuardClient(companionTransport),
+            confStore,
+            lineageStore,
+            accessPolicyStore = accessPolicyStore,
+        )
+        repository = AdaptivePeerRepository(routerProfileStore.activeProfile, companionPeers, legacyPeers)
+        statsGateway = CollectorRepository(CollectorClient())
         xkeenRepository = XkeenRepository(XkeenClient(companionTransport))
         xkeenPreferenceStore = XkeenPreferenceStore(app)
-        networkRepository = NetworkRepository()
+        networkRepository = AdaptiveNetworkRepository(
+            routerProfileStore.activeProfile,
+            CompanionHomeDeviceClient(companionTransport),
+            NetworkRepository(),
+        )
         networkExclusionClient = NetworkExclusionClient(companionTransport)
         domainRoutingClient = DomainRoutingClient(companionTransport)
         companionClient = HttpCompanionClient(companionTransport)

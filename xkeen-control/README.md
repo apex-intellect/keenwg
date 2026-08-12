@@ -2,7 +2,7 @@
 
 Этот Go-модуль реализует локальный Companion для KeenWG. Несмотря на историческое имя каталога, публичный runtime и бинарник называются только `keenwg-companion`.
 
-Companion объединяет XKeen/VLESS, каталог подключений, доменные и IP-маршруты, сценарии, диагностику, backup и управление доверенными устройствами. Production runtime поднимает один HTTPS listener на приватном IPv4 и не содержит самостоятельного cleartext XKeen API.
+Companion объединяет XKeen/VLESS, каталог подключений, доменные и IP-маршруты, домашние устройства, статические DHCP-адреса, WireGuard-доступы, сценарии, диагностику, backup и управление доверенными телефонами. Production runtime поднимает один HTTPS listener на приватном IPv4 и не содержит самостоятельного cleartext XKeen API.
 
 ## Security contract
 
@@ -11,6 +11,9 @@ Companion объединяет XKeen/VLESS, каталог подключени�
 - scopes `viewer`, `operator`, `owner`;
 - state version и idempotency key для изменений;
 - bounded strict JSON/VLESS parsers;
+- fixed allowlisted `ndmq` commands with bounded time and output;
+- reviewed, versioned and idempotent DHCP/WireGuard mutations with read-back and rollback;
+- WireGuard private keys are generated on Android and never cross the Companion API;
 - transactional Xray test, restart, read-back и rollback;
 - subscription URL, UUID, Reality keys, SNI и raw Xray config не возвращаются клиенту;
 - wildcard, loopback, hostname и публичный listener отклоняются.
@@ -29,8 +32,8 @@ sh packaging/install-companion_test.sh
 Из корня репозитория:
 
 ```powershell
-.\scripts\build-companion-bundle.ps1 -Version 2.1.1 -GoExecutable go
-.\scripts\stage-companion-asset.ps1 -Archive .\dist\keenwg-companion-arm64-2.1.1.tar.gz
+.\scripts\build-companion-bundle.ps1 -Version 2.1.2 -GoExecutable go
+.\scripts\stage-companion-asset.ps1 -Archive .\dist\keenwg-companion-arm64-2.1.2.tar.gz
 ```
 
 Архив детерминированно содержит binary, init script, installer, uninstaller, allowlisted obsolete cleanup, config example, `VERSION` и `SHA256SUMS`. `install-companion.sh` поддерживает чистую установку, атомарное обновление schema 1 → 2 и rollback предыдущего release.

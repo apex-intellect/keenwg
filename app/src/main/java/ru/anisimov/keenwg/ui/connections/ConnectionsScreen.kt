@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.ui.components.StatusNotice
+import ru.anisimov.keenwg.data.catalog.CatalogErrorCode
 import ru.anisimov.keenwg.data.catalog.ImportOrigin
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,6 +103,21 @@ fun ConnectionsScreen(
             state.setupRequired -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.Center) {
                 StatusNotice(stringResource(R.string.ui_connectionsscreen_a0fb0b600a), detail = stringResource(R.string.ui_connectionsscreen_ebac69e24e))
                 Button(onClick = onSettings, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text(stringResource(R.string.ui_connectionsscreen_7c8ef82d31)) }
+            }
+            state.catalog == null -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.Center) {
+                StatusNotice(
+                    stringResource(R.string.connections_load_failed_title),
+                    detail = if (state.loadError == CatalogErrorCode.UNSUPPORTED_SCHEMA) {
+                        stringResource(R.string.connections_schema_unsupported)
+                    } else {
+                        stringResource(R.string.connections_load_failed_detail)
+                    },
+                    isError = true,
+                )
+                Button(
+                    onClick = { viewModel.loadCatalog() },
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                ) { Text(stringResource(R.string.connections_retry)) }
             }
             else -> ConnectionsContent(state, viewModel, { showImport = true }, Modifier.padding(padding))
         }

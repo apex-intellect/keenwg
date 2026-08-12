@@ -1,6 +1,7 @@
 package ru.anisimov.keenwg.ui.connections
 
 import ru.anisimov.keenwg.data.catalog.CatalogDocument
+import ru.anisimov.keenwg.data.catalog.CatalogErrorCode
 import ru.anisimov.keenwg.data.catalog.CatalogNode
 import ru.anisimov.keenwg.data.catalog.CatalogNodeTest
 import ru.anisimov.keenwg.data.catalog.ImportPreview
@@ -16,6 +17,7 @@ data class TestedNode(
 data class ConnectionsUiState(
     val loading: Boolean = true,
     val setupRequired: Boolean = false,
+    val loadError: CatalogErrorCode? = null,
     val catalog: CatalogDocument? = null,
     val selectedGroupId: String? = null,
     val pendingImport: PendingImport? = null,

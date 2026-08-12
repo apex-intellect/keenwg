@@ -169,6 +169,13 @@ BUNDLE=$TMP/bundle
 make_bundle "$BUNDLE"
 REQUEST=/opt/tmp/keenwg-0123456789abcdef0123456789abcdef.json
 
+# Live dependency provisioning must happen before the previous Companion can be stopped.
+dependency_probe=$(grep -n 'command -v ndmq' "$BUNDLE/install-companion.sh" | sed -n '1s/:.*//p')
+dependency_install=$(grep -n 'opkg install ndmq' "$BUNDLE/install-companion.sh" | sed -n '1s/:.*//p')
+stop_marker=$(grep -n 'if \$companion_was_running; then' "$BUNDLE/install-companion.sh" | sed -n '1s/:.*//p')
+[ -n "$dependency_probe" ] && [ -n "$dependency_install" ] || fail 'installer does not provision ndmq'
+[ "$dependency_probe" -lt "$stop_marker" ] && [ "$dependency_install" -lt "$stop_marker" ] || fail 'ndmq provisioning happens after Companion stop'
+
 # Clean install must not depend on any old controller file.
 CLEAN_ROOT=$TMP/clean
 make_root "$CLEAN_ROOT"

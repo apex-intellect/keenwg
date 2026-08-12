@@ -72,7 +72,7 @@ func TestDetectorDoesNotInferXKeenFromAnUnsupportedInitScript(t *testing.T) {
 	assertCapability(t, got, ConnectionsCatalog, AccessNone, false, "connection_adapter_not_found")
 	assertCapability(t, got, ConnectionsSingBox, AccessNone, false, "singbox_not_configured")
 	assertCapability(t, got, ConnectionsAWG, AccessNone, false, "awg_not_configured")
-	assertCapability(t, got, AccessWireGuard, AccessNone, false, "asc_not_found")
+	assertCapability(t, got, AccessWireGuard, AccessNone, false, "ndmq_not_found")
 }
 
 func TestDetectorHidesCatalogWithoutAnyConnectionAdapter(t *testing.T) {
@@ -121,7 +121,7 @@ func TestDetectorFailsClosedWhenConfiguredAWGOpenAPIIsUnsupported(t *testing.T) 
 
 func TestDetectorKeepsWireGuardWhenXKeenIsMissing(t *testing.T) {
 	root := t.TempDir()
-	writeProbeFile(t, root, "opt/sbin/asc", "binary", 0o755)
+	writeProbeFile(t, root, "opt/bin/ndmq", "binary", 0o755)
 
 	got, err := NewDetector(root).Detect(context.Background())
 	if err != nil {
@@ -129,6 +129,19 @@ func TestDetectorKeepsWireGuardWhenXKeenIsMissing(t *testing.T) {
 	}
 	assertCapability(t, got, ConnectionsXKeen, AccessNone, false, "xkeen_not_found")
 	assertCapability(t, got, AccessWireGuard, AccessWrite, true, "")
+	assertCapability(t, got, NetworkHomeDevices, AccessWrite, true, "")
+}
+
+func TestDetectorDoesNotUseASCAsWireGuardPrerequisite(t *testing.T) {
+	root := t.TempDir()
+	writeProbeFile(t, root, "opt/sbin/asc", "binary", 0o755)
+
+	got, err := NewDetector(root).Detect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertCapability(t, got, AccessWireGuard, AccessNone, false, "ndmq_not_found")
+	assertCapability(t, got, NetworkHomeDevices, AccessNone, false, "ndmq_not_found")
 }
 
 func writeProbeFile(t *testing.T, root, relative, body string, mode os.FileMode) {

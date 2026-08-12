@@ -26,6 +26,7 @@ import (
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/identity"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/ownedsource"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/routegraph"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/routerlocal"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/scenario"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/state"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/subscription"
@@ -55,6 +56,7 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	discoveryPaths := capability.Paths{
 		XKeenInitPath:        runtimeConfig.Discovery.XKeenInitPath,
 		ASCPath:              runtimeConfig.Discovery.ASCPath,
+		NDMQPath:             rootedPath(root, "/opt/bin/ndmq"),
 		CollectorPath:        rootedPath(root, "/opt/etc/init.d/S95keenwg"),
 		SingBoxConfigured:    runtimeConfig.SingBox.Enabled,
 		AWGManagerConfigured: runtimeConfig.AWGManager.Enabled,
@@ -202,6 +204,7 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 		api.WithConnectionCoordinator(coordinator),
 		api.WithSupport(newSupportReporter(store, version, support.NewDefault())),
 		api.WithBackup(backupManager{backupService}),
+		api.WithRouterLocal(routerlocal.NewService(routerlocal.ExecRunner{Executable: rootedPath(root, "/opt/bin/ndmq")})),
 	}
 	if routeService != nil {
 		secureOptions = append(secureOptions, api.WithRouteExplainer(routeService))
@@ -266,9 +269,12 @@ func hardenedServer(handler http.Handler) *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    8 << 10,
+		// A reviewed WireGuard mutation can require several bounded ndmq calls,
+		// verification, save, and (on failure) rollback. Keep the HTTP budget
+		// above that bounded transaction without weakening request timeouts.
+		WriteTimeout:   45 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 8 << 10,
 	}
 }
 

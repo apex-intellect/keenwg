@@ -40,6 +40,7 @@ type SecureServer struct {
 	recovery     RecoveryManager
 	support      SupportReporter
 	backup       BackupManager
+	routerLocal  RouterLocalService
 	limiter      *attemptLimiter
 }
 
@@ -107,6 +108,36 @@ func (s *SecureServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)
 		if ok {
 			s.handleCatalog(w, request)
+		}
+	case r.URL.Path == "/v1/network/devices" && s.routerLocal != nil:
+		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)
+		if ok {
+			s.handleHomeDevices(w, request)
+		}
+	case r.URL.Path == "/v1/access/wireguard" && s.routerLocal != nil:
+		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)
+		if ok {
+			s.handleWireGuard(w, request)
+		}
+	case r.URL.Path == "/v1/access/wireguard/peers/review" && s.routerLocal != nil:
+		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)
+		if ok {
+			s.handleWireGuardPeer(w, request, "review")
+		}
+	case r.URL.Path == "/v1/access/wireguard/peers/apply" && s.routerLocal != nil:
+		request, _, ok := s.authenticate(w, r, auth.ScopeOperator)
+		if ok {
+			s.handleWireGuardPeer(w, request, "apply")
+		}
+	case isReservationRoute(r.URL.Path) && s.routerLocal != nil:
+		deviceID, action, _ := reservationRoute(r.URL.Path)
+		required := auth.ScopeViewer
+		if action == "apply" {
+			required = auth.ScopeOperator
+		}
+		request, _, ok := s.authenticate(w, r, required)
+		if ok {
+			s.handleReservation(w, request, deviceID, action)
 		}
 	case (r.URL.Path == "/v1/connections/groups" || r.URL.Path == "/v1/connections/sources") && s.catalog != nil:
 		request, _, ok := s.authenticate(w, r, auth.ScopeOperator)

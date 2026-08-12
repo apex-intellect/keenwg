@@ -40,6 +40,15 @@ class TopLevelDestinationTest {
         )
     }
 
+    @Test fun `home devices keep routes destination visible without xkeen`() {
+        val document = CapabilityDocument(capabilities = listOf(capability("network.home_devices")))
+
+        assertEquals(
+            listOf(TopLevelDestination.OVERVIEW, TopLevelDestination.ROUTES, TopLevelDestination.SYSTEM),
+            visibleTopLevelDestinations(document, locked = false),
+        )
+    }
+
     @Test fun `current destination survives refresh while still available`() {
         val available = listOf(TopLevelDestination.OVERVIEW, TopLevelDestination.CONNECTIONS, TopLevelDestination.SYSTEM)
         assertEquals(TopLevelDestination.CONNECTIONS, preserveTopLevelDestination(TopLevelDestination.CONNECTIONS, available))
