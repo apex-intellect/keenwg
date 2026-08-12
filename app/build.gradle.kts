@@ -53,6 +53,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     androidResources {
         // Keep the already-compressed companion bundle byte-for-byte stable in the APK.

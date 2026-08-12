@@ -16,7 +16,7 @@ enum class SystemAction {
     DEVICES,
     DIAGNOSTICS,
     BACKUP,
-    ADVANCED,
+    ABOUT,
 }
 
 data class SystemRow(
@@ -54,7 +54,7 @@ fun systemPresentation(state: OverviewState): SystemPresentation {
             }
             add(SystemRow(SystemAction.DIAGNOSTICS, enabled = routerDependentToolsAvailable))
             add(SystemRow(SystemAction.BACKUP, enabled = routerDependentToolsAvailable))
-            add(SystemRow(SystemAction.ADVANCED, enabled = true))
+            add(SystemRow(SystemAction.ABOUT, enabled = true))
         },
     )
 }

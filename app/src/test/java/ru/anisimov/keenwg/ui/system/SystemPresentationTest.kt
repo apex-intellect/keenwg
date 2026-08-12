@@ -38,7 +38,7 @@ class SystemPresentationTest {
                 SystemAction.DEVICES,
                 SystemAction.DIAGNOSTICS,
                 SystemAction.BACKUP,
-                SystemAction.ADVANCED,
+                SystemAction.ABOUT,
             ),
             model.rows.map { it.action },
         )
@@ -58,7 +58,7 @@ class SystemPresentationTest {
         assertTrue(model.rows.single { it.action == SystemAction.CONNECTION }.enabled)
         assertFalse(model.rows.single { it.action == SystemAction.DIAGNOSTICS }.enabled)
         assertFalse(model.rows.single { it.action == SystemAction.BACKUP }.enabled)
-        assertTrue(model.rows.single { it.action == SystemAction.ADVANCED }.enabled)
+        assertTrue(model.rows.single { it.action == SystemAction.ABOUT }.enabled)
         assertFalse(model.rows.any { it.action == SystemAction.DEVICES })
     }
 }

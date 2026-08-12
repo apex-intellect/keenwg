@@ -18,6 +18,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.serialization.Serializable
 import ru.anisimov.keenwg.ui.add.AddPeerScreen
+import ru.anisimov.keenwg.ui.about.AboutScreen
+import ru.anisimov.keenwg.ui.about.AboutViewModel
 import ru.anisimov.keenwg.ui.backup.BackupScreen
 import ru.anisimov.keenwg.ui.detail.PeerDetailScreen
 import ru.anisimov.keenwg.ui.connections.ConnectionsScreen
@@ -31,6 +33,7 @@ import ru.anisimov.keenwg.ui.peers.PeerListScreen
 import ru.anisimov.keenwg.ui.settings.SettingsScreen
 import ru.anisimov.keenwg.ui.setup.SetupScreen
 import ru.anisimov.keenwg.ui.system.DevicesScreen
+import ru.anisimov.keenwg.ui.system.RouterConnectionScreen
 import ru.anisimov.keenwg.ui.system.SystemScreen
 import ru.anisimov.keenwg.ui.support.SupportScreen
 import ru.anisimov.keenwg.ui.xkeen.XkeenScreen
@@ -41,6 +44,8 @@ import ru.anisimov.keenwg.data.companion.CapabilityAccess
 @Serializable data object RoutesRoute
 @Serializable data object AccessRoute
 @Serializable data object SystemRoute
+@Serializable data object RouterConnectionRoute
+@Serializable data object AboutRoute
 @Serializable data object AdvancedSettingsRoute
 @Serializable data object SetupRoute
 @Serializable data object DevicesRoute
@@ -55,7 +60,9 @@ internal fun rootScaffoldContentInsets(): WindowInsets = WindowInsets(0)
 fun KeenWgNav() {
     val nav = rememberNavController()
     val overviewViewModel: OverviewViewModel = viewModel()
+    val aboutViewModel: AboutViewModel = viewModel()
     val overviewState by overviewViewModel.state.collectAsStateWithLifecycle()
+    val expertMode by aboutViewModel.expertMode.collectAsStateWithLifecycle()
     val entry by nav.currentBackStackEntryAsState()
     val destination = entry?.destination
     val selected = when {
@@ -126,18 +133,38 @@ fun KeenWgNav() {
                 composable<SystemRoute> {
                     SystemScreen(
                         state = overviewState,
-                        onSetup = { nav.navigate(SetupRoute) },
+                        onSetup = { nav.navigate(RouterConnectionRoute) },
                         onTrustedDevices = { nav.navigate(DevicesRoute) },
                         onDiagnostics = { nav.navigate(SupportRoute) },
                         onBackup = { nav.navigate(BackupRoute) },
-                        onAdvancedSettings = { nav.navigate(AdvancedSettingsRoute) },
+                        onAbout = { nav.navigate(AboutRoute) },
+                    )
+                }
+                composable<RouterConnectionRoute> {
+                    RouterConnectionScreen(
+                        state = overviewState,
+                        onBack = { nav.popBackStack() },
+                        onCheck = { overviewViewModel.refresh() },
+                        onRecover = { nav.navigate(SetupRoute) },
+                        onChangeRouter = { nav.navigate(SetupRoute) },
+                    )
+                }
+                composable<AboutRoute> {
+                    AboutScreen(
+                        onBack = { nav.popBackStack() },
+                        onOpenManualSettings = { nav.navigate(AdvancedSettingsRoute) },
+                        vm = aboutViewModel,
                     )
                 }
                 composable<AdvancedSettingsRoute> {
-                    SettingsScreen(
-                        productState = overviewState,
-                        onBack = { nav.popBackStack() },
-                    )
+                    if (expertMode) {
+                        SettingsScreen(
+                            productState = overviewState,
+                            onBack = { nav.popBackStack() },
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { nav.popBackStack() }
+                    }
                 }
                 composable<SupportRoute> {
                     SupportScreen(

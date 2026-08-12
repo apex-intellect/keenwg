@@ -18,6 +18,7 @@ import ru.anisimov.keenwg.data.store.LineageStore
 import ru.anisimov.keenwg.data.store.SettingsStore
 import ru.anisimov.keenwg.data.store.RouterProfileStore
 import ru.anisimov.keenwg.data.store.XkeenPreferenceStore
+import ru.anisimov.keenwg.data.store.ExpertModeStore
 import ru.anisimov.keenwg.data.xkeen.XkeenClient
 import ru.anisimov.keenwg.data.xkeen.XkeenRepository
 import ru.anisimov.keenwg.data.network.NetworkRepository
@@ -68,6 +69,8 @@ object ServiceLocator {
         private set
     lateinit var xkeenPreferenceStore: XkeenPreferenceStore
         private set
+    lateinit var expertModeStore: ExpertModeStore
+        private set
     lateinit var networkRepository: NetworkGateway
         private set
     lateinit var networkExclusionClient: NetworkExclusionClient
@@ -115,6 +118,7 @@ object ServiceLocator {
         statsGateway = CollectorRepository(CollectorClient())
         xkeenRepository = XkeenRepository(XkeenClient(companionTransport))
         xkeenPreferenceStore = XkeenPreferenceStore(app)
+        expertModeStore = ExpertModeStore(app)
         networkRepository = AdaptiveNetworkRepository(
             routerProfileStore.activeProfile,
             CompanionHomeDeviceClient(companionTransport),

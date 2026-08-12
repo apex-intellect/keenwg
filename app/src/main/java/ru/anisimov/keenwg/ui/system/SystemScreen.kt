@@ -18,9 +18,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,7 +51,7 @@ fun SystemScreen(
     onTrustedDevices: () -> Unit,
     onDiagnostics: () -> Unit,
     onBackup: () -> Unit,
-    onAdvancedSettings: () -> Unit,
+    onAbout: () -> Unit,
 ) {
     val presentation = systemPresentation(state)
     Scaffold(
@@ -81,7 +81,7 @@ fun SystemScreen(
                                 SystemAction.DEVICES -> onTrustedDevices()
                                 SystemAction.DIAGNOSTICS -> onDiagnostics()
                                 SystemAction.BACKUP -> onBackup()
-                                SystemAction.ADVANCED -> onAdvancedSettings()
+                                SystemAction.ABOUT -> onAbout()
                             }
                         },
                     )
@@ -211,9 +211,9 @@ private fun rowContent(action: SystemAction): Triple<ImageVector, String, String
         stringResource(R.string.system_backup_title),
         stringResource(R.string.system_backup_body),
     )
-    SystemAction.ADVANCED -> Triple(
-        Icons.Default.Tune,
-        stringResource(R.string.system_advanced_title),
-        stringResource(R.string.system_advanced_body),
+    SystemAction.ABOUT -> Triple(
+        Icons.Default.Info,
+        stringResource(R.string.system_about_title),
+        stringResource(R.string.system_about_body),
     )
 }
