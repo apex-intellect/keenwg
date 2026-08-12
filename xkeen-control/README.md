@@ -29,8 +29,8 @@ sh packaging/install-companion_test.sh
 Из корня репозитория:
 
 ```powershell
-.\scripts\build-companion-bundle.ps1 -Version 2.0.0 -GoExecutable go
-.\scripts\stage-companion-asset.ps1 -Archive .\dist\keenwg-companion-arm64-2.0.0.tar.gz
+.\scripts\build-companion-bundle.ps1 -Version 2.1.0 -GoExecutable go
+.\scripts\stage-companion-asset.ps1 -Archive .\dist\keenwg-companion-arm64-2.1.0.tar.gz
 ```
 
 Архив детерминированно содержит binary, init script, installer, uninstaller, allowlisted obsolete cleanup, config example, `VERSION` и `SHA256SUMS`. `install-companion.sh` поддерживает чистую установку, атомарное обновление schema 1 → 2 и rollback предыдущего release.

@@ -52,23 +52,41 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	if err != nil {
 		return err
 	}
+	discoveryPaths := capability.Paths{
+		XKeenInitPath:        runtimeConfig.Discovery.XKeenInitPath,
+		ASCPath:              runtimeConfig.Discovery.ASCPath,
+		CollectorPath:        rootedPath(root, "/opt/etc/init.d/S95keenwg"),
+		SingBoxConfigured:    runtimeConfig.SingBox.Enabled,
+		AWGManagerConfigured: runtimeConfig.AWGManager.Enabled,
+	}
+	discovery, err := capability.NewDetectorWithPaths("", discoveryPaths).Detect(ctx)
+	if err != nil {
+		return err
+	}
+	xkeenAvailable := capabilityAvailable(discovery, capability.ConnectionsXKeen)
 	store := state.New(state.Paths{Subscription: runtimeConfig.SubscriptionCache, State: runtimeConfig.StatePath, BackupDir: runtimeConfig.BackupDir}, rand.Reader)
 	system := xray.NewSystem(runtimeConfig)
-	controller, err := buildControllerMode(ctx, runtimeConfig, version, store, system, recoveryPending)
+	controller, err := buildControllerMode(ctx, runtimeConfig, version, store, system, recoveryPending, xkeenAvailable)
 	if err != nil {
 		return err
 	}
-	if err := controller.engine.Recover(ctx); err != nil {
-		return err
+	if controller.engine != nil {
+		if err := controller.engine.Recover(ctx); err != nil {
+			return err
+		}
 	}
-	routeModule := scenario.NewDomainModule(controller.domains)
-	recoveryCoordinator, err := modulecoordinator.New([]modulecoordinator.Module{routeModule}, modulecoordinator.NewFileRecoveryStore(runtimeConfig.RecoveryPath))
-	if err != nil {
-		return err
-	}
-	scenarioService, err := scenario.NewService(scenario.DefaultPresets(), scenario.NewRouteStateProvider(controller.domains), recoveryCoordinator)
-	if err != nil {
-		return err
+	var recoveryCoordinator *modulecoordinator.Coordinator
+	var scenarioService *scenario.Service
+	if controller.domains != nil {
+		routeModule := scenario.NewDomainModule(controller.domains)
+		recoveryCoordinator, err = modulecoordinator.New([]modulecoordinator.Module{routeModule}, modulecoordinator.NewFileRecoveryStore(runtimeConfig.RecoveryPath))
+		if err != nil {
+			return err
+		}
+		scenarioService, err = scenario.NewService(scenario.DefaultPresets(), scenario.NewRouteStateProvider(controller.domains), recoveryCoordinator)
+		if err != nil {
+			return err
+		}
 	}
 	certificate, _, err := identity.Load(runtimeConfig.TLSCertificatePath, runtimeConfig.TLSPrivateKeyPath)
 	if err != nil {
@@ -84,8 +102,9 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	if err != nil {
 		return err
 	}
-	connectionAdapters := []adapter.Adapter{
-		adapter.NewXKeenAdapter(store, controller.engine, diagnostics.NewDefault(), nil),
+	connectionAdapters := make([]adapter.Adapter, 0, 3)
+	if controller.engine != nil {
+		connectionAdapters = append(connectionAdapters, adapter.NewXKeenAdapter(store, controller.engine, diagnostics.NewDefault(), nil))
 	}
 	var singBoxProbe func(context.Context) (bool, bool, string)
 	if runtimeConfig.SingBox.Enabled {
@@ -140,29 +159,29 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	if err != nil {
 		return err
 	}
-	ownedProcessor := ownedsource.NewProcessor(
-		&subscription.Fetcher{Client: &http.Client{Timeout: 30 * time.Second}},
-		diagnostics.NewDefault(), store, controller.engine, nil,
-	)
-	coordinator := connection.NewCoordinator(catalogStore, registry, nil, ownedProcessor)
+	ownedProcessors := make([]connection.OwnedProcessor, 0, 1)
+	if controller.engine != nil {
+		ownedProcessors = append(ownedProcessors, ownedsource.NewProcessor(
+			&subscription.Fetcher{Client: &http.Client{Timeout: 30 * time.Second}},
+			diagnostics.NewDefault(), store, controller.engine, nil,
+		))
+	}
+	coordinator := connection.NewCoordinator(catalogStore, registry, nil, ownedProcessors...)
 	for _, adapterID := range registry.AdapterIDs() {
 		// Optional engines are isolated: an unavailable adapter must not suppress
 		// XKeen, WireGuard, or another healthy connection module.
 		_ = coordinator.SyncAdapter(ctx, adapterID)
 	}
-	detector := capability.NewDetectorWithPaths("", capability.Paths{
-		XKeenInitPath:        runtimeConfig.Discovery.XKeenInitPath,
-		ASCPath:              runtimeConfig.Discovery.ASCPath,
-		CollectorPath:        rootedPath(root, "/opt/etc/init.d/S95keenwg"),
-		SingBoxConfigured:    runtimeConfig.SingBox.Enabled,
-		AWGManagerConfigured: runtimeConfig.AWGManager.Enabled,
-		SingBoxProbe:         singBoxProbe,
-		AWGManagerProbe:      awgManagerProbe,
-	})
-	routeService := routegraph.NewService(&routeEvidenceProvider{
-		domains: controller.domains, catalog: catalogStore, adapters: registry,
-		resolver: net.DefaultResolver, now: time.Now,
-	})
+	discoveryPaths.SingBoxProbe = singBoxProbe
+	discoveryPaths.AWGManagerProbe = awgManagerProbe
+	detector := capability.NewDetectorWithPaths("", discoveryPaths)
+	var routeService *routegraph.Service
+	if controller.domains != nil {
+		routeService = routegraph.NewService(&routeEvidenceProvider{
+			domains: controller.domains, catalog: catalogStore, adapters: registry,
+			resolver: net.DefaultResolver, now: time.Now,
+		})
+	}
 	backupService, err := backup.NewFileService(version, []backup.Resource{
 		{ID: "catalog", Path: runtimeConfig.CatalogPath, Owned: true},
 		{ID: "catalog-secrets", Path: runtimeConfig.CatalogSecretsPath, Owned: true},
@@ -178,9 +197,22 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	if err != nil {
 		return err
 	}
-	secureHandler := api.NewSecure(controller.handler, deviceStore, detector,
-		api.WithCatalog(catalogStore), api.WithConnectionCoordinator(coordinator), api.WithRouteExplainer(routeService), api.WithScenarios(scenarioService), api.WithRecovery(recoveryCoordinator),
-		api.WithSupport(newSupportReporter(store, version, support.NewDefault())), api.WithBackup(backupManager{backupService}))
+	secureOptions := []api.SecureOption{
+		api.WithCatalog(catalogStore),
+		api.WithConnectionCoordinator(coordinator),
+		api.WithSupport(newSupportReporter(store, version, support.NewDefault())),
+		api.WithBackup(backupManager{backupService}),
+	}
+	if routeService != nil {
+		secureOptions = append(secureOptions, api.WithRouteExplainer(routeService))
+	}
+	if scenarioService != nil {
+		secureOptions = append(secureOptions, api.WithScenarios(scenarioService))
+	}
+	if recoveryCoordinator != nil {
+		secureOptions = append(secureOptions, api.WithRecovery(recoveryCoordinator))
+	}
+	secureHandler := api.NewSecure(controller.handler, deviceStore, detector, secureOptions...)
 	secureListener, err := net.Listen("tcp4", cfg.SecureListenAddress)
 	if err != nil {
 		return err
@@ -198,7 +230,10 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	return err
 }
 
-func buildControllerMode(ctx context.Context, cfg config.Config, version string, store *state.Store, system xray.System, allowDomainRecovery bool) (controllerRuntime, error) {
+func buildControllerMode(ctx context.Context, cfg config.Config, version string, store *state.Store, system xray.System, allowDomainRecovery, xkeenAvailable bool) (controllerRuntime, error) {
+	if !xkeenAvailable {
+		return controllerRuntime{handler: api.NewCore(version, nil, store)}, nil
+	}
 	client := &http.Client{Timeout: 30 * time.Second}
 	fetcher := &subscription.Fetcher{Client: client}
 	engine := transaction.New(cfg, fetcher, subscription.Parse, store, system, time.Now)
@@ -215,6 +250,15 @@ func buildControllerMode(ctx context.Context, cfg config.Config, version string,
 		api.WithDomainPolicy(domainService),
 	)
 	return controllerRuntime{handler: handler, engine: engine, domains: domainService}, nil
+}
+
+func capabilityAvailable(document capability.Document, id string) bool {
+	for _, item := range document.Capabilities {
+		if item.ID == id {
+			return item.Available
+		}
+	}
+	return false
 }
 
 func hardenedServer(handler http.Handler) *http.Server {

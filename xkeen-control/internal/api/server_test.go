@@ -101,6 +101,30 @@ func TestSelectReturns202AndOperationCanBePolled(t *testing.T) {
 	}
 }
 
+func TestMutationIsUnavailableWhenXKeenEngineIsDisabled(t *testing.T) {
+	_, store, _ := newTestServer(t)
+	server := NewCore("2.1.0", nil, store)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			t.Errorf("server shutdown: %v", err)
+		}
+	})
+
+	request := authenticatedRequest(
+		http.MethodPost,
+		"/v1/xkeen/subscription/refresh",
+		strings.NewReader(`{"state_version":7,"idempotency_key":"protected-only"}`),
+	)
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusServiceUnavailable || !strings.Contains(response.Body.String(), `"code":"feature_unavailable"`) {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
 func TestDuplicateMutationReturnsSameOperationWithoutSecondJob(t *testing.T) {
 	server, _, engine := newTestServer(t)
 	key := "22222222-2222-4222-8222-222222222222"

@@ -2,7 +2,7 @@
 
 **Project:** KeenWG 2.0
 **Platform:** Android / Jetpack Compose Material 3  
-**Direction:** calm Apple-inspired dark utility; rounded, layered, precise  
+**Direction:** native Material 3 dark utility; calm, rounded, layered and precise
 
 ## Principles
 
@@ -11,7 +11,7 @@
 - Keep one primary action per screen and keep destructive actions separated and confirmed.
 - All interactive targets are at least 48 dp with at least 8 dp between neighbouring targets.
 - Preserve system font scaling, screen-reader order, predictive back and navigation-bar insets.
-- Use near-opaque surfaces instead of continuous blur so lists remain smooth on the router-management phone.
+- Use restrained glass only for status/onboarding surfaces and the navigation island: `surfaceContainer` at 90–94% alpha, a neutral outline and normal tonal elevation. The identical opaque fallback must remain usable; no glow, gradients or continuous blur.
 
 ## Semantic colors
 
@@ -36,9 +36,9 @@ Components consume semantic theme tokens; no per-screen literal colors. Status a
 
 - Spacing follows a 4/8 dp scale: `4, 8, 12, 16, 24, 32`.
 - Screen gutters: 16 dp compact, 24 dp medium, readable-width column on expanded layouts.
-- Cards: 24 dp radius. Controls and fields: 18 dp. Primary buttons: capsule.
-- Floating navigation: 28-32 dp radius, 12-16 dp side/bottom safe-area margin, 68-72 dp content height.
-- Use the Android system sans-serif through Material type roles. Titles 24/28 semibold, section titles 18/24 semibold, body 16/24, supporting text 14/20, labels 12/16 medium.
+- Material shape scale: 8/12/16/20/28 dp. Standard cards use 20 dp; controls follow their native Material 3 shape; primary buttons are not given decorative custom geometry.
+- Floating navigation: 28 dp outer radius, 14 dp side margin and navigation-bar-safe bottom margin. Use `NavigationBar`/`NavigationBarItem` with a clipped 22 dp item indication.
+- Use Android system Roboto through the unmodified Material 3 type scale. JetBrains Mono is limited to collapsed technical details and identifiers.
 - Prefer wrapping over truncation for names and errors. Use tabular figures for IPs, timing and transfer statistics.
 
 ## Navigation island
@@ -77,7 +77,11 @@ Group Devices, Direct devices, Direct destinations and XKeen destination exclusi
 
 ### System
 
-Group router, Collector and Companion connections in rounded sections. Keep secrets masked and use semantic form validation.
+The top-level page is a read-only health and management overview. Call the router service «защищённый доступ» in product copy; `Companion` is an implementation term for technical documentation. Open the complete router/WireGuard/Collector editor through «Расширенные настройки». Keep secrets masked, use semantic form validation and place «Сохранить и проверить» in normal scroll content rather than a floating bottom bar.
+
+### First setup
+
+Ask once for the login and password used to install XKeen/Entware. Keep host/port under progressive disclosure, explain where to find credentials and never show fingerprint, SSH, certificate, token or rollback vocabulary in primary copy. Show four stable product steps, then a dedicated missing-prerequisite, changed-router, success or friendly failure state. Raw identifiers belong only under «Технические подробности».
 
 ## Delivery checks
 

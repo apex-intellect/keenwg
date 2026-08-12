@@ -10,6 +10,8 @@ import ru.anisimov.keenwg.domain.model.RouterProfile
 import ru.anisimov.keenwg.domain.model.RouterProfilesState
 import ru.anisimov.keenwg.domain.model.RouterSecrets
 import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.data.installer.HostKeyObservation
+import ru.anisimov.keenwg.data.installer.SshEndpoint
 
 data class ActiveRouterProfile(
     val profile: RouterProfile,
@@ -63,7 +65,7 @@ class RouterProfileStore internal constructor(
     }
 
     suspend fun upsert(profile: RouterProfile, secrets: RouterSecrets, select: Boolean) {
-        require(profile.schemaVersion == 2 && profile.id.isNotBlank() && profile.displayName.isNotBlank())
+        require(profile.schemaVersion == 3 && profile.id.isNotBlank() && profile.displayName.isNotBlank())
         dataStore.edit { preferences ->
             val current = mutableSnapshot(preferences)
             val profiles = current.index.profiles.toMutableList()
@@ -105,6 +107,11 @@ class RouterProfileStore internal constructor(
             val profile = RouterProfile.fromServerSettings(selected.id, selected.displayName, settings).copy(
                 companionUrl = selected.companionUrl,
                 certificatePin = selected.certificatePin,
+                sshHost = selected.sshHost,
+                sshPort = selected.sshPort,
+                sshUsername = selected.sshUsername,
+                sshHostKeyAlgorithm = selected.sshHostKeyAlgorithm,
+                sshHostKeySha256 = selected.sshHostKeySha256,
             )
             val profiles = current.index.profiles.map { if (it.id == profile.id) profile else it }
             val previousSecrets = current.secrets[profile.id] ?: RouterSecrets()
@@ -116,13 +123,33 @@ class RouterProfileStore internal constructor(
         }
     }
 
-    suspend fun saveCompanion(profileId: String, baseUrl: String, certificatePin: String, deviceToken: String, deviceId: String) {
+    suspend fun saveProtectedAccess(
+        profileId: String,
+        endpoint: SshEndpoint,
+        hostKey: HostKeyObservation,
+        baseUrl: String,
+        certificatePin: String,
+        deviceToken: String,
+        deviceId: String,
+    ) {
         require(baseUrl.startsWith("https://") && certificatePin.startsWith("sha256/") && deviceToken.isNotBlank() && deviceId.isNotBlank())
         dataStore.edit { preferences ->
             val current = mutableSnapshot(preferences)
             require(current.index.selectedProfileId == profileId) { "Selected router profile changed" }
             val profiles = current.index.profiles.map { profile ->
-                if (profile.id == profileId) profile.copy(companionUrl = baseUrl, certificatePin = certificatePin) else profile
+                if (profile.id == profileId) {
+                    profile.copy(
+                        companionUrl = baseUrl,
+                        certificatePin = certificatePin,
+                        sshHost = endpoint.host,
+                        sshPort = endpoint.port,
+                        sshUsername = endpoint.username,
+                        sshHostKeyAlgorithm = hostKey.algorithm,
+                        sshHostKeySha256 = hostKey.sha256,
+                    )
+                } else {
+                    profile
+                }
             }
             val secrets = current.secrets.toMutableMap()
             val existing = requireNotNull(secrets[profileId]) { "Router profile secrets are missing" }

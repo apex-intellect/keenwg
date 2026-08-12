@@ -20,4 +20,6 @@ Not supported:
 
 RCI and Collector availability is independent from Companion. Missing history must not block WireGuard management; missing RCI must not block Companion-backed connection and routing screens.
 
+The Android setup probes Entware, optional XKeen and free `/opt` space before any upload. Entware and sufficient `/opt` space are required only when the protected component must be installed or updated; an already current component can pair without XKeen. Missing prerequisites are non-mutating. KeenWG does not format, partition, mount or erase storage and does not auto-install Entware or XKeen.
+
 Evidence excludes credentials, subscription URLs, connection keys, full IP addresses, MAC addresses and hostnames. Run `scripts/router-evidence/verify-evidence.ps1` before proposing a new supported record.

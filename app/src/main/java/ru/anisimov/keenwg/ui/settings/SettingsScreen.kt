@@ -9,19 +9,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Search
@@ -71,7 +67,6 @@ import kotlinx.coroutines.launch
 import ru.anisimov.keenwg.data.discovery.DiscoveryPreview
 import ru.anisimov.keenwg.domain.model.ServerSettings
 import ru.anisimov.keenwg.ui.components.StatusNotice
-import ru.anisimov.keenwg.ui.overview.OverviewHealth
 import ru.anisimov.keenwg.ui.overview.OverviewState
 import ru.anisimov.keenwg.ui.theme.MonoLabel
 import ru.anisimov.keenwg.R
@@ -81,10 +76,7 @@ import ru.anisimov.keenwg.R
 fun SettingsScreen(
     vm: SettingsViewModel = viewModel(),
     productState: OverviewState? = null,
-    onSetupCompanion: () -> Unit = {},
-    onTrustedDevices: () -> Unit = {},
-    onDiagnostics: () -> Unit = {},
-    onBackup: () -> Unit = {},
+    onBack: () -> Unit,
 ) {
     val saved by vm.settings.collectAsStateWithLifecycle()
     val preview by vm.preview.collectAsStateWithLifecycle()
@@ -99,6 +91,7 @@ fun SettingsScreen(
     var busyAction by remember { mutableStateOf<String?>(null) }
     var showAdvanced by remember { mutableStateOf(false) }
     var hiddenPreview by remember { mutableStateOf<DiscoveryPreview?>(null) }
+    val savingLabel = stringResource(R.string.settings_saving)
 
     LaunchedEffect(vm) {
         vm.msg.collect { snackbar.showSnackbar(it) }
@@ -124,35 +117,15 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.ui_settingsscreen_985b5e0f2c)) },
+                title = { Text(stringResource(R.string.settings_advanced_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
+                    }
+                },
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            Surface(tonalElevation = 4.dp, shadowElevation = 8.dp) {
-                Button(
-                    onClick = { runOperation("Сохраняем и проверяем…", vm::saveAndTest) },
-                    enabled = busyAction == null && productState?.mutationsEnabled != false,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .navigationBarsPadding()
-                        .height(52.dp),
-                ) {
-                    if (busyAction != null) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.height(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                        Text("  $busyAction")
-                    } else {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null)
-                        Text(stringResource(R.string.ui_settingsscreen_ae95f45059))
-                    }
-                }
-            }
-        },
     ) { contentPadding ->
         CompositionLocalProvider(LocalSettingsFieldsEnabled provides (busyAction == null && productState?.mutationsEnabled != false)) {
             Column(
@@ -164,45 +137,10 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
-                "KeenWG проверяет доступ к роутеру до сохранения. Пароль и токены остаются в защищённом хранилище этого телефона.",
+                stringResource(R.string.settings_privacy_notice),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            productState?.let { SystemProfileCard(it) }
-            OutlinedButton(
-                onClick = onSetupCompanion,
-                enabled = busyAction == null,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                Icon(Icons.Default.Key, contentDescription = null)
-                Text(stringResource(R.string.ui_settingsscreen_705bba5971))
-            }
-            if (productState?.capabilities?.capabilities.orEmpty().any { it.id == "system.devices" && it.available }) {
-                OutlinedButton(
-                    onClick = onTrustedDevices,
-                    enabled = busyAction == null,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) {
-                    Icon(Icons.Default.Devices, contentDescription = null)
-                    Text(stringResource(R.string.ui_settingsscreen_4ca7c3972e))
-                }
-            }
-            OutlinedButton(
-                onClick = onDiagnostics,
-                enabled = busyAction == null && productState?.health != OverviewHealth.SETUP_REQUIRED,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                Icon(Icons.Default.BugReport, contentDescription = null)
-                Text("  " + stringResource(R.string.settings_support_report))
-            }
-            OutlinedButton(
-                onClick = onBackup,
-                enabled = busyAction == null && productState?.health != OverviewHealth.SETUP_REQUIRED,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                Icon(Icons.Default.Backup, contentDescription = null)
-                Text("  " + stringResource(R.string.backup_settings_action))
-            }
             formError?.let { StatusNotice(stringResource(R.string.ui_settingsscreen_f236f158aa), detail = it, isError = true) }
 
             SettingsSection(
@@ -364,6 +302,23 @@ fun SettingsScreen(
                     }
                 }
             }
+            Button(
+                onClick = { runOperation(savingLabel, vm::saveAndTest) },
+                enabled = busyAction == null && productState?.mutationsEnabled != false,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) {
+                if (busyAction != null) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.height(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                    Text("  $busyAction")
+                } else {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null)
+                    Text(stringResource(R.string.ui_settingsscreen_ae95f45059))
+                }
+            }
             Spacer(Modifier.height(8.dp))
             }
         }
@@ -387,38 +342,6 @@ fun SettingsScreen(
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun SystemProfileCard(state: OverviewState) {
-    val modules = state.capabilities?.capabilities.orEmpty().count { it.available }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Default.Router, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f)) {
-                Text(state.selectedProfileName ?: stringResource(R.string.ui_settingsscreen_a4ee9eab34), fontWeight = FontWeight.SemiBold)
-                Text(
-                    when (state.health) {
-                        OverviewHealth.HEALTHY -> "Companion подключён · модулей: $modules"
-                        OverviewHealth.LOCKED -> "Изменения заблокированы до восстановления"
-                        OverviewHealth.DEGRADED -> "Защищённый канал временно недоступен"
-                        OverviewHealth.SETUP_REQUIRED -> "Требуется настройка companion"
-                        OverviewHealth.LOADING -> "Проверяем состояние…"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
     }
 }
 

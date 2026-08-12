@@ -80,7 +80,7 @@ func (d Detector) Detect(ctx context.Context) (Document, error) {
 	items := []Capability{
 		available(OverviewHealth, AccessRead),
 		available(SystemDevices, AccessWrite),
-		available(ConnectionsCatalog, AccessWrite),
+		withAvailability(ConnectionsCatalog, AccessWrite, xkeenAvailable || singBoxAvailable || awgAvailable, "connection_adapter_not_found"),
 		withAdapterAvailability(ConnectionsAWG, awgAvailable, awgWritable, awgReason),
 		withAdapterAvailability(ConnectionsSingBox, singBoxAvailable, singBoxWritable, singBoxReason),
 		withAvailability(ConnectionsXKeen, AccessWrite, xkeenAvailable, xkeenReason),

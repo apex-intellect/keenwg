@@ -172,7 +172,7 @@ private fun ProfileSelector(state: OverviewState, onSelectProfile: (String) -> U
 private fun RouterHealthCard(state: OverviewState) {
     val presentation = when (state.health) {
         OverviewHealth.LOADING -> HealthPresentation("Проверяем роутер", "Получаем актуальные возможности", Icons.Default.Router)
-        OverviewHealth.HEALTHY -> HealthPresentation("Роутер на связи", "Защищённый companion подключён", Icons.Default.CheckCircle)
+        OverviewHealth.HEALTHY -> HealthPresentation("Роутер на связи", "Защищённый доступ подключён", Icons.Default.CheckCircle)
         OverviewHealth.DEGRADED -> HealthPresentation("Связь ограничена", state.message ?: "Проверьте соединение", Icons.Default.Warning)
         OverviewHealth.SETUP_REQUIRED -> HealthPresentation("Нужна настройка", state.message ?: "Подключите роутер", Icons.Default.Warning)
         OverviewHealth.LOCKED -> HealthPresentation("Профили заблокированы", state.message ?: "Нужно восстановление", Icons.Default.Lock)

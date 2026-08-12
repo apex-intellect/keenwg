@@ -1,15 +1,10 @@
 package ru.anisimov.keenwg.ui.navigation
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Home
@@ -18,19 +13,22 @@ import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import ru.anisimov.keenwg.R
+import ru.anisimov.keenwg.ui.components.KeenGlassSurface
 
 @Composable
 fun KeenBottomIsland(
@@ -40,49 +38,43 @@ fun KeenBottomIsland(
     modifier: Modifier = Modifier,
 ) {
     Box(modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp)) {
-        Surface(
+        KeenGlassSurface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(30.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 6.dp,
-            shadowElevation = 12.dp,
+            shape = RoundedCornerShape(28.dp),
         ) {
-            Row(
-                Modifier.fillMaxWidth().padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            NavigationBar(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                containerColor = Color.Transparent,
+                tonalElevation = 0.dp,
             ) {
                 destinations.forEach { destination ->
                     val isSelected = destination == selected
-                    val itemShape = RoundedCornerShape(24.dp)
-                    Surface(
+                    val itemShape = RoundedCornerShape(22.dp)
+                    val label = stringResource(destination.labelResource())
+                    val description = stringResource(destination.descriptionResource())
+                    NavigationBarItem(
+                        selected = isSelected,
                         onClick = { onSelect(destination) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 56.dp)
-                            .clip(itemShape)
-                            .semantics {
-                                this.selected = isSelected
-                                role = Role.Tab
-                                contentDescription = destination.contentDescription
-                            },
-                        shape = itemShape,
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent,
-                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    ) {
-                        androidx.compose.foundation.layout.Column(
-                            Modifier.padding(horizontal = 2.dp, vertical = 7.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Icon(destination.icon(), contentDescription = null, modifier = Modifier.size(21.dp))
+                        icon = { Icon(destination.icon(), contentDescription = null) },
+                        label = {
                             Text(
-                                destination.label,
+                                label,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                 maxLines = 1,
                             )
-                        }
-                    }
+                        },
+                        modifier = Modifier
+                            .clip(itemShape)
+                            .semantics { contentDescription = description },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
                 }
             }
         }
@@ -95,4 +87,20 @@ private fun TopLevelDestination.icon(): ImageVector = when (this) {
     TopLevelDestination.ROUTES -> Icons.Default.Route
     TopLevelDestination.ACCESS -> Icons.Default.Devices
     TopLevelDestination.SYSTEM -> Icons.Default.Settings
+}
+
+private fun TopLevelDestination.labelResource(): Int = when (this) {
+    TopLevelDestination.OVERVIEW -> R.string.nav_overview
+    TopLevelDestination.CONNECTIONS -> R.string.nav_connections
+    TopLevelDestination.ROUTES -> R.string.nav_routes
+    TopLevelDestination.ACCESS -> R.string.nav_access
+    TopLevelDestination.SYSTEM -> R.string.nav_system
+}
+
+private fun TopLevelDestination.descriptionResource(): Int = when (this) {
+    TopLevelDestination.OVERVIEW -> R.string.nav_overview_description
+    TopLevelDestination.CONNECTIONS -> R.string.nav_connections_description
+    TopLevelDestination.ROUTES -> R.string.nav_routes_description
+    TopLevelDestination.ACCESS -> R.string.nav_access_description
+    TopLevelDestination.SYSTEM -> R.string.nav_system_description
 }

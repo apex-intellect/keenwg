@@ -15,6 +15,7 @@ data class CompanionAssetManifest(
     val architecture: String,
     val asset: String,
     val sha256: String,
+    @SerialName("binary_sha256") val binarySha256: String,
     val size: Int,
 )
 
@@ -54,7 +55,8 @@ class CompanionAssetVerifier(
         }
         if (manifest.schemaVersion != 1 || manifest.architecture != "arm64" ||
             manifest.asset != EXPECTED_ASSET_NAME || !manifest.version.matches(VERSION) ||
-            manifest.size !in 1..MAX_ASSET_BYTES || !manifest.sha256.matches(SHA256)
+            manifest.size !in 1..MAX_ASSET_BYTES || !manifest.sha256.matches(SHA256) ||
+            !manifest.binarySha256.matches(SHA256)
         ) {
             throw AssetVerificationException()
         }

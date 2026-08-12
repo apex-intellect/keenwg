@@ -223,8 +223,8 @@ class NetworkViewModel(
         _state.value = _state.value.copy(routeChecking = true, routeError = null, routeExplanation = null)
         return viewModelScope.launch {
             try {
-                val active = profiles.first() ?: error("Companion не настроен")
-                if (active.profile.companionUrl.isBlank() || active.secrets.companionToken.isBlank()) error("Companion не настроен")
+                val active = profiles.first() ?: error("Защищённый доступ не настроен")
+                if (active.profile.companionUrl.isBlank() || active.secrets.companionToken.isBlank()) error("Защищённый доступ не настроен")
                 val looksLikeIp = value.contains(':') || value.matches(Regex("^[0-9.]+$"))
                 val request = RouteExplainRequest(
                     domain = value.takeUnless { looksLikeIp }, ip = value.takeIf { looksLikeIp },
@@ -246,7 +246,7 @@ class NetworkViewModel(
         _state.value = _state.value.copy(scenarioBusy = true, scenarioError = null)
         return viewModelScope.launch {
             try {
-                val active = profiles.first() ?: error("Companion не настроен")
+                val active = profiles.first() ?: error("Защищённый доступ не настроен")
                 val before = _state.value
                 val recovery = gateway.recovery(active.profile, active.secrets.companionToken)
                 val catalog = if (recovery.pending) before.scenarioCatalog else gateway.catalog(active.profile, active.secrets.companionToken)
@@ -268,7 +268,7 @@ class NetworkViewModel(
         if (_state.value.scenarioBusy || _state.value.writesBlocked) return completedJob()
         _state.value = _state.value.copy(scenarioBusy = true, scenarioError = null, scenarioResult = null)
         return viewModelScope.launch {
-            try { val active = profiles.first() ?: error("Companion не настроен"); _state.value = _state.value.copy(scenarioReview = gateway.review(active.profile, active.secrets.companionToken, presetId, catalog.stateVersion)) }
+            try { val active = profiles.first() ?: error("Защищённый доступ не настроен"); _state.value = _state.value.copy(scenarioReview = gateway.review(active.profile, active.secrets.companionToken, presetId, catalog.stateVersion)) }
             catch (failure: Exception) { _state.value = _state.value.copy(scenarioError = failure.safeMessage("Не удалось подготовить сценарий")) }
             finally { _state.value = _state.value.copy(scenarioBusy = false) }
         }
@@ -282,7 +282,7 @@ class NetworkViewModel(
         _state.value = _state.value.copy(scenarioBusy = true, scenarioError = null)
         return viewModelScope.launch {
             try {
-                val active = profiles.first() ?: error("Companion не настроен")
+                val active = profiles.first() ?: error("Защищённый доступ не настроен")
                 val result = gateway.apply(active.profile, active.secrets.companionToken, review.plan.presetId, review.plan.stateVersion, review.planId)
                 val recovery = if (result.status == "uncertain") gateway.recovery(active.profile, active.secrets.companionToken) else null
                 _state.value = _state.value.copy(
@@ -303,7 +303,7 @@ class NetworkViewModel(
         _state.value = _state.value.copy(scenarioBusy = true, scenarioError = null)
         return viewModelScope.launch {
             try {
-                val active = profiles.first() ?: error("Companion не настроен")
+                val active = profiles.first() ?: error("Защищённый доступ не настроен")
                 val result = gateway.rollback(active.profile, active.secrets.companionToken, planId)
                 val current = gateway.recovery(active.profile, active.secrets.companionToken)
                 val catalog = if (current.pending) _state.value.scenarioCatalog else gateway.catalog(active.profile, active.secrets.companionToken)
@@ -341,7 +341,7 @@ class NetworkViewModel(
             _state.value = _state.value.copy(busy = true, message = null)
             return viewModelScope.launch {
                 try {
-                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: error("Companion не настроен")
+                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: error("Защищённый доступ не настроен")
                     val result = client.mutate(endpoint, current.stateVersion, action, value)
                     _state.value = _state.value.copy(
                         exclusions = result.status,
@@ -368,7 +368,7 @@ class NetworkViewModel(
             _state.value = _state.value.copy(busy = true, message = null)
             return viewModelScope.launch {
                 try {
-                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: error("Companion не настроен")
+                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: error("Защищённый доступ не настроен")
                     val result = operation(client, endpoint, current)
                     _state.value = _state.value.copy(
                         domains = result.status,
@@ -399,7 +399,7 @@ class NetworkViewModel(
     }
 
     private fun Throwable.domainMessage(): String = if (this is XkeenException && code in setOf(XkeenErrorCode.NOT_FOUND, XkeenErrorCode.UNSUPPORTED_SCHEMA)) {
-        "Обновите Companion, чтобы управлять доменами"
+        "Обновите защищённый доступ, чтобы управлять доменами"
     } else safeMessage("Не удалось получить доменные правила")
 
     private fun Throwable.safeMessage(fallback: String) = message?.takeIf { it.isNotBlank() } ?: fallback

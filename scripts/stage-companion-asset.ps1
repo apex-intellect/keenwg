@@ -20,12 +20,24 @@ $assetName = "keenwg-companion-arm64.tgz"
 $assetPath = Join-Path $assetDirectory $assetName
 Copy-Item -LiteralPath $Archive -Destination $assetPath -Force
 $item = Get-Item -LiteralPath $assetPath
+$inspect = Join-Path ([IO.Path]::GetTempPath()) ("keenwg-companion-inspect-" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $inspect | Out-Null
+try {
+    & tar -xf $Archive -C $inspect keenwg-companion
+    if ($LASTEXITCODE -ne 0) { throw "Companion binary cannot be extracted" }
+    $binary = Join-Path $inspect "keenwg-companion"
+    if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) { throw "Companion binary is missing" }
+    $binaryHash = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant()
+} finally {
+    if (Test-Path -LiteralPath $inspect) { Remove-Item -LiteralPath $inspect -Recurse -Force }
+}
 $manifest = [ordered]@{
     schema_version = 1
     version = $version
     architecture = "arm64"
     asset = $assetName
     sha256 = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    binary_sha256 = $binaryHash
     size = $item.Length
 }
 $json = ($manifest | ConvertTo-Json -Compress) + "`n"
