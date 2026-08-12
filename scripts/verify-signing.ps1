@@ -24,7 +24,7 @@ $apksignerJar = Get-ChildItem -LiteralPath (Join-Path $AndroidHome 'build-tools'
 if ([string]::IsNullOrWhiteSpace($apksignerJar)) { throw 'apksigner.jar is missing' }
 $java = & (Join-Path $PSScriptRoot 'resolve-java-executable.ps1')
 $result = & (Join-Path $PSScriptRoot 'invoke-captured-process.ps1') -FileName $java -Arguments @(
-    '-jar', $apksignerJar, 'verify', '--verbose', '--print-certs', $apkPath
+    '-jar', $apksignerJar, 'verify', '--verbose', '--print-certs-pem', $apkPath
 )
 if ($result.ExitCode -ne 0) { throw 'APK signature verification failed' }
 $actual = & (Join-Path $PSScriptRoot 'parse-apksigner-certificate.ps1') -OutputText ($result.StandardOutput + "`n" + $result.StandardError)

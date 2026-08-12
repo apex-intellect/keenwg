@@ -4,9 +4,20 @@ param(
 
 $matches = [regex]::Matches(
     $OutputText,
-    '(?im)^\s*Signer\s+#([0-9]+)\s+certificate\s+SHA-256\s+digest:\s*([0-9a-f]{64})\s*$'
+    '(?ms)^-----BEGIN CERTIFICATE-----\s*(?<base64>[A-Za-z0-9+/=\r\n]+?)\s*-----END CERTIFICATE-----\s*$'
 )
-if ($matches.Count -ne 1 -or $matches[0].Groups[1].Value -ne '1') {
+if ($matches.Count -ne 1) {
     throw 'APK must have exactly one signer certificate'
 }
-$matches[0].Groups[2].Value.ToLowerInvariant()
+$base64 = $matches[0].Groups['base64'].Value -replace '\s', ''
+try {
+    $certificate = [Convert]::FromBase64String($base64)
+} catch {
+    throw 'APK signer certificate is not valid PEM'
+}
+$sha256 = [Security.Cryptography.SHA256]::Create()
+try {
+    [Convert]::ToHexString($sha256.ComputeHash($certificate)).ToLowerInvariant()
+} finally {
+    $sha256.Dispose()
+}

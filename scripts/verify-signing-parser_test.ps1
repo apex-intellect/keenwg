@@ -2,33 +2,40 @@ $ErrorActionPreference = 'Stop'
 $parser = Join-Path $PSScriptRoot 'parse-apksigner-certificate.ps1'
 $processRunner = Join-Path $PSScriptRoot 'invoke-captured-process.ps1'
 $javaResolver = Join-Path $PSScriptRoot 'resolve-java-executable.ps1'
-$digest = '5f5379508b3df4b60974fc857353961ea3e70ae9f67d66ac116fab189a4cb76a'
-$certificateLine = "Signer #1 certificate SHA-256 digest: $digest"
+$certificateBytes = [Text.Encoding]::UTF8.GetBytes('KeenWG certificate parser fixture')
+$sha256 = [Security.Cryptography.SHA256]::Create()
+try {
+    $digest = [Convert]::ToHexString($sha256.ComputeHash($certificateBytes)).ToLowerInvariant()
+} finally {
+    $sha256.Dispose()
+}
+$certificatePem = "-----BEGIN CERTIFICATE-----`n$([Convert]::ToBase64String($certificateBytes))`n-----END CERTIFICATE-----"
+$encodedPem = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($certificatePem))
 
 $pwsh = (Get-Process -Id $PID).Path
 $captured = & $processRunner -FileName $pwsh -Arguments @(
     '-NoProfile',
     '-NonInteractive',
     '-Command',
-    "[Console]::Out.WriteLine('stdout-marker'); [Console]::Error.WriteLine('$certificateLine')"
+    "[Console]::Out.WriteLine('stdout-marker'); [Console]::Error.Write([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$encodedPem')))"
 )
 if ($captured.ExitCode -ne 0 -or $captured.StandardOutput.Trim() -ne 'stdout-marker') {
     throw 'Native stdout was not captured'
 }
-if ($captured.StandardError.Trim() -ne $certificateLine) { throw 'Native stderr was not captured as raw text' }
+if ($captured.StandardError.Trim() -ne $certificatePem) { throw 'Native stderr was not captured as raw text' }
 
 $windowsResult = & $parser -OutputText (@(
-    'Verifies', $certificateLine, 'Signer #1 public key SHA-256 digest: ' + ('a' * 64)
+    'Verifies', ($certificatePem -replace "`n", "`r`n")
 ) -join "`r`n")
 if ($windowsResult -ne $digest) { throw 'Windows apksigner output was not parsed' }
 
 $linuxResult = & $parser -OutputText $captured.StandardError
 if ($linuxResult -ne $digest) { throw 'Linux native stderr output was not parsed' }
 
-$secondSigner = "Signer #2 certificate SHA-256 digest: $('b' * 64)"
+$secondCertificate = $certificatePem -replace [Convert]::ToBase64String($certificateBytes), [Convert]::ToBase64String([byte[]](1, 2, 3))
 $multipleSignersRejected = $false
 try {
-    & $parser -OutputText "$certificateLine`n$secondSigner" | Out-Null
+    & $parser -OutputText "$certificatePem`n$secondCertificate" | Out-Null
 } catch {
     $multipleSignersRejected = $true
 }
