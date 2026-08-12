@@ -90,7 +90,7 @@ func (c Config) Validate() error {
 		return err
 	}
 	if c.SubscriptionURL != "" {
-		if err := validateSubscriptionURL(c.SubscriptionURL); err != nil {
+		if err := ValidateSubscriptionURL(c.SubscriptionURL); err != nil {
 			return err
 		}
 	}
@@ -288,7 +288,10 @@ func isPrivateListener(addr netip.Addr) bool {
 	return cgnat.Contains(addr)
 }
 
-func validateSubscriptionURL(raw string) error {
+func ValidateSubscriptionURL(raw string) error {
+	if raw == "" || len(raw) > 8<<10 || strings.TrimSpace(raw) != raw || strings.ContainsAny(raw, "\r\n\x00") {
+		return invalid(nil)
+	}
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" {
 		return invalid(err)

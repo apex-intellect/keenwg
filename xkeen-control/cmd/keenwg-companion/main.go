@@ -89,6 +89,10 @@ func command(arguments []string, output io.Writer, root string) error {
 	if err != nil {
 		return err
 	}
+	cfg, err = app.MigrateSubscriptionConfiguration(*configPath, root, cfg)
+	if err != nil {
+		return err
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	return app.RunCompanion(ctx, cfg, version, root)
