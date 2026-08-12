@@ -27,6 +27,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import ru.anisimov.keenwg.R
 
 @Composable
 fun NetworkSegmentControl(state: NetworkUiState, onSelect: (NetworkSegment) -> Unit) {
@@ -63,7 +65,7 @@ fun NetworkSegmentControl(state: NetworkUiState, onSelect: (NetworkSegment) -> U
                             },
                             contentDescription = null,
                         )
-                        Text(segment.label(), style = MaterialTheme.typography.labelSmall, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+                        Text(stringResource(networkSegmentLabelResource(segment)), style = MaterialTheme.typography.labelSmall, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
                         Text("${segmentCount(segment, state)}", style = MaterialTheme.typography.labelSmall)
                     }
                 }
@@ -72,10 +74,10 @@ fun NetworkSegmentControl(state: NetworkUiState, onSelect: (NetworkSegment) -> U
     }
 }
 
-private fun NetworkSegment.label() = when (this) {
-    NetworkSegment.DEVICES -> "Устройства"
-    NetworkSegment.IP_ADDRESSES -> "IP"
-    NetworkSegment.DOMAINS -> "Домены"
-    NetworkSegment.EXPLAIN -> "Путь"
-    NetworkSegment.SCENARIOS -> "Сценарии"
+internal fun networkSegmentLabelResource(segment: NetworkSegment): Int = when (segment) {
+    NetworkSegment.DEVICES -> R.string.rules_devices
+    NetworkSegment.IP_ADDRESSES -> R.string.rules_addresses
+    NetworkSegment.DOMAINS -> R.string.rules_sites
+    NetworkSegment.EXPLAIN -> R.string.rules_check
+    NetworkSegment.SCENARIOS -> R.string.rules_sets
 }

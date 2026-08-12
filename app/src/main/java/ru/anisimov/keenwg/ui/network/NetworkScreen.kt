@@ -67,8 +67,8 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Column { Text(stringResource(R.string.ui_networkscreen_8006cb7a49)); Text(stringResource(R.string.ui_networkscreen_0986ba26a5), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
-                actions = { IconButton(onClick = vm::refresh, enabled = !state.refreshing && !state.busy) { Icon(Icons.Default.Refresh, "Обновить сеть") } },
+                title = { Column { Text(stringResource(R.string.rules_title)); Text(stringResource(R.string.rules_subtitle), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+                actions = { IconButton(onClick = vm::refresh, enabled = !state.refreshing && !state.busy) { Icon(Icons.Default.Refresh, stringResource(R.string.rules_refresh_description)) } },
             )
         },
     ) { padding ->
@@ -81,7 +81,7 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
             if (state.refreshing || state.loading) item { Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(24.dp)) } }
             state.message?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_8b0b387c96), detail = it, isError = it.contains(stringResource(R.string.ui_networkscreen_3a865e3616)) || it.contains(stringResource(R.string.ui_networkscreen_50ccde397c))) } }
             if (state.writesBlocked) item { StatusNotice(
-                "Изменения приостановлены",
+                stringResource(R.string.rules_changes_paused),
                 detail = if (state.recoveryState?.pending == true) stringResource(R.string.ui_networkscreen_994086f49a)
                     else stringResource(R.string.network_writes_blocked_detail),
                 isError = true,
@@ -139,8 +139,8 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
 
 private fun androidx.compose.foundation.lazy.LazyListScope.scenariosSection(state: NetworkUiState, vm: NetworkViewModel, onRequestRecovery: () -> Unit) {
     item { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        SectionTitle("Сценарии", "Необязательные наборы правил с предварительным просмотром", Modifier.weight(1f))
-        IconButton(onClick = vm::refreshScenarios, enabled = !state.scenarioBusy) { Icon(Icons.Default.Refresh, "Обновить сценарии") }
+        SectionTitle(stringResource(R.string.rules_sets_title), stringResource(R.string.rules_sets_subtitle), Modifier.weight(1f))
+        IconButton(onClick = vm::refreshScenarios, enabled = !state.scenarioBusy) { Icon(Icons.Default.Refresh, stringResource(R.string.rules_sets_refresh_description)) }
     } }
     if (state.scenarioBusy && state.scenarioCatalog == null) item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(24.dp)) } }
     state.scenarioError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_32500a15fa), detail = it, isError = true) } }
@@ -154,7 +154,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.scenariosSection(stat
         } }
     }
     state.scenarioResult?.let { result -> item { StatusNotice(
-        if (result.status == "committed") "Сценарий применён" else "Результат требует внимания",
+        if (result.status == "committed") stringResource(R.string.rules_set_applied) else stringResource(R.string.rules_result_attention),
         detail = when (result.status) { "committed" -> stringResource(R.string.ui_networkscreen_9e12e80ae7); "rolled_back" -> stringResource(R.string.ui_networkscreen_5d1e492c1f); "rejected" -> stringResource(R.string.ui_networkscreen_3ce476d3b2); else -> stringResource(R.string.ui_networkscreen_be5772e20e) },
         isError = result.status != "committed",
     ) } }
@@ -178,7 +178,7 @@ private fun String.scenarioModuleLabel() = when(this) { "domains" -> "Домен
 private fun String.scenarioMatcherLabel() = when(this) { "domain" -> "домен"; "suffix" -> "зона"; "geosite" -> "GeoSite"; "cidr" -> "CIDR"; else -> this }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.explainSection(state: NetworkUiState, vm: NetworkViewModel) {
-    item { SectionTitle("Почему трафик идёт так", "Разовая проверка без изменения маршрутов") }
+    item { SectionTitle(stringResource(R.string.rules_check_title), stringResource(R.string.rules_check_subtitle)) }
     item { RouteExplainForm(state.routeChecking, vm::explainRoute) }
     state.routeError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_4436729f8c), detail = it, isError = true) } }
     state.routeExplanation?.let { explanation ->
@@ -243,7 +243,7 @@ private fun String.routeWarningLabel() = when (this) {
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.devicesSection(state: NetworkUiState, vm: NetworkViewModel) {
-    item { SectionTitle("Устройства", "Статические адреса домашней техники") }
+    item { SectionTitle(stringResource(R.string.rules_devices_title), stringResource(R.string.rules_devices_subtitle)) }
     state.deviceError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_aab7e69417), detail = it, isError = true) } }
     if (state.devices.isEmpty() && !state.loading) item { StatusNotice(stringResource(R.string.ui_networkscreen_e3b2260459), detail = stringResource(R.string.ui_networkscreen_1dbbe8a201)) }
     items(state.devices, key = NetworkDevice::mac) { DeviceCard(it) { vm.requestStaticEdit(it) } }
@@ -252,8 +252,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.devicesSection(state:
 private fun androidx.compose.foundation.lazy.LazyListScope.ipSection(state: NetworkUiState, vm: NetworkViewModel) {
     item {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            SectionTitle("IP-адреса", "Адреса и подсети, идущие напрямую", Modifier.weight(1f))
-            OutlinedButton(onClick = vm::openExclusionEditor, enabled = state.exclusions != null && !state.busy && !state.writesBlocked) { Icon(Icons.Default.Add, null); Text(stringResource(R.string.ui_networkscreen_4fd5b3ee63)) }
+            SectionTitle(stringResource(R.string.rules_addresses_title), stringResource(R.string.rules_addresses_subtitle), Modifier.weight(1f))
+            OutlinedButton(onClick = vm::openExclusionEditor, enabled = state.exclusions != null && !state.busy && !state.writesBlocked) { Icon(Icons.Default.Add, null); Text(stringResource(R.string.rules_addresses_add)) }
         }
     }
     state.exclusionError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_e9f3bcf7d6), detail = it, isError = true) } }
@@ -268,18 +268,18 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ipSection(state: Netw
 private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: NetworkUiState, vm: NetworkViewModel) {
     item {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            SectionTitle("Доменные правила", "GeoSite, зоны и отдельные сайты", Modifier.weight(1f))
-            OutlinedButton(onClick = vm::openDomainCreate, enabled = state.domains != null && !state.busy && !state.writesBlocked) { Icon(Icons.Default.Add, null); Text(stringResource(R.string.ui_networkscreen_4fd5b3ee63)) }
+            SectionTitle(stringResource(R.string.rules_sites_title), stringResource(R.string.rules_sites_subtitle), Modifier.weight(1f))
+            OutlinedButton(onClick = vm::openDomainCreate, enabled = state.domains != null && !state.busy && !state.writesBlocked) { Icon(Icons.Default.Add, null); Text(stringResource(R.string.rules_sites_add)) }
         }
     }
     state.domainError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_a8bfafa797), detail = it, isError = true) } }
     state.domains?.warnings?.forEach { warning -> item { StatusNotice(stringResource(R.string.ui_networkscreen_2e92862ecd), detail = warning, isError = true) } }
     val rules = state.domains?.rules.orEmpty()
     if (rules.isEmpty() && state.domainError == null && !state.loading) item { StatusNotice(stringResource(R.string.ui_networkscreen_d9d5f36869), detail = stringResource(R.string.ui_networkscreen_1bd6688e06)) }
-    listOf("direct" to "Напрямую", "vpn" to "Через VPN").forEach { (effect, title) ->
+    listOf("direct" to R.string.rules_direct, "vpn" to R.string.rules_via_vpn).forEach { (effect, titleResource) ->
         val group = rules.filter { it.effect == effect }
         if (group.isNotEmpty()) {
-            item { Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)) }
+            item { Text(stringResource(titleResource), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)) }
             items(group, key = DomainRule::id) { rule -> DomainRuleCard(rule, { vm.openDomainEdit(rule) }, { vm.requestDomainDelete(rule) }) }
         }
     }
@@ -300,7 +300,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: 
                 Text(entry.value, style = MonoLabel)
                 Text(if (entry.isProtected) stringResource(R.string.ui_networkscreen_c16a7f6e30) else stringResource(R.string.ui_networkscreen_7a70e219d3), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (!entry.isProtected) IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Удалить исключение ${entry.value}", tint = MaterialTheme.colorScheme.error) }
+            if (!entry.isProtected) IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, stringResource(R.string.rules_address_delete_description, entry.value), tint = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -321,13 +321,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: 
 @Composable private fun DeviceCard(device: NetworkDevice, onEdit: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (device.online) Icons.Default.Wifi else Icons.Default.WifiOff, if (device.online) "Устройство онлайн" else "Устройство офлайн", tint = if (device.online) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(if (device.online) Icons.Default.Wifi else Icons.Default.WifiOff, stringResource(if (device.online) R.string.rules_device_online else R.string.rules_device_offline), tint = if (device.online) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) { Text(device.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); if (device.staticReservation) Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.primaryContainer) { Text(stringResource(R.string.ui_networkscreen_6e61611687), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)) } }
                 Text(device.ip ?: stringResource(R.string.ui_networkscreen_c83580eaa5), style = MonoLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(device.mac, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Изменить статический IP для ${device.name}") }
+            IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, stringResource(R.string.rules_device_edit_description, device.name)) }
         }
     }
 }

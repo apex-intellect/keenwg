@@ -42,17 +42,21 @@ fun DomainRuleDialog(
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (editor.reviewing) {
                     Text(stringResource(R.string.ui_domainrulesheet_badb2f85d6), style = MaterialTheme.typography.titleMedium)
-                        Text(stringResource(R.string.domain_rule_summary, kindLabel(draft.kind), displayValue(draft)))
+                        Text(stringResource(R.string.domain_rule_summary, stringResource(domainRuleKindResource(draft.kind)), displayValue(draft)))
                         Text(stringResource(R.string.domain_rule_route, domainEffectLabel(draft.effect)))
                     Text(stringResource(R.string.ui_domainrulesheet_73ff0c584c), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Text(stringResource(R.string.ui_domainrulesheet_d4a6795c19), style = MaterialTheme.typography.labelLarge)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("domain" to "Домен", "suffix" to "Зона", "geosite" to "GeoSite").forEach { (kind, label) ->
+                        listOf(
+                            "domain" to R.string.rules_site_domain,
+                            "suffix" to R.string.rules_site_zone,
+                            "geosite" to R.string.rules_site_category,
+                        ).forEach { (kind, labelResource) ->
                             FilterChip(selected = draft.kind == kind, onClick = {
                                 val value = when (kind) { "geosite" -> "category-gov-ru"; "suffix" -> "ru"; else -> "" }
                                 onDraft(draft.copy(kind = kind, value = value))
-                            }, label = { Text(label) })
+                            }, label = { Text(stringResource(labelResource)) })
                         }
                     }
                     when (draft.kind) {
@@ -100,5 +104,4 @@ fun DomainDeleteDialog(rule: DomainRule, busy: Boolean, onConfirm: () -> Unit, o
     )
 }
 
-private fun kindLabel(kind: String) = when (kind) { "suffix" -> "Зона"; "geosite" -> "GeoSite"; else -> "Домен" }
 private fun displayValue(draft: DomainRuleDraft) = if (draft.kind == "suffix") ".${draft.value}" else draft.value

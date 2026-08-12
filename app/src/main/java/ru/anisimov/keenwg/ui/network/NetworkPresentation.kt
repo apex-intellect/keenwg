@@ -1,5 +1,6 @@
 package ru.anisimov.keenwg.ui.network
 
+import ru.anisimov.keenwg.R
 import ru.anisimov.keenwg.data.network.DomainRule
 
 fun segmentCount(segment: NetworkSegment, state: NetworkUiState): Int = when (segment) {
@@ -26,6 +27,12 @@ fun domainMatcherLabel(rule: DomainRule): String = when (rule.kind) {
 }
 
 fun canEditDomainRule(rule: DomainRule): Boolean = !rule.isProtected && rule.source != "system"
+
+internal fun domainRuleKindResource(kind: String): Int = when (kind) {
+    "suffix" -> R.string.rules_site_zone
+    "geosite" -> R.string.rules_site_category
+    else -> R.string.rules_site_domain
+}
 
 private fun displayZone(value: String): String = when (value) {
     "xn--p1ai" -> "рф"

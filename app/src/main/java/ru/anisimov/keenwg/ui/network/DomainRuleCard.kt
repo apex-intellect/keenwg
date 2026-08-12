@@ -52,8 +52,8 @@ fun DomainRuleCard(rule: DomainRule, onEdit: () -> Unit, onDelete: () -> Unit) {
             Text(stringResource(R.string.domain_rule_state, domainSourceLabel(rule.source), stringResource(if (rule.enabled) R.string.state_enabled else R.string.state_disabled)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (editable) {
-                IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Изменить правило ${rule.value}") }
-                IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Удалить правило ${rule.value}", tint = MaterialTheme.colorScheme.error) }
+                IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, stringResource(R.string.rules_site_edit_description, rule.value)) }
+                IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, stringResource(R.string.rules_site_delete_description, rule.value), tint = MaterialTheme.colorScheme.error) }
             }
         }
     }
