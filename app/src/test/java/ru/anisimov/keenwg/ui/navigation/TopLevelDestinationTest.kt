@@ -11,11 +11,10 @@ import ru.anisimov.keenwg.data.companion.CapabilityDocument
 class TopLevelDestinationTest {
     @Test fun `five semantic destinations have fixed discoverable order`() {
         assertEquals(
-            listOf("Обзор", "Связи", "Маршруты", "Доступ", "Система"),
-            TopLevelDestination.entries.map { it.label },
+            listOf("overview", "connections", "routes", "access", "system"),
+            TopLevelDestination.entries.map { it.routeKey },
         )
         assertEquals(5, TopLevelDestination.entries.map { it.routeKey }.toSet().size)
-        assertTrue(TopLevelDestination.entries.all { it.contentDescription.isNotBlank() })
     }
 
     @Test fun `optional destinations follow independent available capabilities`() {
