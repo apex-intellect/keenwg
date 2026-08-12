@@ -17,6 +17,7 @@ Companion объединяет XKeen/VLESS, каталог подключени�
 - transactional Xray test, restart, read-back и rollback;
 - subscription URL, UUID, Reality keys, SNI и raw Xray config не возвращаются клиенту;
 - wildcard, loopback, hostname и публичный listener отклоняются.
+- official self-updates require an owner token and a separately verified Ed25519 publisher signature;
 
 ## Проверка
 
@@ -32,11 +33,12 @@ sh packaging/install-companion_test.sh
 Из корня репозитория:
 
 ```powershell
-.\scripts\build-companion-bundle.ps1 -Version 2.1.2 -GoExecutable go
-.\scripts\stage-companion-asset.ps1 -Archive .\dist\keenwg-companion-arm64-2.1.2.tar.gz
+.\scripts\build-companion-bundle.ps1 -Version 2.2.0 -KeyId release-2026 -GoExecutable go
+go -C xkeen-control run ./cmd/keenwg-sign-update -manifest ..\dist\keenwg-companion-arm64-2.2.0.update.json -archive ..\dist\keenwg-companion-arm64-2.2.0.tar.gz -private-key C:\secure\update-signing-seed.b64
+.\scripts\stage-companion-asset.ps1 -Archive .\dist\keenwg-companion-arm64-2.2.0.tar.gz -SignedManifest .\dist\keenwg-companion-arm64-2.2.0.update.json
 ```
 
-Архив детерминированно содержит binary, init script, installer, uninstaller, allowlisted obsolete cleanup, config example, `VERSION` и `SHA256SUMS`. `install-companion.sh` поддерживает чистую установку, атомарное обновление schema 1 → 2 и rollback предыдущего release.
+Архив детерминированно содержит Companion, отдельный updater, init script, installer, uninstaller, allowlisted obsolete cleanup, config example, `VERSION` и `SHA256SUMS`. Приватный ключ подписи находится вне репозитория. `install-companion.sh` поддерживает чистую установку, атомарное обновление schema 1 → 2 и rollback предыдущего release.
 
 Ручная установка не является основным пользовательским потоком. Используйте проверяемый мастер в Android-приложении; он получает SSH fingerprint до пароля и показывает точный план до записи.
 

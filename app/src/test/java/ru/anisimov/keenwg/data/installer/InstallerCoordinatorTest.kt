@@ -284,7 +284,7 @@ class InstallerCoordinatorTest {
         private class FakeAssetSource(private val body: ByteArray) : CompanionAssetSource {
             override fun manifestBytes(): ByteArray {
                 val hash = MessageDigest.getInstance("SHA-256").digest(body).joinToString("") { "%02x".format(it) }
-                return """{"schema_version":1,"version":"0.7.0","architecture":"arm64","asset":"keenwg-companion-arm64.tgz","sha256":"$hash","binary_sha256":"$hash","size":${body.size}}""".toByteArray()
+                return """{"schema_version":1,"version":"0.7.0","architecture":"arm64","asset":"keenwg-companion-arm64.tgz","sha256":"$hash","binary_sha256":"$hash","size":${body.size},"key_id":"release-test","signature":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}""".toByteArray()
             }
             override fun assetBytes(name: String) = body.copyOf()
         }

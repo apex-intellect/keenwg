@@ -1,0 +1,93 @@
+name: release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.x'
+          cache-dependency-path: |
+            xkeen-control/go.sum
+            collector/go.sum
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@4733eaac7c1b0da527e4206b7671e0061de1ce37 # v6.3.0
+
+      - name: Build signed release artifacts
+        shell: pwsh
+        env:
+          UPDATE_SIGNING_SEED_B64: ${{ secrets.KEENWG_UPDATE_SIGNING_SEED_B64 }}
+          ANDROID_KEYSTORE_B64: ${{ secrets.KEENWG_ANDROID_KEYSTORE_B64 }}
+          KEENWG_KEYSTORE_PASSWORD: ${{ secrets.KEENWG_ANDROID_KEYSTORE_PASSWORD }}
+          KEENWG_KEY_ALIAS: ${{ secrets.KEENWG_ANDROID_KEY_ALIAS }}
+          KEENWG_KEY_PASSWORD: ${{ secrets.KEENWG_ANDROID_KEY_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          $buildText = Get-Content app/build.gradle.kts -Raw
+          $versionMatch = [regex]::Match($buildText, 'versionName\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"')
+          if (-not $versionMatch.Success -or $versionMatch.Groups[1].Value -ne $version) { throw 'Tag does not match Android version' }
+          foreach ($name in @('UPDATE_SIGNING_SEED_B64','ANDROID_KEYSTORE_B64','KEENWG_KEYSTORE_PASSWORD','KEENWG_KEY_ALIAS','KEENWG_KEY_PASSWORD')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) { throw "Required release secret is missing: $name" }
+          }
+          $seed = Join-Path $env:RUNNER_TEMP 'update-signing-seed.b64'
+          $keystore = Join-Path $env:RUNNER_TEMP 'keenwg-release.p12'
+          try {
+            [IO.File]::WriteAllText($seed, $env:UPDATE_SIGNING_SEED_B64, [Text.UTF8Encoding]::new($false))
+            [IO.File]::WriteAllBytes($keystore, [Convert]::FromBase64String($env:ANDROID_KEYSTORE_B64))
+            ./scripts/build-companion-bundle.ps1 -Version $version -KeyId release-2026 -GoExecutable go
+            go -C xkeen-control run ./cmd/keenwg-sign-update -manifest "../dist/keenwg-companion-arm64-$version.update.json" -archive "../dist/keenwg-companion-arm64-$version.tar.gz" -private-key $seed
+            go -C xkeen-control run ./cmd/keenwg-sign-update -verify -manifest "../dist/keenwg-companion-arm64-$version.update.json" -archive "../dist/keenwg-companion-arm64-$version.tar.gz" -public-key internal/selfupdate/trusted-public-key.txt
+            ./scripts/stage-companion-asset.ps1 -Archive "dist/keenwg-companion-arm64-$version.tar.gz" -SignedManifest "dist/keenwg-companion-arm64-$version.update.json"
+            go -C xkeen-control test ./... -count=1
+            go -C xkeen-control vet ./...
+            go -C xkeen-control run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
+            go -C collector test ./... -count=1
+            go -C collector vet ./...
+            go -C collector run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
+            sh xkeen-control/packaging/install-companion_test.sh
+            ./scripts/verify-current-runtime.ps1
+            $env:KEENWG_KEYSTORE_FILE = $keystore
+            ./gradlew :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources :app:assembleRelease --console=plain --no-daemon
+            ./scripts/verify-signing.ps1 -Apk app/build/outputs/apk/release/app-release.apk
+            ./scripts/generate-sbom.ps1 -GoExecutable go -GradleExecutable ./gradlew
+            Copy-Item app/build/outputs/apk/release/app-release.apk "dist/KeenWG-$version.apk"
+            Compress-Archive -LiteralPath "dist/KeenWG-$version.apk" -DestinationPath "dist/KeenWG-$version.zip" -CompressionLevel Optimal
+            $files = @(
+              "dist/KeenWG-$version.apk",
+              "dist/KeenWG-$version.zip",
+              "dist/keenwg-companion-arm64-$version.tar.gz",
+              "dist/keenwg-companion-arm64-$version.update.json",
+              "dist/keenwg-$version.cdx.json"
+            )
+            $sums = foreach ($file in $files) {
+              "$((Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($file))"
+            }
+            [IO.File]::WriteAllText("dist/SHA256SUMS-$version.txt", (($sums -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
+          } finally {
+            Remove-Item -LiteralPath $seed,$keystore -Force -ErrorAction SilentlyContinue
+            Remove-Item Env:UPDATE_SIGNING_SEED_B64,Env:ANDROID_KEYSTORE_B64,Env:KEENWG_KEYSTORE_PASSWORD,Env:KEENWG_KEY_ALIAS,Env:KEENWG_KEY_PASSWORD -ErrorAction SilentlyContinue
+          }
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/KeenWG-$version.apk" \
+            "dist/KeenWG-$version.zip" \
+            "dist/keenwg-companion-arm64-$version.tar.gz" \
+            "dist/keenwg-companion-arm64-$version.update.json" \
+            "dist/keenwg-$version.cdx.json" \
+            "dist/SHA256SUMS-$version.txt" \
+            --verify-tag --title "KeenWG $version" --notes-file "docs/RELEASE-NOTES-$version.md"

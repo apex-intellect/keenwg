@@ -16,8 +16,8 @@ android {
         applicationId = "ru.anisimov.keenwg"
         minSdk = 26
         targetSdk = 35
-        versionCode = 23
-        versionName = "2.1.2"
+        versionCode = 24
+        versionName = "2.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -71,6 +71,8 @@ val verifyCompanionAsset by tasks.registering {
         check(manifestFile.isFile) { "Companion manifest is missing" }
         @Suppress("UNCHECKED_CAST")
         val manifest = JsonSlurper().parse(manifestFile) as Map<String, Any>
+        val expectedKeys = setOf("schema_version", "version", "architecture", "asset", "sha256", "binary_sha256", "size", "key_id", "signature")
+        check(manifest.keys == expectedKeys) { "Companion manifest fields do not match the signed schema" }
         check((manifest["schema_version"] as Number).toInt() == 1) { "Unsupported companion manifest schema" }
         check(manifest["architecture"] == "arm64") { "Release companion must be ARM64" }
         val assetName = manifest["asset"] as? String ?: error("Companion asset name is missing")
@@ -90,6 +92,8 @@ val verifyCompanionAsset by tasks.registering {
         }
         val actualHash = digest.digest().joinToString("") { "%02x".format(it) }
         check(actualHash == manifest["sha256"]) { "Companion asset SHA-256 does not match manifest" }
+        check((manifest["key_id"] as? String)?.matches(Regex("[a-z0-9][a-z0-9-]{2,63}")) == true) { "Invalid update publisher key id" }
+        check((manifest["signature"] as? String)?.matches(Regex("[A-Za-z0-9+/]{86}")) == true) { "Invalid update publisher signature" }
     }
 }
 

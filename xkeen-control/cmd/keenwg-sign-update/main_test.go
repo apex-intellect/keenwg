@@ -54,6 +54,9 @@ func TestGenerateAndSignRoundTrip(t *testing.T) {
 	if manifest.KeyID != trusted.KeyID || manifest.Signature == "" {
 		t.Fatal("manifest was not signed")
 	}
+	if err := run([]string{"-verify", "-manifest", manifestPath, "-archive", archivePath, "-public-key", publicPath}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGenerationRefusesOverwrite(t *testing.T) {

@@ -28,6 +28,7 @@
 /dist/SHA256SUMS
 /dist/xkeen-control/
 /dist/keenwg-companion-arm64-*.tar.gz
+/dist/keenwg-companion-arm64-*.update.json
 /dist/KeenWG-*.apk
 /dist/KeenWG-*.apk.idsig
 /dist/KeenWG-*.zip

@@ -14,10 +14,15 @@ if ([string]::IsNullOrWhiteSpace($ExpectedCertificateSha256)) {
     }
 }
 if ([string]::IsNullOrWhiteSpace($ExpectedCertificateSha256)) { throw 'Pinned signing certificate SHA-256 is required' }
+$apksignerNames = if ($IsWindows -or $env:OS -eq 'Windows_NT') { @('apksigner.bat', 'apksigner') } else { @('apksigner', 'apksigner.bat') }
 $apksigner = Get-ChildItem -LiteralPath (Join-Path $AndroidHome 'build-tools') -Directory |
     Sort-Object Name -Descending |
-    ForEach-Object { Join-Path $_.FullName 'apksigner.bat' } |
-    Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+    ForEach-Object {
+        foreach ($name in $apksignerNames) {
+            $candidate = Join-Path $_.FullName $name
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) { $candidate }
+        }
+    } |
     Select-Object -First 1
 if ([string]::IsNullOrWhiteSpace($apksigner)) { throw 'apksigner is missing' }
 $output = & $apksigner verify --verbose --print-certs $apkPath 2>&1

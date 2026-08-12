@@ -15,6 +15,9 @@ $buildText = Get-Content -LiteralPath (Join-Path $repoRoot 'app\build.gradle.kts
 $versionMatch = [regex]::Match($buildText, 'versionName\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"')
 if (-not $versionMatch.Success) { throw 'Cannot determine application version' }
 $releaseVersion = $versionMatch.Groups[1].Value
+$archive = Join-Path $repoRoot "dist\keenwg-companion-arm64-$releaseVersion.tar.gz"
+$signedManifestPath = Join-Path $repoRoot "dist\keenwg-companion-arm64-$releaseVersion.update.json"
+$trustedPublicKeyPath = Join-Path $moduleRoot 'internal\selfupdate\trusted-public-key.txt'
 
 function Invoke-Checked([string]$Label, [scriptblock]$Command) {
     Write-Host "== $Label =="
@@ -53,6 +56,12 @@ $wslPackaging = Get-WslPath (Join-Path $moduleRoot "packaging")
 $packagingCommand = "cd $(Quote-Sh $wslPackaging) && sh ./install-companion_test.sh"
 Invoke-Checked "Packaging tests in fake roots" { & wsl.exe -e sh -lc $packagingCommand }
 Invoke-Checked "Secure-only current runtime policy" { & (Join-Path $PSScriptRoot 'verify-current-runtime.ps1') }
+foreach ($requiredUpdateFile in @($archive, $signedManifestPath, $trustedPublicKeyPath)) {
+    if (-not (Test-Path -LiteralPath $requiredUpdateFile -PathType Leaf)) { throw "Signed update artifact is missing: $requiredUpdateFile" }
+}
+Invoke-Checked "Companion publisher signature" {
+    & $GoExecutable -C $moduleRoot run ./cmd/keenwg-sign-update -verify -manifest $signedManifestPath -archive $archive -public-key $trustedPublicKeyPath
+}
 
 $env:ANDROID_HOME = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { Join-Path $env:LOCALAPPDATA "Android\Sdk" }
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
@@ -87,7 +96,22 @@ function Get-CompatibleRelativePath([string]$BasePath, [string]$TargetPath) {
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $manifest = Get-Content -LiteralPath $assetManifestPath -Raw | ConvertFrom-Json
+$signedUpdate = Get-Content -LiteralPath $signedManifestPath -Raw | ConvertFrom-Json
 if ([string]$manifest.version -ne $releaseVersion) { throw "Companion version does not match Android version" }
+$signedMapping = @{
+    version = 'version'
+    architecture = 'architecture'
+    sha256 = 'archive_sha256'
+    binary_sha256 = 'binary_sha256'
+    size = 'archive_size'
+    key_id = 'key_id'
+    signature = 'signature'
+}
+foreach ($entry in $signedMapping.GetEnumerator()) {
+    if ([string]$manifest.($entry.Key) -ne [string]$signedUpdate.($entry.Value)) {
+        throw "Embedded Companion manifest does not match signed update field: $($entry.Key)"
+    }
+}
 $signedRelease = Join-Path $repoRoot "app\build\outputs\apk\release\app-release.apk"
 $unsignedRelease = Join-Path $repoRoot "app\build\outputs\apk\release\app-release-unsigned.apk"
 $releaseApk = if ($signingConfigured) { $signedRelease } else { $unsignedRelease }
@@ -132,7 +156,6 @@ foreach ($relative in $tracked) {
 }
 
 $debugApk = Join-Path $repoRoot "app\build\outputs\apk\debug\app-debug.apk"
-$archive = Join-Path $repoRoot "dist\keenwg-companion-arm64-$releaseVersion.tar.gz"
 $sbom = Join-Path $repoRoot "dist\keenwg-$releaseVersion.cdx.json"
 foreach ($artifact in @($debugApk, $releaseApk, $archive, $sbom)) {
     if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) { throw "Release artifact is missing: $artifact" }

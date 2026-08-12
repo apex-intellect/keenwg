@@ -30,6 +30,7 @@ func run(args []string) error {
 	flags := flag.NewFlagSet("keenwg-sign-update", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	generate := flags.Bool("generate-key", false, "generate a publisher key pair")
+	verify := flags.Bool("verify", false, "verify a signed manifest")
 	manifestPath := flags.String("manifest", "", "signed manifest path")
 	archivePath := flags.String("archive", "", "archive path")
 	privatePath := flags.String("private-key", "", "private seed path")
@@ -39,15 +40,60 @@ func run(args []string) error {
 		return errors.New("invalid arguments")
 	}
 	if *generate {
-		if *privatePath == "" || *publicPath == "" || *keyID == "" || *manifestPath != "" || *archivePath != "" {
+		if *privatePath == "" || *publicPath == "" || *keyID == "" || *manifestPath != "" || *archivePath != "" || *verify {
 			return errors.New("invalid generation arguments")
 		}
 		return generateKeys(*privatePath, *publicPath, *keyID)
+	}
+	if *verify {
+		if *manifestPath == "" || *archivePath == "" || *publicPath == "" || *privatePath != "" || *keyID != "" {
+			return errors.New("invalid verification arguments")
+		}
+		return verifyManifest(*manifestPath, *archivePath, *publicPath)
 	}
 	if *manifestPath == "" || *archivePath == "" || *privatePath == "" || *publicPath != "" || *keyID != "" {
 		return errors.New("invalid signing arguments")
 	}
 	return signManifest(*manifestPath, *archivePath, *privatePath)
+}
+
+func verifyManifest(manifestPath, archivePath, publicPath string) error {
+	manifestFile, err := os.Open(manifestPath)
+	if err != nil {
+		return err
+	}
+	manifest, decodeErr := selfupdate.DecodeManifest(manifestFile)
+	closeErr := manifestFile.Close()
+	if decodeErr != nil {
+		return decodeErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	trusted, err := selfupdate.ReadTrustedPublicKey(publicPath)
+	if err != nil {
+		return err
+	}
+	publicKey, err := trusted.Decode()
+	if err != nil {
+		return err
+	}
+	archive, err := os.Open(archivePath)
+	if err != nil {
+		return err
+	}
+	hasher := sha256.New()
+	size, hashErr := io.Copy(hasher, io.LimitReader(archive, selfupdate.MaximumArchiveBytes+1))
+	closeErr = archive.Close()
+	if hashErr != nil {
+		return hashErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	var sum [sha256.Size]byte
+	copy(sum[:], hasher.Sum(nil))
+	return manifest.Verify(publicKey, trusted.KeyID, sum, size)
 }
 
 func generateKeys(privatePath, publicPath, keyID string) error {
