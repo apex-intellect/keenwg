@@ -52,6 +52,8 @@ import ru.anisimov.keenwg.data.backup.BackupClient
 import ru.anisimov.keenwg.data.backup.BackupGateway
 import ru.anisimov.keenwg.data.wireguard.CompanionPeerRepository
 import ru.anisimov.keenwg.data.wireguard.CompanionWireGuardClient
+import ru.anisimov.keenwg.data.update.CompanionUpdateClient
+import ru.anisimov.keenwg.data.update.CompanionUpdateGateway
 
 /** Minimal manual DI — initialised once from MainActivity. */
 @SuppressLint("StaticFieldLeak") // Stores receive applicationContext only; no Activity is retained.
@@ -99,6 +101,10 @@ object ServiceLocator {
         private set
     lateinit var backupGateway: BackupGateway
         private set
+    lateinit var companionUpdateGateway: CompanionUpdateGateway
+        private set
+    lateinit var companionAssetVerifier: CompanionAssetVerifier
+        private set
 
     fun init(context: Context) {
         if (::repository.isInitialized) return
@@ -138,12 +144,14 @@ object ServiceLocator {
         scenarioGateway = ScenarioClient()
         supportGateway = SupportClient()
         backupGateway = BackupClient()
+        companionUpdateGateway = CompanionUpdateClient(companionTransport)
+        companionAssetVerifier = CompanionAssetVerifier(AndroidCompanionAssetSource(app))
         importDraftStore = ImportDraftStore(
             SharedPreferencesImportDraftPersistence(app),
             KeystoreCipher("keenwg.import-draft.v1"),
         )
         installerCoordinator = InstallerCoordinator(
-            assets = CompanionAssetVerifier(AndroidCompanionAssetSource(app)),
+            assets = companionAssetVerifier,
             ssh = JschSshTransport(),
             companion = companionClient,
             profiles = RouterProfileInstallerGateway(routerProfileStore),

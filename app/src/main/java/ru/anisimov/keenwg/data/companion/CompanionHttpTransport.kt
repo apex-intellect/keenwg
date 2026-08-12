@@ -9,6 +9,7 @@ import javax.net.ssl.SSLContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 
 data class CompanionHttpResponse(val status: Int, val body: String)
@@ -53,6 +54,37 @@ class CompanionHttpTransport {
             .apply { if (token != null) header("Authorization", "Bearer $token") }
             .method(method, body?.toRequestBody(JSON_MEDIA_TYPE))
             .build()
+        return executeRequest(target, request, maxResponseBytes, expectBody)
+    }
+
+    fun execute(
+        endpoint: CompanionEndpoint,
+        path: String,
+        method: String,
+        body: RequestBody,
+        maxResponseBytes: Long = DEFAULT_MAX_RESPONSE_BYTES,
+        expectBody: Boolean = true,
+    ): CompanionHttpResponse {
+        require(path.startsWith('/') && !path.startsWith("//") && '?' !in path && '#' !in path)
+        require(method == "POST" || method == "PUT")
+        require(maxResponseBytes in 0..MAX_RESPONSE_BYTES)
+        val url = endpoint.target.baseUrl.resolve(path) ?: throw CompanionTransportException()
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("Cache-Control", "no-store")
+            .header("Authorization", "Bearer ${endpoint.deviceToken}")
+            .method(method, body)
+            .build()
+        return executeRequest(endpoint.target, request, maxResponseBytes, expectBody)
+    }
+
+    private fun executeRequest(
+        target: CompanionTarget,
+        request: Request,
+        maxResponseBytes: Long,
+        expectBody: Boolean,
+    ): CompanionHttpResponse {
         val response = try {
             client(target).newCall(request).execute()
         } catch (failure: IOException) {
@@ -91,7 +123,7 @@ class CompanionHttpTransport {
                 .sslSocketFactory(context.socketFactory, trustManager)
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(15, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
                 .callTimeout(75, TimeUnit.SECONDS)
                 .build()
         }
