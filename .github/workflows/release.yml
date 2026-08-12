@@ -56,6 +56,7 @@ jobs:
             go -C collector run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
             sh xkeen-control/packaging/install-companion_test.sh
             ./scripts/verify-current-runtime.ps1
+            ./scripts/verify-signing-parser_test.ps1
             $env:KEENWG_KEYSTORE_FILE = $keystore
             ./gradlew :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources :app:assembleRelease --console=plain --no-daemon
             ./scripts/verify-signing.ps1 -Apk app/build/outputs/apk/release/app-release.apk

@@ -36,6 +36,9 @@ jobs:
       - name: Secure-only runtime policy
         shell: pwsh
         run: ./scripts/verify-current-runtime.ps1
+      - name: APK certificate parser tests
+        shell: pwsh
+        run: ./scripts/verify-signing-parser_test.ps1
       - name: Android tests and lint
         run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources :app:assembleDebug --console=plain --no-daemon
   dependency-review:

@@ -27,9 +27,7 @@ $apksigner = Get-ChildItem -LiteralPath (Join-Path $AndroidHome 'build-tools') -
 if ([string]::IsNullOrWhiteSpace($apksigner)) { throw 'apksigner is missing' }
 $output = & $apksigner verify --verbose --print-certs $apkPath 2>&1
 if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed' }
-$line = $output | Where-Object { $_ -match 'Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]+)' } | Select-Object -First 1
-if ($null -eq $line) { throw 'APK signer certificate digest is missing' }
-$actual = ([regex]::Match([string]$line, '([0-9a-fA-F]{64})')).Groups[1].Value.ToLowerInvariant()
+$actual = & (Join-Path $PSScriptRoot 'parse-apksigner-certificate.ps1') -OutputLines @($output)
 $expected = ($ExpectedCertificateSha256 -replace '[^0-9a-fA-F]', '').ToLowerInvariant()
 if ($actual -ne $expected) { throw 'APK signing identity does not match the pinned certificate' }
 Write-Host "Verified APK signer certificate: $actual"
