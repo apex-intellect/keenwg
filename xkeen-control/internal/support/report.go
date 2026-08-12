@@ -249,19 +249,21 @@ func reviewText(report Report) string {
 }
 
 var (
-	urlPattern        = regexp.MustCompile(`(?i)https?://[^\s]+`)
-	credentialPattern = regexp.MustCompile(`(?i)\b(?:bearer\s+[^\s,;]+|(?:token|password|passwd|secret)\s*[:=]\s*[^\s,;]+)`)
-	uuidPattern       = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b`)
-	keyPattern        = regexp.MustCompile(`[A-Za-z0-9+/]{43}=`)
-	macPattern        = regexp.MustCompile(`(?i)\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b`)
-	hostPattern       = regexp.MustCompile(`(?i)\b(?:[a-z0-9](?:[a-z0-9-]{0,62})\.)+[a-z]{2,63}\b`)
-	ipv4Pattern       = regexp.MustCompile(`\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b`)
-	ipv6Pattern       = regexp.MustCompile(`[0-9A-Fa-f:]{3,}`)
-	spacePattern      = regexp.MustCompile(`\s+`)
+	urlPattern               = regexp.MustCompile(`(?i)https?://[^\s]+`)
+	subscriptionFieldPattern = regexp.MustCompile(`(?i)\bsubscription[_ -]?url\b\s*[:=]?`)
+	credentialPattern        = regexp.MustCompile(`(?i)\b(?:bearer\s+[^\s,;]+|(?:token|password|passwd|secret)\s*[:=]\s*[^\s,;]+)`)
+	uuidPattern              = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b`)
+	keyPattern               = regexp.MustCompile(`[A-Za-z0-9+/]{43}=`)
+	macPattern               = regexp.MustCompile(`(?i)\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b`)
+	hostPattern              = regexp.MustCompile(`(?i)\b(?:[a-z0-9](?:[a-z0-9-]{0,62})\.)+[a-z]{2,63}\b`)
+	ipv4Pattern              = regexp.MustCompile(`\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b`)
+	ipv6Pattern              = regexp.MustCompile(`[0-9A-Fa-f:]{3,}`)
+	spacePattern             = regexp.MustCompile(`\s+`)
 )
 
 func Sanitize(value string) string {
 	clean := truncateRunes(value, 4096)
+	clean = subscriptionFieldPattern.ReplaceAllString(clean, "[configuration] ")
 	clean = urlPattern.ReplaceAllString(clean, "[url]")
 	clean = credentialPattern.ReplaceAllString(clean, "[credential]")
 	clean = uuidPattern.ReplaceAllString(clean, "[uuid]")

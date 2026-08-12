@@ -211,6 +211,7 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 		api.WithSupport(newSupportReporter(store, version, support.NewDefault())),
 		api.WithBackup(backupManager{backupService}),
 		api.WithRouterLocal(routerlocal.NewService(routerlocal.ExecRunner{Executable: rootedPath(root, "/opt/bin/ndmq")})),
+		api.WithSubscriptionConfiguration(subscriptionURLs),
 	}
 	if routeService != nil {
 		secureOptions = append(secureOptions, api.WithRouteExplainer(routeService))

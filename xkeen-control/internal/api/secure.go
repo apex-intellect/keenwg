@@ -30,18 +30,19 @@ type CapabilityProvider interface {
 }
 
 type SecureServer struct {
-	core         *Server
-	devices      DeviceStore
-	capabilities CapabilityProvider
-	catalog      CatalogStore
-	connections  ConnectionCoordinator
-	routes       RouteExplainer
-	scenarios    ScenarioManager
-	recovery     RecoveryManager
-	support      SupportReporter
-	backup       BackupManager
-	routerLocal  RouterLocalService
-	limiter      *attemptLimiter
+	core                      *Server
+	devices                   DeviceStore
+	capabilities              CapabilityProvider
+	catalog                   CatalogStore
+	connections               ConnectionCoordinator
+	routes                    RouteExplainer
+	scenarios                 ScenarioManager
+	recovery                  RecoveryManager
+	support                   SupportReporter
+	backup                    BackupManager
+	routerLocal               RouterLocalService
+	subscriptionConfiguration SubscriptionConfiguration
+	limiter                   *attemptLimiter
 }
 
 type SecureOption func(*SecureServer)
@@ -72,6 +73,10 @@ func WithSupport(reporter SupportReporter) SecureOption {
 
 func WithBackup(manager BackupManager) SecureOption {
 	return func(server *SecureServer) { server.backup = manager }
+}
+
+func WithSubscriptionConfiguration(value SubscriptionConfiguration) SecureOption {
+	return func(server *SecureServer) { server.subscriptionConfiguration = value }
 }
 
 func NewSecure(core *Server, devices DeviceStore, capabilities CapabilityProvider, options ...SecureOption) *SecureServer {
@@ -143,6 +148,19 @@ func (s *SecureServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		request, _, ok := s.authenticate(w, r, auth.ScopeOperator)
 		if ok {
 			s.handleCatalogMutation(w, request)
+		}
+	case isSubscriptionConfigurationRoute(r.URL.Path):
+		if s.subscriptionConfiguration == nil {
+			writeError(w, http.StatusNotFound, "not_found")
+			return
+		}
+		required := auth.ScopeViewer
+		if r.Method == http.MethodPut {
+			required = auth.ScopeOwner
+		}
+		request, _, ok := s.authenticate(w, r, required)
+		if ok {
+			s.handleSubscriptionConfiguration(w, request)
 		}
 	case isConnectionOperationPath(r.URL.Path) && s.connections != nil:
 		request, _, ok := s.authenticate(w, r, auth.ScopeOperator)

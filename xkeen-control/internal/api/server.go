@@ -542,8 +542,8 @@ func writePreparationError(w http.ResponseWriter, err error) {
 	}
 }
 
-func methodNotAllowed(w http.ResponseWriter, allowed string) {
-	w.Header().Set("Allow", allowed)
+func methodNotAllowed(w http.ResponseWriter, allowed ...string) {
+	w.Header().Set("Allow", strings.Join(allowed, ", "))
 	writeError(w, http.StatusMethodNotAllowed, "method_not_allowed")
 }
 

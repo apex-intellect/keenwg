@@ -99,6 +99,20 @@ func TestSanitizeRemovesCredentialsURLsUUIDsKeysHostsMACsAndFullIPs(t *testing.T
 	}
 }
 
+func TestBuildNeverIncludesSubscriptionConfigurationNamesOrValues(t *testing.T) {
+	secret := "https://vpn.example.test/sub/private"
+	service := New(fakeResolver{}, &fakeDialer{errors: map[string]error{}}, time.Second, time.Now)
+
+	bundle := service.Build(context.Background(), Input{Notes: []string{"subscription_url=" + secret}})
+	body, err := json.Marshal(bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), secret) || strings.Contains(string(body), "subscription_url") {
+		t.Fatalf("subscription configuration leaked: %s", body)
+	}
+}
+
 func TestBundleIsBoundedAndNotesAreReviewable(t *testing.T) {
 	service := New(fakeResolver{ips: []net.IP{net.ParseIP("192.0.2.10")}}, &fakeDialer{errors: map[string]error{}}, time.Second, time.Now)
 	notes := make([]string, 1000)
