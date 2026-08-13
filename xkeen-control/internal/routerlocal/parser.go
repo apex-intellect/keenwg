@@ -241,6 +241,8 @@ type configuredPeer struct {
 	WireGuardPeer
 }
 
+const keenOSInvalidHandshakeSentinel int64 = 1<<31 - 1
+
 func ParseWireGuardInterface(runtime, running []byte, interfaceID string) (WireGuardInterface, error) {
 	if !interfacePattern.MatchString(interfaceID) {
 		return WireGuardInterface{}, ErrInvalidCommand
@@ -278,7 +280,7 @@ func ParseWireGuardInterface(runtime, running []byte, interfaceID string) (WireG
 		if _, err := boolishOptional(peer.Enabled); err != nil {
 			return WireGuardInterface{}, ErrUnsupportedSchema
 		}
-		if peer.LastHandshakeSec != nil && (*peer.LastHandshakeSec < 0 || *peer.LastHandshakeSec >= 1_000_000_000) {
+		if peer.LastHandshakeSec != nil && (*peer.LastHandshakeSec < 0 || (*peer.LastHandshakeSec >= 1_000_000_000 && *peer.LastHandshakeSec != keenOSInvalidHandshakeSentinel)) {
 			return WireGuardInterface{}, ErrUnsupportedSchema
 		}
 		runtimePeers[peer.PublicKey] = peer

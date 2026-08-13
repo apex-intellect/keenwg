@@ -107,6 +107,19 @@ func TestWireGuardParserRejectsEpochLikeHandshakeValue(t *testing.T) {
 	}
 }
 
+func TestWireGuardParserAcceptsKeenOSInvalidHandshakeSentinel(t *testing.T) {
+	runtime := []byte(`<response><interface><id>Wireguard0</id><wireguard><peer><public-key>AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=</public-key><online>no</online><enabled>yes</enabled><last-handshake>2147483647</last-handshake></peer></wireguard></interface></response>`)
+	running := []byte(`<response><message>interface Wireguard0</message><message>wireguard peer AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE= !phone</message><message>!</message></response>`)
+
+	value, err := ParseWireGuardInterface(runtime, running, "Wireguard0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(value.Peers) != 1 || value.Peers[0].LastHandshakeSec == nil || *value.Peers[0].LastHandshakeSec != 2_147_483_647 {
+		t.Fatalf("sentinel handshake was not preserved: %+v", value.Peers)
+	}
+}
+
 func fixture(t *testing.T, name string) []byte {
 	t.Helper()
 	value, err := os.ReadFile("testdata/" + name)
