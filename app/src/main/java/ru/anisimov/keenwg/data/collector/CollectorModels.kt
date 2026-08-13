@@ -3,21 +3,15 @@ package ru.anisimov.keenwg.data.collector
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class CollectorMeta(
-    val version: String,
-    @SerialName("max_points") val maxPoints: Int,
-)
-
 data class HistoryRange(
     val from: Long,
     val to: Long,
-    val resolution: String = "auto",
+    val resolution: String = "raw",
     val limit: Int = 2000,
 ) {
     init {
         require(from >= 0 && to > from)
-        require(resolution in setOf("auto", "raw", "5m", "1h"))
+        require(resolution in setOf("raw", "5m", "1h"))
         require(limit in 1..2000)
     }
 }

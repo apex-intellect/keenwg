@@ -34,6 +34,6 @@ data class ConnectionsUiState(
     val pendingActivation: CatalogNode? = null,
     val editingSubscriptionSourceId: String? = null,
     val subscriptionLinkError: SubscriptionLinkError? = null,
-    val message: String? = null,
+    val messageResource: Int? = null,
     val notice: ConnectionNotice? = null,
 )

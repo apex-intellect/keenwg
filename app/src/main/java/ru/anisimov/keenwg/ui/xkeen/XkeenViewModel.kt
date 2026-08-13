@@ -25,6 +25,7 @@ import ru.anisimov.keenwg.data.xkeen.XkeenStatus
 import ru.anisimov.keenwg.data.store.XkeenPreferenceGateway
 import ru.anisimov.keenwg.data.store.XkeenPreferences
 import ru.anisimov.keenwg.data.store.serverIdentity
+import ru.anisimov.keenwg.R
 
 data class XkeenUiState(
     val loading: Boolean = true,
@@ -33,7 +34,7 @@ data class XkeenUiState(
     val staleStatus: XkeenStatus? = null,
     val pendingNode: XkeenNode? = null,
     val operation: XkeenOperation? = null,
-    val message: String? = null,
+    val messageResource: Int? = null,
     val blocksMutation: Boolean = false,
     val busy: Boolean = false,
     val diagnosticsBusy: Boolean = false,
@@ -74,11 +75,11 @@ class XkeenViewModel constructor(
                 _state.value = _state.value.copy(
                     loading = false,
                     needsSetup = true,
-                    message = null,
+                    messageResource = null,
                 )
                 return@launch
             }
-            _state.value = _state.value.copy(loading = _state.value.status == null, needsSetup = false, message = null)
+            _state.value = _state.value.copy(loading = _state.value.status == null, needsSetup = false, messageResource = null)
             try {
                 applyStatus(repository.status(endpoint))
             } catch (_: Exception) {
@@ -86,7 +87,7 @@ class XkeenViewModel constructor(
                 _state.value = _state.value.copy(
                     loading = false,
                     staleStatus = previous,
-                    message = LOAD_FAILURE,
+                    messageResource = R.string.xkeen_message_load_failed,
                 )
             }
         } finally {
@@ -103,7 +104,7 @@ class XkeenViewModel constructor(
         if (current.busy || current.blocksMutation || current.pendingNode != null) return
         val canonical = current.status?.subscription?.nodes?.firstOrNull { it.id == node.id } ?: return
         if (canonical.id == current.status.active?.id) return
-        _state.value = current.copy(pendingNode = canonical, message = null)
+        _state.value = current.copy(pendingNode = canonical, messageResource = null)
     }
 
     fun dismissSelection() {
@@ -118,7 +119,7 @@ class XkeenViewModel constructor(
     }
 
     fun clearMessage() {
-        _state.value = _state.value.copy(message = null)
+        _state.value = _state.value.copy(messageResource = null)
     }
 
     fun setFavoritesOnly(value: Boolean) {
@@ -134,7 +135,7 @@ class XkeenViewModel constructor(
         try {
             val endpoint = runCatching { activeProfileFlow.first()?.requireCompanionEndpoint() }.getOrNull()
             if (endpoint == null || _state.value.status == null) return@launch
-            _state.value = _state.value.copy(diagnosticsBusy = true, message = null)
+            _state.value = _state.value.copy(diagnosticsBusy = true, messageResource = null)
             try {
                 val report = repository.diagnostics(endpoint)
                 _state.value = _state.value.copy(
@@ -142,7 +143,7 @@ class XkeenViewModel constructor(
                     diagnosticsCheckedAt = report.checkedAt,
                 )
             } catch (failure: Exception) {
-                _state.value = _state.value.copy(message = failure.message ?: DIAGNOSTICS_FAILURE)
+                _state.value = _state.value.copy(messageResource = R.string.xkeen_message_diagnostics_failed)
             }
         } finally {
             _state.value = _state.value.copy(diagnosticsBusy = false)
@@ -158,7 +159,7 @@ class XkeenViewModel constructor(
         if (before.busy || before.blocksMutation || before.status == null || !mutationMutex.tryLock()) {
             return completedJob()
         }
-        _state.value = before.copy(busy = true, pendingNode = target, message = null)
+        _state.value = before.copy(busy = true, pendingNode = target, messageResource = null)
         return viewModelScope.launch {
             try {
                 val status = before.status
@@ -174,18 +175,18 @@ class XkeenViewModel constructor(
                 _state.value = _state.value.copy(
                     operation = result,
                     blocksMutation = result.result == XkeenOperationResult.UNCERTAIN,
-                    message = resultMessage(result),
+                    messageResource = resultMessageResource(result),
                 )
                 try {
                     applyStatus(repository.status(endpoint), preserveMessage = true)
                 } catch (_: Exception) {
                     _state.value = _state.value.copy(
                         staleStatus = _state.value.status,
-                        message = if (_state.value.message == null) LOAD_FAILURE else _state.value.message,
+                        messageResource = _state.value.messageResource ?: R.string.xkeen_message_load_failed,
                     )
                 }
             } catch (failure: Exception) {
-                _state.value = _state.value.copy(message = failure.message ?: MUTATION_FAILURE)
+                _state.value = _state.value.copy(messageResource = R.string.xkeen_message_operation_failed)
             } finally {
                 _state.value = _state.value.copy(busy = false, pendingNode = null, loading = false)
                 mutationMutex.unlock()
@@ -200,7 +201,7 @@ class XkeenViewModel constructor(
             status = status,
             staleStatus = null,
             operation = status.operation ?: _state.value.operation,
-            message = if (preserveMessage) _state.value.message else null,
+            messageResource = if (preserveMessage) _state.value.messageResource else null,
             blocksMutation = status.operation.blocksMutation(),
         )
     }
@@ -208,21 +209,16 @@ class XkeenViewModel constructor(
     private fun XkeenOperation?.blocksMutation(): Boolean = this != null &&
         (state != XkeenOperationState.TERMINAL || result == XkeenOperationResult.UNCERTAIN)
 
-    private fun resultMessage(operation: XkeenOperation): String = when (operation.result) {
-        XkeenOperationResult.SUCCESS -> if (operation.kind == "refresh") "Подписка обновлена" else "Узел переключён и проверен"
-        XkeenOperationResult.FAILED_ROLLED_BACK -> "Переключение не удалось; прежний узел восстановлен"
-        XkeenOperationResult.FAILED_NO_CHANGE -> "Изменения не применялись"
-        XkeenOperationResult.UNCERTAIN -> "Состояние XKeen требует проверки"
-        null -> MUTATION_FAILURE
+    private fun resultMessageResource(operation: XkeenOperation): Int = when (operation.result) {
+        XkeenOperationResult.SUCCESS -> if (operation.kind == "refresh") R.string.xkeen_message_subscription_updated else R.string.xkeen_message_node_changed
+        XkeenOperationResult.FAILED_ROLLED_BACK -> R.string.xkeen_message_rolled_back
+        XkeenOperationResult.FAILED_NO_CHANGE -> R.string.xkeen_message_no_change
+        XkeenOperationResult.UNCERTAIN -> R.string.xkeen_message_uncertain
+        null -> R.string.xkeen_message_operation_failed
     }
 
     private fun completedJob() = Job().apply { complete() }
 
-    private companion object {
-        const val LOAD_FAILURE = "Не удалось обновить статус XKeen"
-        const val MUTATION_FAILURE = "Не удалось выполнить операцию XKeen"
-        const val DIAGNOSTICS_FAILURE = "Не удалось проверить доступность серверов"
-    }
 }
 
 private object EmptyPreferences : XkeenPreferenceGateway {

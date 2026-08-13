@@ -22,6 +22,7 @@ import ru.anisimov.keenwg.data.catalog.ImportParser
 import ru.anisimov.keenwg.data.catalog.SourceConfigurationGateway
 import ru.anisimov.keenwg.data.catalog.SourceConfigurationStatus
 import ru.anisimov.keenwg.data.store.ActiveRouterProfile
+import ru.anisimov.keenwg.R
 
 class ConnectionsViewModel(
     private val activeProfile: Flow<ActiveRouterProfile?>,
@@ -49,7 +50,7 @@ class ConnectionsViewModel(
             _state.value = ConnectionsUiState(loading = false, setupRequired = true)
             return@launch
         }
-        _state.value = _state.value.copy(loading = true, loadError = null, message = null, notice = null)
+        _state.value = _state.value.copy(loading = true, loadError = null, messageResource = null, notice = null)
         runCatching { gateway.snapshot(active.profile, active.secrets.companionToken) }
             .onSuccess { catalog ->
                 val selected = _state.value.selectedGroupId?.takeIf { id -> catalog.groups.any { it.id == id } }
@@ -77,7 +78,7 @@ class ConnectionsViewModel(
                 _state.value = _state.value.copy(
                     loading = false,
                     loadError = (failure as? CatalogException)?.code,
-                    message = null,
+                    messageResource = null,
                     notice = null,
                 )
             }
@@ -94,11 +95,11 @@ class ConnectionsViewModel(
                 node.host.equals(preview.host, ignoreCase = true) && node.port == preview.port &&
                     (preview.protocol == null || node.protocol.name == preview.protocol.name)
             }
-            _state.value = _state.value.copy(pendingImport = PendingImport(preview, duplicate), message = null, notice = null)
+            _state.value = _state.value.copy(pendingImport = PendingImport(preview, duplicate), messageResource = null, notice = null)
         } catch (_: Exception) {
             source.fill(0)
             drafts.clear()
-            _state.value = _state.value.copy(pendingImport = null, message = "Не удалось распознать источник")
+            _state.value = _state.value.copy(pendingImport = null, messageResource = R.string.connections_message_import_unrecognized)
         }
     }
 
@@ -111,12 +112,12 @@ class ConnectionsViewModel(
         val pending = _state.value.pendingImport ?: return@launch
         val catalog = _state.value.catalog ?: return@launch
         if (label.isBlank() || catalog.groups.none { it.id == groupId }) {
-            _state.value = _state.value.copy(message = "Выберите группу и название")
+            _state.value = _state.value.copy(messageResource = R.string.connections_message_choose_group_and_name)
             return@launch
         }
         val source = drafts.take()
         if (source == null) {
-            _state.value = _state.value.copy(pendingImport = null, message = "Черновик импорта истёк — добавьте источник снова")
+            _state.value = _state.value.copy(pendingImport = null, messageResource = R.string.connections_message_import_expired)
             return@launch
         }
         val active = activeProfile.first() ?: return@launch
@@ -128,7 +129,7 @@ class ConnectionsViewModel(
             applyOperation(operation)
             _state.value = _state.value.copy(pendingImport = null)
         } catch (_: Exception) {
-            _state.value = _state.value.copy(pendingImport = null, message = "Не удалось сохранить источник")
+            _state.value = _state.value.copy(pendingImport = null, messageResource = R.string.connections_message_save_source_failed)
         } finally {
             source.fill(0)
         }
@@ -142,7 +143,7 @@ class ConnectionsViewModel(
                 editingSubscriptionSourceId = sourceId,
                 subscriptionLinkError = null,
                 notice = null,
-                message = null,
+                messageResource = null,
             )
             return viewModelScope.launch { }
         }
@@ -164,7 +165,7 @@ class ConnectionsViewModel(
             editingSubscriptionSourceId = sourceId,
             subscriptionLinkError = null,
             notice = null,
-            message = null,
+            messageResource = null,
         )
     }
 
@@ -176,7 +177,7 @@ class ConnectionsViewModel(
             ) return@launch
             val active = activeProfile.first() ?: return@launch
             setSourceAction(sourceId, SourceActionState.SAVING_LINK)
-            _state.value = _state.value.copy(subscriptionLinkError = null, notice = null, message = null)
+            _state.value = _state.value.copy(subscriptionLinkError = null, notice = null, messageResource = null)
             val result = sourceConfigurations.replace(
                 active.profile,
                 active.secrets.companionToken,
@@ -195,7 +196,7 @@ class ConnectionsViewModel(
                 subscriptionLinkError = subscriptionLinkError(failure),
                 editingSubscriptionSourceId = sourceId,
                 notice = null,
-                message = null,
+                messageResource = null,
             )
         } finally {
             value.fill(0)
@@ -209,7 +210,7 @@ class ConnectionsViewModel(
         val node = catalog.nodes.firstOrNull { it.id == nodeId && it.testable } ?: return@launch
         if (nodeId in current.busyNodes) return@launch
         val active = activeProfile.first() ?: return@launch
-        _state.value = current.copy(busyNodes = current.busyNodes + nodeId, message = null)
+        _state.value = current.copy(busyNodes = current.busyNodes + nodeId, messageResource = null)
         try {
             val operation = gateway.testNode(active.profile, active.secrets.companionToken, catalog.stateVersion, keyFactory(), nodeId)
             val nextCatalog = operation.catalog ?: catalog
@@ -217,9 +218,9 @@ class ConnectionsViewModel(
             val tests = if (test != null && test.nodeId == nodeId) {
                 _state.value.tests + (nodeId to TestedNode(test, nextCatalog.stateVersion, nowMillis()))
             } else _state.value.tests
-            _state.value = _state.value.copy(catalog = nextCatalog, tests = tests, message = null, notice = null)
+            _state.value = _state.value.copy(catalog = nextCatalog, tests = tests, messageResource = null, notice = null)
         } catch (_: Exception) {
-            reconcile("Не удалось проверить узел")
+            reconcile(R.string.connections_message_test_failed)
         }
         _state.value = _state.value.copy(busyNodes = _state.value.busyNodes - nodeId)
     }
@@ -231,8 +232,8 @@ class ConnectionsViewModel(
         val test = current.tests[nodeId]
         val valid = test?.result?.reachable == true && test.catalogVersion == catalog.stateVersion &&
             nowMillis() - test.receivedAtMillis <= TEST_TTL_MILLIS
-        _state.value = if (valid) current.copy(pendingActivation = node, message = null)
-        else current.copy(message = "Сначала проверьте доступность этого узла")
+        _state.value = if (valid) current.copy(pendingActivation = node, messageResource = null)
+        else current.copy(messageResource = R.string.connections_message_test_first)
     }
 
     fun dismissActivation() { _state.value = _state.value.copy(pendingActivation = null) }
@@ -242,11 +243,11 @@ class ConnectionsViewModel(
         val target = current.pendingActivation ?: return@launch
         val catalog = current.catalog ?: return@launch
         val active = activeProfile.first() ?: return@launch
-        _state.value = current.copy(busyNodes = current.busyNodes + target.id, message = null)
+        _state.value = current.copy(busyNodes = current.busyNodes + target.id, messageResource = null)
         try {
             applyOperation(gateway.activateNode(active.profile, active.secrets.companionToken, catalog.stateVersion, keyFactory(), target.id))
         } catch (_: Exception) {
-            reconcile("Ответ потерян — состояние перечитано")
+            reconcile(R.string.connections_message_response_lost)
         }
         _state.value = _state.value.copy(pendingActivation = null, busyNodes = _state.value.busyNodes - target.id)
     }
@@ -268,7 +269,7 @@ class ConnectionsViewModel(
         _state.value = current.copy(
             busySources = current.busySources + sourceId,
             sourceActions = current.sourceActions + (sourceId to SourceActionState.REFRESHING),
-            message = null,
+            messageResource = null,
             notice = null,
         )
         try {
@@ -280,7 +281,7 @@ class ConnectionsViewModel(
                         (sourceId to SourceConfigurationStatus(false)),
                     editingSubscriptionSourceId = sourceId,
                     subscriptionLinkError = null,
-                    message = null,
+                    messageResource = null,
                     notice = null,
                 )
                 return
@@ -292,7 +293,7 @@ class ConnectionsViewModel(
                 ?: 0
             applyOperation(operation, connectionOperationNotice(operation.result, operation.error, serverCount))
         } catch (_: Exception) {
-            reconcile("Не удалось загрузить актуальный список серверов", ConnectionNotice.ActionFailed)
+            reconcile(R.string.connections_message_refresh_failed, ConnectionNotice.ActionFailed)
         } finally {
             _state.value = _state.value.copy(
                 busySources = _state.value.busySources - sourceId,
@@ -329,18 +330,18 @@ class ConnectionsViewModel(
         _state.value = old.copy(
             catalog = next,
             tests = if (next?.stateVersion != old.catalog?.stateVersion) emptyMap() else old.tests,
-            message = null,
+            messageResource = null,
             notice = notice,
         )
     }
 
-    private suspend fun reconcile(message: String, notice: ConnectionNotice? = null) {
+    private suspend fun reconcile(messageResource: Int, notice: ConnectionNotice? = null) {
         val active = activeProfile.first() ?: return
         val snapshot = runCatching { gateway.snapshot(active.profile, active.secrets.companionToken) }.getOrNull()
         _state.value = _state.value.copy(
             catalog = snapshot ?: _state.value.catalog,
             tests = emptyMap(),
-            message = message.takeIf { notice == null },
+            messageResource = messageResource.takeIf { notice == null },
             notice = notice,
         )
     }

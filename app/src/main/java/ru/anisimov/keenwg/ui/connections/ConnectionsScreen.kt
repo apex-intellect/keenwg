@@ -12,14 +12,16 @@ import android.content.ContextWrapper
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -220,7 +222,15 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
                 )
             }
         }
-        state.message?.let { item { StatusNotice(stringResource(R.string.connections_notice_title), detail = it, isError = true) } }
+        state.messageResource?.let { messageResource ->
+            item {
+                StatusNotice(
+                    stringResource(R.string.connections_notice_title),
+                    detail = stringResource(messageResource),
+                    isError = true,
+                )
+            }
+        }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = state.selectedGroupId == null, onClick = { viewModel.selectGroup(null) }, label = { Text(stringResource(R.string.ui_connectionsscreen_215816bf42)) })
@@ -342,7 +352,9 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
         items(cards, key = { it.id }) { card ->
             val test = state.tests[card.id]?.result
             Card(
-                modifier = Modifier.fillMaxWidth().clickable(enabled = !card.active && card.id !in state.busyNodes) { viewModel.requestActivation(card.id) },
+                onClick = { viewModel.requestActivation(card.id) },
+                enabled = !card.active && card.id !in state.busyNodes,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 158.dp),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = if (card.active) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surface),
             ) {
@@ -363,7 +375,17 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
                         }
                         if (card.active) Icon(Icons.Default.CheckCircle, stringResource(R.string.active), tint = MaterialTheme.colorScheme.tertiary)
                     }
-                    if (test != null) Text(if (test.reachable) stringResource(R.string.reachable_latency, test.latencyMs) else stringResource(R.string.ui_connectionsscreen_53ba89acf4), style = MaterialTheme.typography.labelMedium)
+                    Box(Modifier.fillMaxWidth().height(20.dp), contentAlignment = Alignment.CenterStart) {
+                        if (test != null) {
+                            Text(
+                                if (test.reachable) stringResource(R.string.reachable_latency, test.latencyMs)
+                                else stringResource(R.string.ui_connectionsscreen_53ba89acf4),
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                     if (card.testable && !card.active) OutlinedButton(onClick = { viewModel.testNode(card.id) }, enabled = card.id !in state.busyNodes, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Speed, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(if (test == null) stringResource(R.string.ui_connectionsscreen_e4424a6df6) else stringResource(R.string.ui_connectionsscreen_dc7dbeb809))
                     }

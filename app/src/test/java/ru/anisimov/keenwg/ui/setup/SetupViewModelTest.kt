@@ -119,7 +119,6 @@ class SetupViewModelTest {
         val failed = vm.state.value as SetupState.Failed
         assertEquals(InstallPhase.INSTALL, failed.phase)
         assertTrue(failed.rollbackVerified)
-        assertFalse(failed.safeMessage.contains("install-secret"))
         assertTrue(password.all { it == 0.toByte() })
     }
 

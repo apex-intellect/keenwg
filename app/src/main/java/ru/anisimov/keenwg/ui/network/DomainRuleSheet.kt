@@ -43,7 +43,7 @@ fun DomainRuleDialog(
                 if (editor.reviewing) {
                     Text(stringResource(R.string.ui_domainrulesheet_badb2f85d6), style = MaterialTheme.typography.titleMedium)
                         Text(stringResource(R.string.domain_rule_summary, stringResource(domainRuleKindResource(draft.kind)), displayValue(draft)))
-                        Text(stringResource(R.string.domain_rule_route, domainEffectLabel(draft.effect)))
+                        Text(stringResource(R.string.domain_rule_route, stringResource(domainEffectResource(draft.effect))))
                     Text(stringResource(R.string.ui_domainrulesheet_73ff0c584c), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Text(stringResource(R.string.ui_domainrulesheet_d4a6795c19), style = MaterialTheme.typography.labelLarge)
@@ -98,7 +98,7 @@ fun DomainDeleteDialog(rule: DomainRule, busy: Boolean, onConfirm: () -> Unit, o
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.ui_domainrulesheet_3f123137fa)) },
-            text = { Text(stringResource(R.string.domain_rule_delete_detail, rule.label.ifBlank { rule.value }, domainEffectLabel(rule.effect))) },
+            text = { Text(stringResource(R.string.domain_rule_delete_detail, rule.label.ifBlank { rule.value }, stringResource(domainEffectResource(rule.effect)))) },
         confirmButton = { Button(onClick = onConfirm, enabled = !busy) { Text(stringResource(R.string.ui_domainrulesheet_be99b13612)) } },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.ui_domainrulesheet_8fbe9b75cb)) } },
     )

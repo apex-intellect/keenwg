@@ -14,14 +14,14 @@ import ru.anisimov.keenwg.domain.model.RouterSecrets
 
 @Serializable
 data class RouterProfileIndex(
-    @SerialName("schema_version") val schemaVersion: Int = 3,
+    @SerialName("schema_version") val schemaVersion: Int = 4,
     @SerialName("selected_profile_id") val selectedProfileId: String,
     val profiles: List<RouterProfile>,
 )
 
 @Serializable
 private data class RouterSecretDocument(
-    @SerialName("schema_version") val schemaVersion: Int = 2,
+    @SerialName("schema_version") val schemaVersion: Int = 3,
     val secrets: Map<String, RouterSecrets>,
 )
 
@@ -40,9 +40,10 @@ object RouterProfileCodec {
     fun decodeIndex(raw: String): RouterProfileIndex {
         val root = json.parseToJsonElement(raw).jsonObject
         val migrated = when (root.schemaVersion()) {
-            1 -> migrateIndexV2(migrateIndexV1(root))
-            2 -> migrateIndexV2(root)
-            3 -> root
+            1 -> migrateIndexV3(migrateIndexV2(migrateIndexV1(root)))
+            2 -> migrateIndexV3(migrateIndexV2(root))
+            3 -> migrateIndexV3(root)
+            4 -> root
             else -> throw IllegalArgumentException("Unsupported router profile schema")
         }
         return json.decodeFromJsonElement(RouterProfileIndex.serializer(), migrated).also(::validate)
@@ -54,12 +55,13 @@ object RouterProfileCodec {
     fun decodeSecrets(raw: String): Map<String, RouterSecrets> {
         val root = json.parseToJsonElement(raw).jsonObject
         val migrated = when (root.schemaVersion()) {
-            1 -> migrateSecretsV1(root)
-            2 -> root
+            1 -> migrateSecretsV2(migrateSecretsV1(root))
+            2 -> migrateSecretsV2(root)
+            3 -> root
             else -> throw IllegalArgumentException("Unsupported router secret schema")
         }
         val document = json.decodeFromJsonElement(RouterSecretDocument.serializer(), migrated)
-        require(document.schemaVersion == 2) { "Unsupported router secret schema" }
+        require(document.schemaVersion == 3) { "Unsupported router secret schema" }
         return document.secrets
     }
 
@@ -94,6 +96,19 @@ object RouterProfileCodec {
         })
     }
 
+    private fun migrateIndexV3(root: JsonObject): JsonObject {
+        val profiles = root["profiles"] as? JsonArray ?: error("Router profiles are missing")
+        return JsonObject(root.toMutableMap().apply {
+            this["schema_version"] = JsonPrimitive(4)
+            this["profiles"] = JsonArray(profiles.map { element ->
+                JsonObject(element.jsonObject.toMutableMap().apply {
+                    remove("collectorUrl")
+                    this["schemaVersion"] = JsonPrimitive(4)
+                })
+            })
+        })
+    }
+
     private fun migrateSecretsV1(root: JsonObject): JsonObject {
         val secrets = root["secrets"]?.jsonObject ?: error("Router secrets are missing")
         return JsonObject(root.toMutableMap().apply {
@@ -104,14 +119,24 @@ object RouterProfileCodec {
         })
     }
 
+    private fun migrateSecretsV2(root: JsonObject): JsonObject {
+        val secrets = root["secrets"]?.jsonObject ?: error("Router secrets are missing")
+        return JsonObject(root.toMutableMap().apply {
+            this["schema_version"] = JsonPrimitive(3)
+            this["secrets"] = JsonObject(secrets.mapValues { (_, element) ->
+                JsonObject(element.jsonObject.toMutableMap().apply { remove("collectorToken") })
+            })
+        })
+    }
+
     private fun JsonObject.schemaVersion(): Int = this["schema_version"]?.jsonPrimitive?.int
         ?: error("Router schema version is missing")
 
     private fun validate(index: RouterProfileIndex) {
-        require(index.schemaVersion == 3) { "Unsupported router profile schema" }
+        require(index.schemaVersion == 4) { "Unsupported router profile schema" }
         require(index.profiles.isNotEmpty()) { "At least one router profile is required" }
         require(index.profiles.all {
-            it.schemaVersion == 3 && it.id.isNotBlank() && it.displayName.isNotBlank() &&
+            it.schemaVersion == 4 && it.id.isNotBlank() && it.displayName.isNotBlank() &&
                 (it.sshHost.isBlank() || (it.sshHost.length <= 253 && it.sshHost.none { char ->
                     char.isWhitespace() || char.isISOControl() || char in "/\\@"
                 })) &&

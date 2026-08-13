@@ -13,8 +13,10 @@ import ru.anisimov.keenwg.data.ServiceLocator
 import ru.anisimov.keenwg.domain.IpAllocator
 import ru.anisimov.keenwg.domain.model.Peer
 import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.domain.normalizePeerName
 import ru.anisimov.keenwg.domain.model.AccessPolicy
 import ru.anisimov.keenwg.domain.model.AccessPolicyValidator
+import ru.anisimov.keenwg.R
 
 interface AddPeerGateway {
     suspend fun list(settings: ServerSettings): List<Peer>
@@ -39,7 +41,7 @@ data class AddPeerUiState(
     val stage: AddPeerStage = AddPeerStage.FORM,
     val preparing: Boolean = false,
     val busy: Boolean = false,
-    val error: String? = null,
+    val errorResource: Int? = null,
     val result: AddResult? = null,
     val allowedNetworks: String = "0.0.0.0/0",
     val dnsServers: String = "",
@@ -59,12 +61,12 @@ class AddPeerViewModel @JvmOverloads constructor(
 
     fun onNameChange(value: String) {
         if (_state.value.busy) return
-        _state.value = _state.value.copy(name = value, error = null, stage = AddPeerStage.FORM, reviewedPolicy = null)
+        _state.value = _state.value.copy(name = value, errorResource = null, stage = AddPeerStage.FORM, reviewedPolicy = null)
     }
 
     fun onIpChange(value: String) {
         if (_state.value.busy) return
-        _state.value = _state.value.copy(ip = value, error = null, stage = AddPeerStage.FORM, reviewedPolicy = null)
+        _state.value = _state.value.copy(ip = value, errorResource = null, stage = AddPeerStage.FORM, reviewedPolicy = null)
     }
 
     fun onAllowedNetworksChange(value: String) = editPolicy { copy(allowedNetworks = value) }
@@ -76,23 +78,29 @@ class AddPeerViewModel @JvmOverloads constructor(
         val submitted = _state.value
         if (submitted.busy || submitted.result != null) return
         if (submitted.name.isBlank()) {
-            _state.value = submitted.copy(error = "Укажите название устройства")
+            _state.value = submitted.copy(errorResource = R.string.add_error_name_required)
+            return
+        }
+        if (submitted.expiryDays.isNotBlank() && submitted.expiryDays.toLongOrNull() == null) {
+            _state.value = submitted.copy(errorResource = R.string.add_error_expiry_invalid)
+            return
+        }
+        val requestedDays = submitted.expiryDays.takeIf(String::isNotBlank)?.toLongOrNull()
+        if (requestedDays != null && requestedDays !in 1..3650) {
+            _state.value = submitted.copy(errorResource = R.string.add_error_expiry_range)
             return
         }
         runCatching {
-            val days = submitted.expiryDays.takeIf(String::isNotBlank)?.toLongOrNull()
-                ?: if (submitted.expiryDays.isBlank()) null else error("Некорректный срок действия")
-            if (days != null) require(days in 1..3650) { "Срок действия должен быть от 1 до 3650 дней" }
             AccessPolicy(
                 allowedNetworks = splitPolicyValues(submitted.allowedNetworks),
                 dnsServers = splitPolicyValues(submitted.dnsServers),
-                expiresAtEpochSeconds = days?.let { nowEpochSeconds + it * 86_400L },
+                expiresAtEpochSeconds = requestedDays?.let { nowEpochSeconds + it * 86_400L },
                 historyEnabled = submitted.historyEnabled,
             ).also { AccessPolicyValidator.requireValid(it, nowEpochSeconds) }
         }.onSuccess { policy ->
-            _state.value = submitted.copy(stage = AddPeerStage.REVIEW, reviewedPolicy = policy, error = null)
-        }.onFailure { error ->
-            _state.value = submitted.copy(stage = AddPeerStage.FORM, reviewedPolicy = null, error = error.safeMessage())
+            _state.value = submitted.copy(stage = AddPeerStage.REVIEW, reviewedPolicy = policy, errorResource = null)
+        }.onFailure {
+            _state.value = submitted.copy(stage = AddPeerStage.FORM, reviewedPolicy = null, errorResource = R.string.add_error_policy_invalid)
         }
     }
 
@@ -102,12 +110,12 @@ class AddPeerViewModel @JvmOverloads constructor(
 
     fun prepare(): Job = viewModelScope.launch {
         if (_state.value.preparing || _state.value.busy || _state.value.result != null) return@launch
-        _state.value = _state.value.copy(preparing = true, stage = AddPeerStage.PREPARING, error = null)
+        _state.value = _state.value.copy(preparing = true, stage = AddPeerStage.PREPARING, errorResource = null)
         runCatching {
             val settings = settingsGateway.settings()
             val taken = gateway.list(settings).mapNotNull(Peer::ip).toSet()
             IpAllocator.nextFreeIp(settings.subnetBase, taken)
-                ?: error("В подсети WireGuard нет свободного адреса")
+                ?: throw NoFreeWireGuardAddress()
         }.onSuccess { suggested ->
             _state.value = _state.value.copy(
                 ip = _state.value.ip.ifBlank { suggested },
@@ -118,7 +126,7 @@ class AddPeerViewModel @JvmOverloads constructor(
             _state.value = _state.value.copy(
                 preparing = false,
                 stage = AddPeerStage.FORM,
-                error = error.safeMessage(),
+                errorResource = if (error is NoFreeWireGuardAddress) R.string.add_error_no_free_ip else R.string.add_error_prepare_failed,
             )
         }
     }
@@ -130,7 +138,7 @@ class AddPeerViewModel @JvmOverloads constructor(
         _state.value = submitted.copy(
             busy = true,
             stage = AddPeerStage.APPLYING_AND_VERIFYING,
-            error = null,
+            errorResource = null,
         )
         runCatching {
             val settings = settingsGateway.settings()
@@ -146,11 +154,11 @@ class AddPeerViewModel @JvmOverloads constructor(
                 stage = AddPeerStage.SUCCESS,
                 result = result,
             )
-        }.onFailure { error ->
+        }.onFailure {
             _state.value = _state.value.copy(
                 busy = false,
                 stage = AddPeerStage.FORM,
-                error = error.safeMessage(),
+                errorResource = R.string.add_error_create_failed,
             )
         }
     }
@@ -162,7 +170,7 @@ class AddPeerViewModel @JvmOverloads constructor(
 
     private fun editPolicy(transform: AddPeerUiState.() -> AddPeerUiState) {
         if (_state.value.busy) return
-        _state.value = _state.value.transform().copy(stage = AddPeerStage.FORM, reviewedPolicy = null, error = null)
+        _state.value = _state.value.transform().copy(stage = AddPeerStage.FORM, reviewedPolicy = null, errorResource = null)
     }
 }
 
@@ -171,34 +179,10 @@ private fun splitPolicyValues(value: String): List<String> = value
     .map(String::trim)
     .filter(String::isNotEmpty)
 
-/** Converts a human label into KeenOS' conservative ASCII peer-name format. */
-internal fun normalizePeerName(value: String): String {
-    val transliterated = buildString {
-        value.trim().lowercase().forEach { char ->
-            append(CYRILLIC_TO_LATIN[char] ?: char)
-        }
-    }
-    return transliterated
-        .replace(Regex("[^a-z0-9_-]+"), "-")
-        .replace(Regex("[-_]{2,}"), "-")
-        .trim('-', '_')
-        .take(64)
-        .trimEnd('-', '_')
-        .ifBlank { "device" }
-}
-
-private val CYRILLIC_TO_LATIN = mapOf(
-    'а' to "a", 'б' to "b", 'в' to "v", 'г' to "g", 'д' to "d", 'е' to "e", 'ё' to "e",
-    'ж' to "zh", 'з' to "z", 'и' to "i", 'й' to "y", 'к' to "k", 'л' to "l", 'м' to "m",
-    'н' to "n", 'о' to "o", 'п' to "p", 'р' to "r", 'с' to "s", 'т' to "t", 'у' to "u",
-    'ф' to "f", 'х' to "h", 'ц' to "ts", 'ч' to "ch", 'ш' to "sh", 'щ' to "sch",
-    'ъ' to "", 'ы' to "y", 'ь' to "", 'э' to "e", 'ю' to "yu", 'я' to "ya",
-)
-
 private fun serviceAddPeerGateway(): AddPeerGateway = object : AddPeerGateway {
     override suspend fun list(settings: ServerSettings) = ServiceLocator.repository.list(settings)
     override suspend fun add(settings: ServerSettings, name: String, ip: String?, policy: AccessPolicy) =
         ServiceLocator.repository.add(settings, name, ip, policy)
 }
 
-private fun Throwable.safeMessage(): String = message ?: "Не удалось создать доступ"
+private class NoFreeWireGuardAddress : IllegalStateException()

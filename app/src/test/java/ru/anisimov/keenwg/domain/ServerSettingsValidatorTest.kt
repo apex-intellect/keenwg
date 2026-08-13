@@ -40,26 +40,6 @@ class ServerSettingsValidatorTest {
         assertTrue(PeerInputValidator.validate("phone", "10.8.0.007", "10.8.0.", emptySet()).isNotEmpty())
     }
 
-    @Test fun `collector is optional but cleartext public collector is rejected`() {
-        assertTrue(ServerSettingsValidator.validateCollectorUrl("") == null)
-        assertTrue(ServerSettingsValidator.validateCollectorUrl("http://8.8.8.8:18777") != null)
-        assertTrue(ServerSettingsValidator.validateCollectorUrl("http://10.8.0.1:18777") == null)
-        assertTrue(ServerSettingsValidator.validateCollectorUrl("http://100.64.0.1:18777") == null)
-        assertTrue(ServerSettingsValidator.validateCollectorUrl("http://127.0.0.1:18777") != null)
-        assertTrue(ServerSettingsValidator.validateCollectorUrl("http://169.254.1.1:18777") != null)
-    }
-
-    @Test fun `collector failure cannot block router peer mutations`() {
-        val settings = ServerSettings(
-            password = "secret",
-            serverPublicKey = key,
-            endpoint = "vpn.example.net:51820",
-            collectorUrl = "http://8.8.8.8:18777",
-        )
-
-        assertFalse(ServerSettingsValidator.validateForMutation(settings).any { it.field == "collectorUrl" })
-    }
-
     @Test fun `endpoint rejects paths and malformed bracketed ipv6`() {
         val base = ServerSettings(password = "secret", serverPublicKey = key)
         assertTrue(ServerSettingsValidator.validateForMutation(base.copy(endpoint = "vpn.example.net:51820/path")).any { it.field == "endpoint" })

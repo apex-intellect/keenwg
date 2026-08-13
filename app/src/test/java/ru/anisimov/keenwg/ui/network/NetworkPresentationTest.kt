@@ -37,12 +37,15 @@ class NetworkPresentationTest {
     }
 
     @Test fun `domain labels explain effect source and matcher`() {
-        assertEquals("Напрямую", domainEffectLabel("direct"))
-        assertEquals("Через VPN", domainEffectLabel("vpn"))
-        assertEquals("вручную", domainSourceLabel("manual"))
-        assertEquals("GeoSite", domainSourceLabel("geosite"))
-        assertEquals("Домен · okko.sport", domainMatcherLabel(rule()))
-        assertEquals("Зона · .ru", domainMatcherLabel(rule().copy(kind = "suffix", value = "ru")))
+        assertEquals(R.string.rules_direct, domainEffectResource("direct"))
+        assertEquals(R.string.rules_via_vpn, domainEffectResource("vpn"))
+        assertEquals(R.string.domain_source_manual, domainSourceResource("manual"))
+        assertEquals(R.string.domain_source_geosite, domainSourceResource("geosite"))
+        assertEquals(R.string.domain_matcher_domain, domainMatcherResource(rule()))
+        assertEquals("okko.sport", domainMatcherValue(rule()))
+        val suffix = rule().copy(kind = "suffix", value = "ru")
+        assertEquals(R.string.domain_matcher_zone, domainMatcherResource(suffix))
+        assertEquals("ru", domainMatcherValue(suffix))
     }
 
     @Test fun `domain rule kinds are resource backed`() {

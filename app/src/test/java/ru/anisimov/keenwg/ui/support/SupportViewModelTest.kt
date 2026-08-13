@@ -45,7 +45,7 @@ class SupportViewModelTest {
         assertFalse(vm.state.value.busy)
         assertEquals("KeenWG support report", vm.state.value.export!!.text)
         assertTrue(vm.state.value.export!!.json.contains("schema_version"))
-        assertNull(vm.state.value.error)
+        assertNull(vm.state.value.errorResource)
     }
 
     @Test fun `missing pairing becomes an actionable requirement without invoking gateway`() = runTest(dispatcher) {
@@ -64,7 +64,7 @@ class SupportViewModelTest {
 
             assertEquals(0, gateway.calls)
             assertEquals(SupportRequirement.COMPANION_PAIRING, vm.state.value.requirement)
-            assertNull(vm.state.value.error)
+            assertNull(vm.state.value.errorResource)
             assertNull(vm.state.value.export)
         }
     }

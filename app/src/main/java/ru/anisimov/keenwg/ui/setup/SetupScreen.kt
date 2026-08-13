@@ -443,14 +443,14 @@ private fun FailureContent(state: SetupState.Failed, onReset: () -> Unit) {
     TechnicalDetails {
         Text(stringResource(R.string.setup_failure_stage, state.phase.userCode()), style = MonoLabel)
         Spacer(Modifier.height(6.dp))
-        Text(state.safeMessage, style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(state.phase.failureBodyResource()), style = MaterialTheme.typography.bodySmall)
     }
     Button(onClick = onReset, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
         Text(stringResource(R.string.action_try_again))
     }
     OutlinedButton(
         onClick = {
-            clipboard.setText(AnnotatedString("KeenWG ${state.phase.userCode()}\n${state.safeMessage}\nrouter_unchanged_confirmed=${state.rollbackVerified}"))
+            clipboard.setText(AnnotatedString("KeenWG ${state.phase.userCode()}\nrouter_unchanged_confirmed=${state.rollbackVerified}"))
         },
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
     ) {

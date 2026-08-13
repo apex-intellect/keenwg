@@ -28,7 +28,10 @@ import ru.anisimov.keenwg.domain.model.HandshakeStatus
 import ru.anisimov.keenwg.domain.model.Peer
 import ru.anisimov.keenwg.domain.model.PeerStats
 import ru.anisimov.keenwg.data.collector.PeerId
+import ru.anisimov.keenwg.data.collector.HistoryException
+import ru.anisimov.keenwg.data.collector.HistoryFailure
 import ru.anisimov.keenwg.domain.model.AccessPolicy
+import ru.anisimov.keenwg.R
 import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -75,7 +78,7 @@ class PeerDetailViewModelTest {
         advanceUntilIdle()
 
         assertFalse(vm.state.value.initialLoading)
-        assertEquals("router offline", vm.state.value.loadError)
+        assertEquals(R.string.peer_error_load, vm.state.value.loadErrorResource)
     }
 
     @Test fun `cached peer remains visible when detail refresh is offline`() = runTest(dispatcher) {
@@ -90,8 +93,8 @@ class PeerDetailViewModelTest {
 
         assertEquals(cached, vm.state.value.peer)
         assertFalse(vm.state.value.initialLoading)
-        assertNull(vm.state.value.loadError)
-        assertEquals("router offline", vm.state.value.refreshError)
+        assertNull(vm.state.value.loadErrorResource)
+        assertEquals(R.string.peer_error_refresh, vm.state.value.refreshErrorResource)
     }
 
     @Test fun `delayed effect collector receives regenerated key exactly once`() = runTest(dispatcher) {
@@ -142,10 +145,10 @@ class PeerDetailViewModelTest {
         advanceUntilIdle()
 
         assertEquals(PeerDetailEffect.NavigateToPeer("new-key-3"), withTimeout(100) { vm.effects.first() })
-        assertEquals("local finalize failed", vm.state.value.refreshError)
+        assertEquals(R.string.peer_error_operation, vm.state.value.refreshErrorResource)
     }
 
-    @Test fun `collector failure keeps previously loaded stats`() = runTest(dispatcher) {
+    @Test fun `history failure keeps previously loaded stats`() = runTest(dispatcher) {
         val expected = stats()
         var calls = 0
         val vm = PeerDetailViewModel(
@@ -162,7 +165,49 @@ class PeerDetailViewModelTest {
         vm.refreshStats("stats-key"); advanceUntilIdle()
 
         assertEquals(expected, vm.state.value.stats)
-        assertEquals("Не удалось обновить историю наблюдений.", vm.state.value.collectorError)
+        assertEquals(PeerHistoryError.UNAVAILABLE, vm.state.value.historyError)
+    }
+
+    @Test fun `outdated Companion produces actionable update error`() = runTest(dispatcher) {
+        val vm = PeerDetailViewModel(
+            savedStateHandle = SavedStateHandle(),
+            peerGateway = gateway(listOf(peer("history-key"))),
+            settingsGateway = PeerDetailSettingsGateway { ServerSettings() },
+            statsGateway = PeerDetailStatsGateway { _, _, _, _ ->
+                throw HistoryException(HistoryFailure.UPDATE_COMPONENT)
+            },
+        )
+
+        vm.refreshStats("history-key")
+        advanceUntilIdle()
+
+        assertEquals(PeerHistoryError.UPDATE_COMPONENT, vm.state.value.historyError)
+    }
+
+    @Test fun `retry keeps the error card mounted until new history arrives`() = runTest(dispatcher) {
+        val next = CompletableDeferred<PeerStats>()
+        var calls = 0
+        val vm = PeerDetailViewModel(
+            savedStateHandle = SavedStateHandle(),
+            peerGateway = gateway(listOf(peer("retry-key"))),
+            settingsGateway = PeerDetailSettingsGateway { ServerSettings() },
+            statsGateway = PeerDetailStatsGateway { _, _, _, _ ->
+                if (calls++ == 0) throw HistoryException(HistoryFailure.UPDATE_COMPONENT) else next.await()
+            },
+        )
+        vm.refreshStats("retry-key")
+        advanceUntilIdle()
+
+        vm.refreshStats("retry-key")
+        runCurrent()
+
+        assertEquals(PeerHistoryError.UPDATE_COMPONENT, vm.state.value.historyError)
+        assertFalse(vm.state.value.historyLoading)
+        assertTrue(vm.state.value.historyRefreshing)
+
+        next.complete(stats())
+        advanceUntilIdle()
+        assertNull(vm.state.value.historyError)
     }
 
     @Test fun `history ranges downsample seven and thirty days`() {
@@ -198,7 +243,7 @@ class PeerDetailViewModelTest {
 
         assertEquals(
             listOf("old-id", PeerId.compute(interfaceId, currentKey)),
-            collectorPeerIds(interfaceId, currentKey, inherited),
+            historyPeerIds(interfaceId, currentKey, inherited),
         )
     }
 
@@ -221,7 +266,7 @@ class PeerDetailViewModelTest {
 
         assertEquals(PeerHistoryRange.WEEK, vm.state.value.selectedRange)
         assertNull(vm.state.value.stats)
-        assertNull(vm.state.value.collectorLastUpdated)
+        assertNull(vm.state.value.historyLastUpdated)
         next.complete(expected); advanceUntilIdle()
     }
 

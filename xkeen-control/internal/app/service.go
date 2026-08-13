@@ -23,6 +23,7 @@ import (
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/diagnostics"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/domainpolicy"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/exclusions"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/historyproxy"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/identity"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/ownedsource"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/routegraph"
@@ -215,6 +216,7 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 		api.WithSupport(newSupportReporter(store, version, support.NewDefault())),
 		api.WithBackup(backupManager{backupService}),
 		api.WithRouterLocal(routerlocal.NewService(routerlocal.ExecRunner{Executable: rootedPath(root, "/opt/bin/ndmq")})),
+		api.WithWireGuardHistory(historyproxy.New(rootedPath(root, "/opt/etc/keenwg/config.json"))),
 		api.WithSubscriptionConfiguration(subscriptionURLs),
 		api.WithSelfUpdater(selfUpdater),
 	}

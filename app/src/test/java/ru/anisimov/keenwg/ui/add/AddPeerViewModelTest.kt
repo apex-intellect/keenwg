@@ -1,5 +1,6 @@
 package ru.anisimov.keenwg.ui.add
 
+import ru.anisimov.keenwg.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -52,7 +53,7 @@ class AddPeerViewModelTest {
 
         assertEquals("Телефон Анны", vm.state.value.name)
         assertEquals("10.8.0.9", vm.state.value.ip)
-        assertEquals("роутер недоступен", vm.state.value.error)
+        assertEquals(R.string.add_error_create_failed, vm.state.value.errorResource)
         assertFalse(vm.state.value.busy)
         assertNull(vm.state.value.result)
     }

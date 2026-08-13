@@ -16,8 +16,6 @@ data class ServerSettings(
     val dns: String = "192.168.1.1",
     val mtu: Int = 1380,
     val keepalive: Int = 25,
-    val collectorUrl: String = "http://10.8.0.1:18777",
-    val collectorToken: String = "",
 ) {
     val baseUrl: String get() = "http://$host:$port"
 }

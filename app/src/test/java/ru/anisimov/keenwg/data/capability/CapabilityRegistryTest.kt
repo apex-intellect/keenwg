@@ -17,31 +17,26 @@ class CapabilityRegistryTest {
         assertEquals(
             emptySet<String>(),
             registry.resolve(
-                profile(host = "192.168.1.1", collector = "http://10.8.0.1:18777"),
+                profile(host = "192.168.1.1"),
                 RouterSecrets(),
             ).availableIds(),
         )
     }
 
-    @Test fun `configured direct transports independently reveal their capabilities`() {
+    @Test fun `legacy rci exposes only current WireGuard management and never history`() {
         val document = CapabilityRegistry().resolve(
             profile(
                 host = "192.168.1.1",
-                collector = "http://10.8.0.1:18777",
                 wireGuardConfigured = true,
             ),
             RouterSecrets(
                 rciLogin = "admin",
                 rciPassword = "router-password",
-                collectorToken = "collector-token",
             ),
         )
 
-        assertEquals(
-            setOf("access.wireguard", "history.wireguard"),
-            document.availableIds(),
-        )
-        assertEquals(setOf("collector", "rci"), document.capabilities.map { it.transport }.toSet())
+        assertEquals(setOf("access.wireguard"), document.availableIds())
+        assertEquals(setOf("rci"), document.capabilities.map { it.transport }.toSet())
     }
 
     @Test fun `companion declarations merge while direct module readiness remains local`() {
@@ -90,7 +85,6 @@ class CapabilityRegistryTest {
         val resolved = CapabilityRegistry().resolve(
             profile(
                 host = "192.168.1.1",
-                collector = "http://10.8.0.1:18777",
                 wireGuardConfigured = true,
             ),
             RouterSecrets(),
@@ -105,7 +99,6 @@ class CapabilityRegistryTest {
 
     private fun profile(
         host: String = "",
-        collector: String = "",
         wireGuardConfigured: Boolean = false,
     ) = RouterProfile(
         id = "router",
@@ -119,6 +112,5 @@ class CapabilityRegistryTest {
         dns = "192.168.1.1",
         mtu = 1380,
         keepalive = 25,
-        collectorUrl = collector,
     )
 }

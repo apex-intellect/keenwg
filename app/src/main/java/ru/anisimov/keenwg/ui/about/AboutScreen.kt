@@ -9,14 +9,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -28,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,7 +44,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,6 +56,9 @@ import ru.anisimov.keenwg.BuildConfig
 import ru.anisimov.keenwg.R
 
 private const val REPOSITORY_URL = "https://github.com/apex-intellect/keenwg"
+private const val COMPANY_URL = "https://apex-intellect.ru/"
+private const val DEVELOPER_URL = "https://github.com/th-notorious"
+private const val TRADEMARKS_URL = "$REPOSITORY_URL/blob/main/TRADEMARKS.md"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,7 +69,11 @@ fun AboutScreen(
     vm: AboutViewModel = viewModel(),
 ) {
     val expertMode by vm.expertMode.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val provenance = remember(context.applicationContext) {
+        currentBuildProvenance(context.applicationContext)
+    }
     var confirmExpertMode by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -83,36 +97,49 @@ fun AboutScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)),
+                shape = MaterialTheme.shapes.extraLarge,
             ) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Column {
-                            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Surface(
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            contentColor = MaterialTheme.colorScheme.surface,
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_apex_route_mark),
+                                contentDescription = null,
+                                modifier = Modifier.padding(10.dp).size(42.dp),
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                stringResource(R.string.app_name),
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                stringResource(R.string.brand_by_apex),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                             Text(
                                 stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                     Text(stringResource(R.string.about_summary), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedButton(
-                        onClick = { uriHandler.openUri(REPOSITORY_URL) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.Default.Code, contentDescription = null)
-                        Text(stringResource(R.string.about_source_code))
-                    }
-                    Text(
-                        stringResource(R.string.about_license),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    ProvenanceCard(provenance)
                 }
             }
 
@@ -131,6 +158,46 @@ fun AboutScreen(
                 }
             }
 
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.84f)),
+            ) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.about_company), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.about_company_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AboutLink(
+                        icon = Icons.Default.Code,
+                        label = stringResource(R.string.about_official_source),
+                        onClick = { uriHandler.openUri(REPOSITORY_URL) },
+                    )
+                    AboutLink(
+                        icon = Icons.Default.StarOutline,
+                        label = stringResource(R.string.about_star_github),
+                        onClick = { uriHandler.openUri(REPOSITORY_URL) },
+                    )
+                    AboutLink(
+                        icon = Icons.Default.Language,
+                        label = stringResource(R.string.about_company_website),
+                        onClick = { uriHandler.openUri(COMPANY_URL) },
+                    )
+                    AboutLink(
+                        icon = Icons.AutoMirrored.Filled.OpenInNew,
+                        label = stringResource(R.string.about_developer),
+                        onClick = { uriHandler.openUri(DEVELOPER_URL) },
+                    )
+                    AboutLink(
+                        icon = Icons.AutoMirrored.Filled.OpenInNew,
+                        label = stringResource(R.string.about_trademarks),
+                        onClick = { uriHandler.openUri(TRADEMARKS_URL) },
+                    )
+                    Text(
+                        stringResource(R.string.about_license),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             Text(
                 stringResource(R.string.about_expert_section),
                 style = MaterialTheme.typography.titleMedium,
@@ -138,7 +205,7 @@ fun AboutScreen(
             )
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.84f)),
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -164,7 +231,7 @@ fun AboutScreen(
                                 Icon(
                                     Icons.Default.WarningAmber,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.tertiary,
+                                    tint = MaterialTheme.colorScheme.secondary,
                                 )
                                 Text(
                                     stringResource(R.string.about_expert_warning),
@@ -200,5 +267,62 @@ fun AboutScreen(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun ProvenanceCard(provenance: BuildProvenance) {
+    val official = provenance == BuildProvenance.OFFICIAL
+    val color = if (official) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+    Surface(
+        color = color.copy(alpha = 0.10f),
+        contentColor = color,
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                if (official) Icons.Default.CheckCircle else Icons.Default.WarningAmber,
+                contentDescription = null,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    stringResource(if (official) R.string.about_official_build else R.string.about_unverified_build),
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(if (official) R.string.about_official_build_body else R.string.about_unverified_build_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutLink(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text(label, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
     }
 }

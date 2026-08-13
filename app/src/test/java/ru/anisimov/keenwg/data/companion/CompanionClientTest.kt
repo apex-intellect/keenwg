@@ -132,7 +132,6 @@ class CompanionClientTest {
                 keepalive = 25,
                 companionUrl = "https://localhost:${server.port}",
                 certificatePin = ExactPinTrustManager.pin(held.certificate),
-                collectorUrl = "",
             ),
         )
     }

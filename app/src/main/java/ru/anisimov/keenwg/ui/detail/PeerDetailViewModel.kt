@@ -21,15 +21,18 @@ import ru.anisimov.keenwg.domain.model.ServerSettings
 import ru.anisimov.keenwg.domain.model.PeerStats
 import ru.anisimov.keenwg.domain.model.AccessPolicy
 import ru.anisimov.keenwg.data.collector.HistoryRange
+import ru.anisimov.keenwg.data.collector.HistoryException
+import ru.anisimov.keenwg.data.collector.HistoryFailure
 import ru.anisimov.keenwg.data.collector.PeerId
 import ru.anisimov.keenwg.ui.util.startForegroundRefresh
+import ru.anisimov.keenwg.R
 
 interface PeerDetailPeerGateway {
     fun cached(publicKey: String): Peer? = null
     suspend fun list(settings: ServerSettings): List<Peer>
     suspend fun rename(settings: ServerSettings, publicKey: String, name: String) = Unit
     suspend fun setEnabled(settings: ServerSettings, publicKey: String, enabled: Boolean) = Unit
-    suspend fun regenerate(settings: ServerSettings, publicKey: String): AddResult = error("Операция не поддерживается")
+    suspend fun regenerate(settings: ServerSettings, publicKey: String): AddResult = throw UnsupportedOperationException()
     suspend fun remove(settings: ServerSettings, publicKey: String) = Unit
     suspend fun confFor(publicKey: String): String? = null
     suspend fun accessPolicy(publicKey: String): AccessPolicy? = null
@@ -54,21 +57,29 @@ fun interface PeerDetailClock {
 
 enum class PeerHistoryRange { DAY, WEEK, MONTH }
 
+enum class PeerHistoryError {
+    PROTECTED_ACCESS_REQUIRED,
+    UPDATE_COMPONENT,
+    RECONNECT,
+    UNSUPPORTED_RESPONSE,
+    UNAVAILABLE,
+}
+
 data class PeerDetailUiState(
     val peer: Peer? = null,
     val initialLoading: Boolean = true,
     val refreshing: Boolean = false,
     val notFound: Boolean = false,
-    val loadError: String? = null,
-    val refreshError: String? = null,
+    val loadErrorResource: Int? = null,
+    val refreshErrorResource: Int? = null,
     val operation: String? = null,
     val conf: String? = null,
     val selectedRange: PeerHistoryRange = PeerHistoryRange.DAY,
     val stats: PeerStats? = null,
-    val collectorLoading: Boolean = false,
-    val collectorRefreshing: Boolean = false,
-    val collectorError: String? = null,
-    val collectorLastUpdated: Long? = null,
+    val historyLoading: Boolean = false,
+    val historyRefreshing: Boolean = false,
+    val historyError: PeerHistoryError? = null,
+    val historyLastUpdated: Long? = null,
     val accessPolicy: AccessPolicy? = null,
     val historySuppressed: Boolean = false,
     val observedAtEpochSeconds: Long = 0,
@@ -104,17 +115,17 @@ class PeerDetailViewModel @JvmOverloads constructor(
         _state.value = _state.value.copy(
             selectedRange = range,
             stats = null,
-            collectorLoading = true,
-            collectorRefreshing = false,
-            collectorError = null,
-            collectorLastUpdated = null,
+            historyLoading = true,
+            historyRefreshing = false,
+            historyError = null,
+            historyLastUpdated = null,
         )
         return viewModelScope.launch { performStatsRefresh(publicKey, waitForPrevious = true) }
     }
 
     fun startForegroundRefresh(publicKey: String): Job = viewModelScope.startForegroundRefresh(
         rciRefresh = { performLoad(publicKey) },
-        collectorRefresh = { performStatsRefresh(publicKey) },
+        historyRefresh = { performStatsRefresh(publicKey) },
     )
 
     private suspend fun performLoad(publicKey: String) {
@@ -126,8 +137,8 @@ class PeerDetailViewModel @JvmOverloads constructor(
             initialLoading = cached == null,
             refreshing = cached != null,
             notFound = false,
-            loadError = null,
-            refreshError = null,
+            loadErrorResource = null,
+            refreshErrorResource = null,
         )
         runCatching {
             val settings = settingsGateway.settings()
@@ -148,8 +159,8 @@ class PeerDetailViewModel @JvmOverloads constructor(
             _state.value = _state.value.copy(
                 initialLoading = false,
                 refreshing = false,
-                loadError = if (cached == null) error.safeMessage() else null,
-                refreshError = if (cached != null) error.safeMessage() else null,
+                loadErrorResource = if (cached == null) R.string.peer_error_load else null,
+                refreshErrorResource = if (cached != null) R.string.peer_error_refresh else null,
             )
         }
         } finally {
@@ -159,7 +170,7 @@ class PeerDetailViewModel @JvmOverloads constructor(
 
     private suspend fun performStatsRefresh(publicKey: String, waitForPrevious: Boolean = false) {
         if (_state.value.historySuppressed) {
-            _state.value = _state.value.copy(collectorLoading = false, collectorRefreshing = false, collectorError = null)
+            _state.value = _state.value.copy(historyLoading = false, historyRefreshing = false, historyError = null)
             return
         }
         if (waitForPrevious) {
@@ -168,12 +179,14 @@ class PeerDetailViewModel @JvmOverloads constructor(
             return
         }
         try {
-            val cached = _state.value.stats
-            val requestedRange = _state.value.selectedRange
+            val before = _state.value
+            val cached = before.stats
+            val requestedRange = before.selectedRange
+            val keepErrorMounted = cached == null && before.historyError != null
             _state.value = _state.value.copy(
-                collectorLoading = cached == null,
-                collectorRefreshing = cached != null,
-                collectorError = null,
+                historyLoading = cached == null && !keepErrorMounted,
+                historyRefreshing = cached != null || keepErrorMounted,
+                historyError = before.historyError.takeIf { keepErrorMounted },
             )
             runCatching {
                 statsGateway.history(
@@ -186,17 +199,18 @@ class PeerDetailViewModel @JvmOverloads constructor(
                 if (_state.value.selectedRange == requestedRange) {
                     _state.value = _state.value.copy(
                         stats = stats,
-                        collectorLoading = false,
-                        collectorRefreshing = false,
-                        collectorLastUpdated = clock.now(),
+                        historyLoading = false,
+                        historyRefreshing = false,
+                        historyError = null,
+                        historyLastUpdated = clock.now(),
                     )
                 }
-            }.onFailure {
+            }.onFailure { error ->
                 if (_state.value.selectedRange == requestedRange) {
                     _state.value = _state.value.copy(
-                        collectorLoading = false,
-                        collectorRefreshing = false,
-                        collectorError = COLLECTOR_REFRESH_ERROR,
+                        historyLoading = false,
+                        historyRefreshing = false,
+                        historyError = peerHistoryError(error),
                     )
                 }
             }
@@ -216,7 +230,7 @@ class PeerDetailViewModel @JvmOverloads constructor(
     }
 
     fun regenerate(publicKey: String) = viewModelScope.launch {
-        _state.value = _state.value.copy(operation = "regenerate", refreshError = null)
+        _state.value = _state.value.copy(operation = "regenerate", refreshErrorResource = null)
         runCatching {
             val settings = settingsGateway.settings()
             val result = peerGateway.regenerate(settings, publicKey)
@@ -226,17 +240,17 @@ class PeerDetailViewModel @JvmOverloads constructor(
             if (error is RouterMutationError.LocalFinalization && error.newPublicKey != null) {
                 savedStateHandle[PENDING_NAVIGATION_KEY] = error.newPublicKey
             }
-            _state.value = _state.value.copy(refreshError = error.safeMessage())
+            _state.value = _state.value.copy(refreshErrorResource = R.string.peer_error_operation)
         }
         _state.value = _state.value.copy(operation = null)
     }
 
     fun delete(publicKey: String, onDone: () -> Unit) = viewModelScope.launch {
-        _state.value = _state.value.copy(operation = "delete", refreshError = null)
+        _state.value = _state.value.copy(operation = "delete", refreshErrorResource = null)
         runCatching {
             peerGateway.remove(settingsGateway.settings(), publicKey)
         }.onSuccess { onDone() }.onFailure { error ->
-            _state.value = _state.value.copy(refreshError = error.safeMessage())
+            _state.value = _state.value.copy(refreshErrorResource = R.string.peer_error_operation)
         }
         _state.value = _state.value.copy(operation = null)
     }
@@ -245,7 +259,7 @@ class PeerDetailViewModel @JvmOverloads constructor(
         val conf = peerGateway.confFor(publicKey)
         _state.value = _state.value.copy(
             conf = conf,
-            refreshError = if (conf == null) "На этом телефоне нет сохранённой конфигурации." else null,
+            refreshErrorResource = if (conf == null) R.string.peer_error_conf_missing else null,
         )
     }
 
@@ -264,9 +278,9 @@ class PeerDetailViewModel @JvmOverloads constructor(
     }
 
     private fun act(name: String, block: suspend (ServerSettings) -> Unit) = viewModelScope.launch {
-        _state.value = _state.value.copy(operation = name, refreshError = null)
+        _state.value = _state.value.copy(operation = name, refreshErrorResource = null)
         runCatching { block(settingsGateway.settings()) }
-            .onFailure { error -> _state.value = _state.value.copy(refreshError = error.safeMessage()) }
+            .onFailure { _state.value = _state.value.copy(refreshErrorResource = R.string.peer_error_operation) }
         _state.value = _state.value.copy(operation = null)
     }
 }
@@ -288,15 +302,15 @@ private fun servicePeerGateway(): PeerDetailPeerGateway = object : PeerDetailPee
 }
 
 private fun serviceStatsGateway() = PeerDetailStatsGateway { settings, publicKey, range, now ->
-    val ids = collectorPeerIds(
+    val ids = historyPeerIds(
         settings.interfaceId,
         publicKey,
         ServiceLocator.lineageStore.idsFor(publicKey),
     )
-    ServiceLocator.statsGateway.history(settings, ids, historyRange(range, now), now)
+    ServiceLocator.statsGateway.history(ids, historyRange(range, now), now)
 }
 
-internal fun collectorPeerIds(interfaceId: String, publicKey: String, lineageIds: List<String>): List<String> =
+internal fun historyPeerIds(interfaceId: String, publicKey: String, lineageIds: List<String>): List<String> =
     (lineageIds + PeerId.compute(interfaceId, publicKey)).distinct()
 
 internal fun historyRange(range: PeerHistoryRange, now: Long): HistoryRange {
@@ -313,7 +327,12 @@ internal fun historyRange(range: PeerHistoryRange, now: Long): HistoryRange {
     )
 }
 
-private fun Throwable.safeMessage(): String = message ?: "Не удалось выполнить операцию"
+internal fun peerHistoryError(error: Throwable): PeerHistoryError = when ((error as? HistoryException)?.reason) {
+    HistoryFailure.PROTECTED_ACCESS_REQUIRED -> PeerHistoryError.PROTECTED_ACCESS_REQUIRED
+    HistoryFailure.UPDATE_COMPONENT -> PeerHistoryError.UPDATE_COMPONENT
+    HistoryFailure.RECONNECT -> PeerHistoryError.RECONNECT
+    HistoryFailure.UNSUPPORTED_RESPONSE -> PeerHistoryError.UNSUPPORTED_RESPONSE
+    HistoryFailure.UNAVAILABLE, null -> PeerHistoryError.UNAVAILABLE
+}
 
 private const val PENDING_NAVIGATION_KEY = "pending_peer_navigation_public_key"
-private const val COLLECTOR_REFRESH_ERROR = "Не удалось обновить историю наблюдений."

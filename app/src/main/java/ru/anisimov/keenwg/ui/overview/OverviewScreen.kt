@@ -174,9 +174,9 @@ private fun RouterHealthCard(state: OverviewState) {
     val presentation = when (state.health) {
         OverviewHealth.LOADING -> HealthPresentation(stringResource(copy.titleResource), stringResource(copy.bodyResource), Icons.Default.Router)
         OverviewHealth.HEALTHY -> HealthPresentation(stringResource(copy.titleResource), stringResource(copy.bodyResource), Icons.Default.CheckCircle)
-        OverviewHealth.DEGRADED -> HealthPresentation(stringResource(copy.titleResource), state.message ?: stringResource(copy.bodyResource), Icons.Default.Warning)
-        OverviewHealth.SETUP_REQUIRED -> HealthPresentation(stringResource(copy.titleResource), state.message ?: stringResource(copy.bodyResource), Icons.Default.Warning)
-        OverviewHealth.LOCKED -> HealthPresentation(stringResource(copy.titleResource), state.message ?: stringResource(copy.bodyResource), Icons.Default.Lock)
+        OverviewHealth.DEGRADED -> HealthPresentation(stringResource(copy.titleResource), state.messageResource?.let { stringResource(it) } ?: stringResource(copy.bodyResource), Icons.Default.Warning)
+        OverviewHealth.SETUP_REQUIRED -> HealthPresentation(stringResource(copy.titleResource), state.messageResource?.let { stringResource(it) } ?: stringResource(copy.bodyResource), Icons.Default.Warning)
+        OverviewHealth.LOCKED -> HealthPresentation(stringResource(copy.titleResource), state.messageResource?.let { stringResource(it) } ?: stringResource(copy.bodyResource), Icons.Default.Lock)
     }
     Card(
         shape = RoundedCornerShape(24.dp),

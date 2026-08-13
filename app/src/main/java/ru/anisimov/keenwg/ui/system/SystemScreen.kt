@@ -1,5 +1,6 @@
 package ru.anisimov.keenwg.ui.system
 
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,16 +22,24 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Router
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -39,8 +48,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.os.LocaleListCompat
 import ru.anisimov.keenwg.R
 import ru.anisimov.keenwg.ui.components.KeenGlassSurface
+import ru.anisimov.keenwg.ui.localization.AppLanguage
 import ru.anisimov.keenwg.ui.overview.OverviewState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,6 +65,10 @@ fun SystemScreen(
     onAbout: () -> Unit,
 ) {
     val presentation = systemPresentation(state)
+    var languageDialogOpen by remember { mutableStateOf(false) }
+    val currentLanguage = AppLanguage.fromLanguageTags(
+        AppCompatDelegate.getApplicationLocales().toLanguageTags(),
+    )
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.system_title)) }) },
     ) { padding ->
@@ -75,12 +90,14 @@ fun SystemScreen(
                 presentation.rows.forEachIndexed { index, row ->
                     SystemMenuRow(
                         row = row,
+                        currentLanguage = currentLanguage,
                         onClick = {
                             when (row.action) {
                                 SystemAction.CONNECTION -> onSetup()
                                 SystemAction.DEVICES -> onTrustedDevices()
                                 SystemAction.DIAGNOSTICS -> onDiagnostics()
                                 SystemAction.BACKUP -> onBackup()
+                                SystemAction.LANGUAGE -> languageDialogOpen = true
                                 SystemAction.ABOUT -> onAbout()
                             }
                         },
@@ -95,6 +112,19 @@ fun SystemScreen(
             }
             Spacer(Modifier.height(4.dp))
         }
+    }
+
+    if (languageDialogOpen) {
+        LanguageDialog(
+            current = currentLanguage,
+            onDismiss = { languageDialogOpen = false },
+            onSelect = { language ->
+                languageDialogOpen = false
+                AppCompatDelegate.setApplicationLocales(
+                    LocaleListCompat.forLanguageTags(language.languageTags),
+                )
+            },
+        )
     }
 }
 
@@ -154,14 +184,15 @@ private fun RouterStatusCard(presentation: SystemPresentation) {
 }
 
 @Composable
-private fun SystemMenuRow(row: SystemRow, onClick: () -> Unit) {
-    val (icon, title, body) = rowContent(row.action)
+private fun SystemMenuRow(row: SystemRow, currentLanguage: AppLanguage, onClick: () -> Unit) {
+    val (icon, title, body) = rowContent(row.action, currentLanguage)
     Surface(
         onClick = onClick,
         enabled = row.enabled,
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.fillMaxWidth().alpha(if (row.enabled) 1f else 0.46f),
+        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -190,7 +221,7 @@ private fun statusText(status: SystemConnectionStatus): String = stringResource(
 )
 
 @Composable
-private fun rowContent(action: SystemAction): Triple<ImageVector, String, String> = when (action) {
+private fun rowContent(action: SystemAction, currentLanguage: AppLanguage): Triple<ImageVector, String, String> = when (action) {
     SystemAction.CONNECTION -> Triple(
         Icons.Default.Router,
         stringResource(R.string.system_connection_title),
@@ -211,9 +242,68 @@ private fun rowContent(action: SystemAction): Triple<ImageVector, String, String
         stringResource(R.string.system_backup_title),
         stringResource(R.string.system_backup_body),
     )
+    SystemAction.LANGUAGE -> Triple(
+        Icons.Default.Translate,
+        stringResource(R.string.system_language_title),
+        stringResource(
+            when (currentLanguage) {
+                AppLanguage.SYSTEM -> R.string.system_language_body_system
+                AppLanguage.RUSSIAN -> R.string.system_language_body_russian
+                AppLanguage.ENGLISH -> R.string.system_language_body_english
+            },
+        ),
+    )
     SystemAction.ABOUT -> Triple(
         Icons.Default.Info,
         stringResource(R.string.system_about_title),
         stringResource(R.string.system_about_body),
+    )
+}
+
+@Composable
+private fun LanguageDialog(
+    current: AppLanguage,
+    onDismiss: () -> Unit,
+    onSelect: (AppLanguage) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.language_dialog_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    stringResource(R.string.language_change_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                AppLanguage.entries.forEach { language ->
+                    Surface(
+                        onClick = { onSelect(language) },
+                        shape = MaterialTheme.shapes.medium,
+                        color = if (language == current) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = language == current, onClick = null)
+                            Text(
+                                stringResource(
+                                    when (language) {
+                                        AppLanguage.SYSTEM -> R.string.language_system
+                                        AppLanguage.RUSSIAN -> R.string.language_russian
+                                        AppLanguage.ENGLISH -> R.string.language_english
+                                    },
+                                ),
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
     )
 }

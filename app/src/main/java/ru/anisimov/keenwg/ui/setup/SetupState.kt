@@ -43,7 +43,6 @@ sealed interface SetupState {
 
     data class Failed(
         val phase: InstallPhase,
-        val safeMessage: String,
         val rollbackVerified: Boolean,
     ) : SetupState
 }

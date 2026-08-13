@@ -18,7 +18,7 @@ Not supported:
 - public, WAN or wildcard Companion listeners;
 - automatic subscription refresh, route change or country switching.
 
-Companion uses the local KeeneticOS `ndmq` interface for home-device inventory, static DHCP reservations and the WireGuard peer lifecycle. RCI is only a legacy fallback for unpaired profiles. Collector remains an independent, optional history source: missing history must never block current WireGuard inventory or management.
+Companion uses the local KeeneticOS `ndmq` interface for home-device inventory, static DHCP reservations and the WireGuard peer lifecycle. RCI is only a legacy fallback for unpaired profiles. Collector remains an independent, optional history source on the router. Android never connects to it directly; Companion exposes only a bounded authenticated history query. Missing history must never block current WireGuard inventory or management.
 
 The Android setup probes Entware, optional XKeen and free `/opt` space before any upload. Entware and sufficient `/opt` space are required only when the protected component must be installed or updated; an already current component can pair without XKeen. The installer provisions the Entware `ndmq` package only when it is missing and before replacing the active Companion. Missing prerequisites are non-mutating. KeenWG does not format, partition, mount or erase storage and does not auto-install Entware or XKeen.
 

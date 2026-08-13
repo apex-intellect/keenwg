@@ -88,7 +88,7 @@ fun RouterConnectionScreen(
             ConnectionStatusCard(
                 profileName = state.selectedProfileName ?: stringResource(R.string.system_router_default),
                 status = presentation.connectionStatus,
-                message = state.message,
+                message = state.messageResource?.let { stringResource(it) },
             )
 
             if (presentation.explainCredentials) {

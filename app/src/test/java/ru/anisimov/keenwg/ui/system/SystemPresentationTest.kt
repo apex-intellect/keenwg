@@ -38,6 +38,7 @@ class SystemPresentationTest {
                 SystemAction.DEVICES,
                 SystemAction.DIAGNOSTICS,
                 SystemAction.BACKUP,
+                SystemAction.LANGUAGE,
                 SystemAction.ABOUT,
             ),
             model.rows.map { it.action },

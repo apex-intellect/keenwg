@@ -5,7 +5,6 @@ import ru.anisimov.keenwg.R
 import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,7 +72,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import ru.anisimov.keenwg.domain.model.HandshakeKind
 import ru.anisimov.keenwg.domain.model.Peer
-import ru.anisimov.keenwg.ui.SELF_PEER_BLOCK_MESSAGE
 import ru.anisimov.keenwg.ui.SelfPeerGuard
 import ru.anisimov.keenwg.ui.components.SessionRail
 import ru.anisimov.keenwg.ui.components.StatusNotice
@@ -93,6 +92,7 @@ fun PeerListScreen(
 ) {
     val newAccessLabel = stringResource(R.string.ui_peerlistscreen_d820ccbe3d)
     val state by vm.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -194,7 +194,7 @@ fun PeerListScreen(
                                         } catch (cancelled: CancellationException) {
                                             throw cancelled
                                         } catch (_: Exception) {
-                                            snackbar.showSnackbar("Не удалось безопасно проверить текущее подключение. Действие отменено.")
+                                            snackbar.showSnackbar(context.getString(R.string.self_peer_check_failed))
                                         } finally {
                                             safetyBusyKeys = safetyBusyKeys - peer.publicKey
                                         }
@@ -215,7 +215,7 @@ fun PeerListScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(peer.name.ifBlank { stringResource(R.string.ui_peerlistscreen_53e577f59c) })
-                    Text(SELF_PEER_BLOCK_MESSAGE)
+                    Text(stringResource(R.string.self_peer_block_message))
                 }
             },
             confirmButton = { TextButton(onClick = { blockedPeer = null }) { Text(stringResource(R.string.ui_peerlistscreen_e2ce86b38f)) } },
@@ -261,10 +261,9 @@ private fun PeerRow(
     onSetEnabled: (Boolean) -> Unit,
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .clickable(enabled = !busy, onClickLabel = stringResource(R.string.open_peer, peerDisplayName(peer)), onClick = onClick),
+        onClick = onClick,
+        enabled = !busy,
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (peer.enabled) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant,
         ),
@@ -391,10 +390,11 @@ internal fun peerStatusLabel(peer: Peer): String = when (peerConnectionState(pee
 
 private fun peerDisplayName(peer: Peer): String = peer.name.ifBlank { peer.publicKey.take(10) + "…" }
 
+@Composable
 private fun updatedAtLabel(updatedAt: Long?): String {
-    if (updatedAt == null) return "Ещё не обновлялось"
+    if (updatedAt == null) return stringResource(R.string.peers_never_updated)
     val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(updatedAt))
-    return "Данные роутера обновлены в $time"
+    return stringResource(R.string.peers_updated_at, time)
 }
 
 @Composable

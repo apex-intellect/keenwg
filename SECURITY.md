@@ -17,7 +17,7 @@ Never attach credentials, subscription URLs, VLESS links, WireGuard private keys
 - Each phone has an independent revocable token and scope. A shared XKeen controller token does not exist in 2.0.
 - Every mutation requires an authorized scope, reviewed state version and read-back or an explicit uncertain result.
 - Subscription material and routing secrets stay on the router; support reports are redacted.
-- RCI and the optional Collector may use cleartext HTTP only inside a trusted LAN or WireGuard tunnel.
+- RCI may use cleartext HTTP only inside a trusted LAN or WireGuard tunnel. The optional Collector is router-local: Android never connects to it directly, and Companion accepts only a literal private/loopback IPv4 listener from its root-owned configuration.
 - Debug and unsigned APKs are not public signed releases.
 
 The detailed trust model is documented in [docs/SECURITY-MODEL.md](docs/SECURITY-MODEL.md).

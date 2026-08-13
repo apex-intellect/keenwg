@@ -1,40 +1,27 @@
 package ru.anisimov.keenwg.ui.xkeen
 
 import java.time.ZoneOffset
+import java.util.Locale
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import ru.anisimov.keenwg.data.xkeen.XkeenNode
-import ru.anisimov.keenwg.data.xkeen.XkeenOperation
-import ru.anisimov.keenwg.data.xkeen.XkeenOperationResult
-import ru.anisimov.keenwg.data.xkeen.XkeenOperationState
 import ru.anisimov.keenwg.data.xkeen.XkeenActiveNode
 import ru.anisimov.keenwg.data.xkeen.XkeenStatus
 import ru.anisimov.keenwg.data.xkeen.XkeenSubscription
 
 class XkeenPresentationTest {
     @Test fun `legacy chrome warning is ignored`() {
-        assertNull(warningLabel(node(fingerprint = "chrome", warnings = listOf("fingerprint_chrome_unstable"))))
+        assertFalse(hasConfigurationWarning(node(fingerprint = "chrome", warnings = listOf("fingerprint_chrome_unstable"))))
     }
 
     @Test fun `unrelated configuration warning remains visible`() {
-        assertEquals(
-            "Узел содержит предупреждение конфигурации",
-            warningLabel(node(warnings = listOf("another_warning"))),
-        )
+        assertTrue(hasConfigurationWarning(node(warnings = listOf("another_warning"))))
     }
 
-    @Test fun `operation result states rollback certainty`() {
-        assertEquals("Узел переключён и проверен", operationMessage(result(XkeenOperationResult.SUCCESS)))
-        assertEquals("Переключение не удалось; прежний узел восстановлен", operationMessage(result(XkeenOperationResult.FAILED_ROLLED_BACK)))
-        assertEquals("Изменения не применялись", operationMessage(result(XkeenOperationResult.FAILED_NO_CHANGE)))
-        assertEquals("Состояние XKeen требует проверки", operationMessage(result(XkeenOperationResult.UNCERTAIN)))
-    }
-
-    @Test fun `refresh success and timestamps use direct language`() {
-        assertEquals("Подписка обновлена", operationMessage(result(XkeenOperationResult.SUCCESS, "refresh")))
-        assertEquals("Подписка ещё не обновлялась", lastRefreshLabel(null))
-        assertEquals("Подписка обновлена 2 янв., 03:04", lastRefreshLabel(1_704_164_640, ZoneOffset.UTC))
+    @Test fun `refresh timestamp respects the selected locale`() {
+        assertEquals("2 Jan, 03:04", formatRefreshTimestamp(1_704_164_640, ZoneOffset.UTC, Locale.ENGLISH))
     }
 
     @Test fun `node subtitle contains only public routing fields`() {
@@ -42,10 +29,10 @@ class XkeenPresentationTest {
     }
 
     @Test fun `leading country flag is rendered only once`() {
-        assertEquals("Нидерланды 1", cleanNodeName("🇳🇱", "🇳🇱 Нидерланды 1"))
-        assertEquals("Нидерланды 1", cleanNodeName("🇳🇱", "Нидерланды 1"))
-        assertEquals("🇳🇱 резерв", cleanNodeName("🇳🇱", "🇳🇱 🇳🇱 резерв"))
-        assertEquals("Сервер", cleanNodeName("🇳🇱", "   🇳🇱   "))
+        assertEquals("Нидерланды 1", cleanNodeName("🇳🇱", "🇳🇱 Нидерланды 1", "Server"))
+        assertEquals("Нидерланды 1", cleanNodeName("🇳🇱", "Нидерланды 1", "Server"))
+        assertEquals("🇳🇱 резерв", cleanNodeName("🇳🇱", "🇳🇱 🇳🇱 резерв", "Server"))
+        assertEquals("Server", cleanNodeName("🇳🇱", "   🇳🇱   ", "Server"))
     }
 
     @Test fun `separate active card is exceptional only`() {
@@ -68,15 +55,6 @@ class XkeenPresentationTest {
         flow = "xtls-rprx-vision",
         active = false,
         warnings = warnings,
-    )
-
-    private fun result(value: XkeenOperationResult, kind: String = "select") = XkeenOperation(
-        idempotencyKey = "11111111-1111-4111-8111-111111111111",
-        kind = kind,
-        state = XkeenOperationState.TERMINAL,
-        result = value,
-        startedAt = 1,
-        finishedAt = 2,
     )
 
     private fun status(missing: Boolean, includeActive: Boolean): XkeenStatus {

@@ -79,7 +79,15 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
         ) {
             item { NetworkSegmentControl(state, vm::selectSegment) }
             if (state.refreshing || state.loading) item { Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(24.dp)) } }
-            state.message?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_8b0b387c96), detail = it, isError = it.contains(stringResource(R.string.ui_networkscreen_3a865e3616)) || it.contains(stringResource(R.string.ui_networkscreen_50ccde397c))) } }
+            state.messageResource?.let { messageResource ->
+                item {
+                    StatusNotice(
+                        stringResource(R.string.ui_networkscreen_8b0b387c96),
+                        detail = stringResource(messageResource),
+                        isError = state.messageIsError,
+                    )
+                }
+            }
             if (state.writesBlocked) item { StatusNotice(
                 stringResource(R.string.rules_changes_paused),
                 detail = if (state.recoveryState?.pending == true) stringResource(R.string.ui_networkscreen_994086f49a)
@@ -109,12 +117,12 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
                 Text(stringResource(R.string.ui_networkscreen_20b3f51f41), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 review.plan.steps.forEach { step ->
                     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) { Column(Modifier.fillMaxWidth().padding(10.dp)) {
-                        Text(step.module.scenarioModuleLabel(), style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(scenarioModuleResource(step.module)), style = MaterialTheme.typography.labelLarge)
                         Text("${step.matchKind.scenarioMatcherLabel()} · ${step.value}", style = MaterialTheme.typography.bodyMedium)
                         Text(step.outcome.scenarioOutcomeLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     } }
                 }
-            review.plan.skippedModules.forEach { Text(stringResource(R.string.scenario_skipped_module, it.scenarioModuleLabel()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            review.plan.skippedModules.forEach { Text(stringResource(R.string.scenario_skipped_module, stringResource(scenarioModuleResource(it))), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 if (state.scenarioBusy) CircularProgressIndicator(Modifier.size(22.dp))
             } },
             confirmButton = { Button(onClick = vm::applyReviewedScenario, enabled = !state.scenarioBusy && review.plan.steps.isNotEmpty()) { Text(stringResource(R.string.ui_networkscreen_e15f960d93)) } },
@@ -129,7 +137,7 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
             text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.ui_networkscreen_0c5f334ead))
                 Text(stringResource(R.string.recovery_plan, recovery.planId.orEmpty()), style = MonoLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(stringResource(R.string.recovery_modules, recovery.modules.joinToString { it.scenarioModuleLabel() }), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.recovery_modules, scenarioModulesLabel(recovery.modules)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } },
             confirmButton = { Button(onClick = { recoveryConfirmOpen = false; vm.confirmRecovery() }, enabled = !state.scenarioBusy) { Text(stringResource(R.string.ui_networkscreen_76f55a988f)) } },
             dismissButton = { TextButton(onClick = { recoveryConfirmOpen = false }, enabled = !state.scenarioBusy) { Text(stringResource(R.string.ui_networkscreen_8fbe9b75cb)) } },
@@ -143,12 +151,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.scenariosSection(stat
         IconButton(onClick = vm::refreshScenarios, enabled = !state.scenarioBusy) { Icon(Icons.Default.Refresh, stringResource(R.string.rules_sets_refresh_description)) }
     } }
     if (state.scenarioBusy && state.scenarioCatalog == null) item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(24.dp)) } }
-    state.scenarioError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_32500a15fa), detail = it, isError = true) } }
+    state.scenarioErrorResource?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_32500a15fa), detail = stringResource(it), isError = true) } }
     state.recoveryState?.takeIf { it.pending }?.let { recovery ->
         item { Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.ui_networkscreen_66840f0894), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onErrorContainer)
-                Text(stringResource(R.string.recovery_blocked_detail, recovery.planId.orEmpty(), recovery.modules.joinToString { it.scenarioModuleLabel() }), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                Text(stringResource(R.string.recovery_blocked_detail, recovery.planId.orEmpty(), scenarioModulesLabel(recovery.modules)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
                 Button(onClick = onRequestRecovery, enabled = !state.scenarioBusy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.ui_networkscreen_38f90bf620)) }
             }
         } }
@@ -171,22 +179,64 @@ private fun androidx.compose.foundation.lazy.LazyListScope.scenariosSection(stat
     }
 }
 
-private fun String.scenarioPresetLabel(fallback: String) = when(this) { "russia-direct" -> "Российские ресурсы напрямую"; "okko-direct" -> "Okko напрямую"; "emias-direct" -> "ЕМИАС напрямую"; else -> fallback }
-private fun ru.anisimov.keenwg.data.routes.ScenarioConditions.scenarioConditionsLabel(): String = buildList { if(domains.isNotEmpty()) add("домены: ${domains.joinToString()}"); if(suffixes.isNotEmpty()) add("зоны: ${suffixes.joinToString()}"); if(geosites.isNotEmpty()) add("GeoSite: ${geosites.joinToString()}"); if(cidrs.isNotEmpty()) add("IP: ${cidrs.joinToString()}"); if(deviceIds.isNotEmpty()) add("устройства: ${deviceIds.joinToString()}"); if(services.isNotEmpty()) add("сервисы: ${services.joinToString()}") }.joinToString(" · ")
-private fun ru.anisimov.keenwg.data.routes.ScenarioOutcome.scenarioOutcomeLabel() = if(mode=="direct") "Напрямую" else "Через VPN${groupId?.let { " · $it" }.orEmpty()}"
-private fun String.scenarioModuleLabel() = when(this) { "domains" -> "Доменные правила"; "ip" -> "IP-маршруты"; "devices" -> "Устройства"; "services" -> "Сервисы"; else -> "Маршруты" }
-private fun String.scenarioMatcherLabel() = when(this) { "domain" -> "домен"; "suffix" -> "зона"; "geosite" -> "GeoSite"; "cidr" -> "CIDR"; else -> this }
+@Composable
+private fun String.scenarioPresetLabel(fallback: String) = when (this) {
+    "russia-direct" -> stringResource(R.string.scenario_preset_russia_direct)
+    "okko-direct" -> stringResource(R.string.scenario_preset_okko_direct)
+    "emias-direct" -> stringResource(R.string.scenario_preset_emias_direct)
+    else -> fallback
+}
+
+@Composable
+private fun ru.anisimov.keenwg.data.routes.ScenarioConditions.scenarioConditionsLabel(): String = buildList {
+    if (domains.isNotEmpty()) add(stringResource(R.string.scenario_conditions_domains, domains.joinToString()))
+    if (suffixes.isNotEmpty()) add(stringResource(R.string.scenario_conditions_zones, suffixes.joinToString()))
+    if (geosites.isNotEmpty()) add(stringResource(R.string.scenario_conditions_geosite, geosites.joinToString()))
+    if (cidrs.isNotEmpty()) add(stringResource(R.string.scenario_conditions_ip, cidrs.joinToString()))
+    if (deviceIds.isNotEmpty()) add(stringResource(R.string.scenario_conditions_devices, deviceIds.joinToString()))
+    if (services.isNotEmpty()) add(stringResource(R.string.scenario_conditions_services, services.joinToString()))
+}.joinToString(" · ")
+
+@Composable
+private fun ru.anisimov.keenwg.data.routes.ScenarioOutcome.scenarioOutcomeLabel() =
+    if (mode == "direct") stringResource(R.string.rules_direct)
+    else stringResource(R.string.scenario_outcome_vpn, groupId?.let { " · $it" }.orEmpty())
+
+private fun scenarioModuleResource(module: String) =
+    when (module) {
+        "domains" -> R.string.scenario_module_domains
+        "ip" -> R.string.scenario_module_ip
+        "devices" -> R.string.scenario_module_devices
+        "services" -> R.string.scenario_module_services
+        else -> R.string.scenario_module_routes
+    }
+
+@Composable
+private fun scenarioModulesLabel(modules: List<String>): String {
+    val labels = mutableListOf<String>()
+    for (module in modules) labels += stringResource(scenarioModuleResource(module))
+    return labels.joinToString()
+}
+
+@Composable
+private fun String.scenarioMatcherLabel() = when (this) {
+    "domain" -> stringResource(R.string.scenario_matcher_domain)
+    "suffix" -> stringResource(R.string.scenario_matcher_zone)
+    "geosite" -> "GeoSite"
+    "cidr" -> "CIDR"
+    else -> this
+}
 
 private fun androidx.compose.foundation.lazy.LazyListScope.explainSection(state: NetworkUiState, vm: NetworkViewModel) {
     item { SectionTitle(stringResource(R.string.rules_check_title), stringResource(R.string.rules_check_subtitle)) }
     item { RouteExplainForm(state.routeChecking, vm::explainRoute) }
-    state.routeError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_4436729f8c), detail = it, isError = true) } }
+    state.routeErrorResource?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_4436729f8c), detail = stringResource(it), isError = true) } }
     state.routeExplanation?.let { explanation ->
         item {
             val outcome = when {
-                explanation.decision.outcome == "direct" -> "Напрямую"
-                explanation.decision.outcome.startsWith("group:") -> "Через VPN"
-                else -> "Не удалось определить"
+                explanation.decision.outcome == "direct" -> stringResource(R.string.rules_direct)
+                explanation.decision.outcome.startsWith("group:") -> stringResource(R.string.rules_via_vpn)
+                else -> stringResource(R.string.route_outcome_unknown)
             }
             StatusNotice(stringResource(R.string.route_outcome, outcome), detail = stringResource(R.string.route_evidence, explanation.decision.confidence.routeEvidenceLabel()))
         }
@@ -229,22 +279,37 @@ private fun RouteExplainForm(busy: Boolean, onCheck: (String, String, Int, Strin
     }
 }
 
-private fun String.routeEvidenceLabel() = if (this == "observed") "Наблюдалось на роутере" else "Вычислено по правилам"
-private fun String.routeStepLabel() = when (this) { "dns" -> "DNS"; "rule" -> "Правило"; "selector" -> "Выбранный сервер"; "egress" -> "Выход в интернет"; else -> "Этап" }
-private fun String.routeWarningLabel() = when (this) {
-    "dns_unavailable" -> "DNS не ответил; часть правил нельзя подтвердить"
-    "geo_data_stale" -> "Базы GeoIP/GeoSite устарели"
-    "geo_data_age_unknown" -> "Возраст баз GeoIP/GeoSite не определён"
-    "geosite_membership_unavailable" -> "Состав GeoSite пока нельзя проверить точно"
-    "adapter_partial_failure" -> "Один из движков недоступен; остальные данные показаны"
-    "quic_may_bypass" -> "QUIC (UDP/443) может идти другим путём"
-    "selector_unavailable" -> "Не удалось подтвердить выбранный сервер"
-    else -> "Часть маршрута не удалось подтвердить"
+@Composable
+private fun String.routeEvidenceLabel() = stringResource(
+    if (this == "observed") R.string.route_evidence_observed else R.string.route_evidence_computed,
+)
+
+@Composable
+private fun String.routeStepLabel() = when (this) {
+    "dns" -> "DNS"
+    "rule" -> stringResource(R.string.route_step_rule)
+    "selector" -> stringResource(R.string.route_step_selector)
+    "egress" -> stringResource(R.string.route_step_egress)
+    else -> stringResource(R.string.route_step_other)
 }
+
+@Composable
+private fun String.routeWarningLabel() = stringResource(
+    when (this) {
+        "dns_unavailable" -> R.string.route_warning_dns
+        "geo_data_stale" -> R.string.route_warning_geo_stale
+        "geo_data_age_unknown" -> R.string.route_warning_geo_age
+        "geosite_membership_unavailable" -> R.string.route_warning_geosite
+        "adapter_partial_failure" -> R.string.route_warning_adapter
+        "quic_may_bypass" -> R.string.route_warning_quic
+        "selector_unavailable" -> R.string.route_warning_selector
+        else -> R.string.route_warning_other
+    },
+)
 
 private fun androidx.compose.foundation.lazy.LazyListScope.devicesSection(state: NetworkUiState, vm: NetworkViewModel) {
     item { SectionTitle(stringResource(R.string.rules_devices_title), stringResource(R.string.rules_devices_subtitle)) }
-    state.deviceError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_aab7e69417), detail = it, isError = true) } }
+    state.deviceErrorResource?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_aab7e69417), detail = stringResource(it), isError = true) } }
     if (state.devices.isEmpty() && !state.loading) item { StatusNotice(stringResource(R.string.ui_networkscreen_e3b2260459), detail = stringResource(R.string.ui_networkscreen_1dbbe8a201)) }
     items(state.devices, key = NetworkDevice::mac) { DeviceCard(it) { vm.requestStaticEdit(it) } }
 }
@@ -256,10 +321,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ipSection(state: Netw
             OutlinedButton(onClick = vm::openExclusionEditor, enabled = state.exclusions != null && !state.busy && !state.writesBlocked) { Icon(Icons.Default.Add, null); Text(stringResource(R.string.rules_addresses_add)) }
         }
     }
-    state.exclusionError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_e9f3bcf7d6), detail = it, isError = true) } }
+    state.exclusionErrorResource?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_e9f3bcf7d6), detail = stringResource(it), isError = true) } }
     val exclusions = state.exclusions
     when {
-        exclusions == null && state.exclusionError == null && !state.loading -> item { StatusNotice(stringResource(R.string.ui_networkscreen_e9f3bcf7d6), detail = stringResource(R.string.ui_networkscreen_6f11c69c5d)) }
+        exclusions == null && state.exclusionErrorResource == null && !state.loading -> item { StatusNotice(stringResource(R.string.ui_networkscreen_e9f3bcf7d6), detail = stringResource(R.string.ui_networkscreen_6f11c69c5d)) }
         exclusions?.entries?.isEmpty() == true -> item { StatusNotice(stringResource(R.string.ui_networkscreen_395e53e0e2), detail = stringResource(R.string.ui_networkscreen_b9b4b37995)) }
         exclusions != null -> items(exclusions.entries, key = NetworkExclusionEntry::id) { entry -> ExclusionCard(entry) { vm.requestDeleteExclusion(entry) } }
     }
@@ -272,10 +337,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: 
             OutlinedButton(onClick = vm::openDomainCreate, enabled = state.domains != null && !state.busy && !state.writesBlocked) { Icon(Icons.Default.Add, null); Text(stringResource(R.string.rules_sites_add)) }
         }
     }
-    state.domainError?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_a8bfafa797), detail = it, isError = true) } }
+    state.domainErrorResource?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_a8bfafa797), detail = stringResource(it), isError = true) } }
     state.domains?.warnings?.forEach { warning -> item { StatusNotice(stringResource(R.string.ui_networkscreen_2e92862ecd), detail = warning, isError = true) } }
     val rules = state.domains?.rules.orEmpty()
-    if (rules.isEmpty() && state.domainError == null && !state.loading) item { StatusNotice(stringResource(R.string.ui_networkscreen_d9d5f36869), detail = stringResource(R.string.ui_networkscreen_1bd6688e06)) }
+    if (rules.isEmpty() && state.domainErrorResource == null && !state.loading) item { StatusNotice(stringResource(R.string.ui_networkscreen_d9d5f36869), detail = stringResource(R.string.ui_networkscreen_1bd6688e06)) }
     listOf("direct" to R.string.rules_direct, "vpn" to R.string.rules_via_vpn).forEach { (effect, titleResource) ->
         val group = rules.filter { it.effect == effect }
         if (group.isNotEmpty()) {

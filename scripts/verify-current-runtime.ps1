@@ -50,6 +50,11 @@ $allowedMigrationFiles = @(
     [IO.Path]::GetFullPath((Join-Path $repo 'app\src\main\java\ru\anisimov\keenwg\data\store\RouterProfileStore.kt'))
 )
 
+# Companion's bounded history proxy reads this one Collector field from the
+# router-local config. The client rejects hostnames, public/wildcard addresses,
+# redirects, non-HTTP schemes and oversized responses before forwarding data.
+$localCollectorConfigReader = [IO.Path]::GetFullPath((Join-Path $repo 'xkeen-control\internal\historyproxy\client.go'))
+
 $rules = [ordered]@{
     'obsolete cleartext port'        = '(?<!\d)18778(?!\d)'
     'obsolete service or binary'     = '(?:S96)?keenwg-xkeen-control'
@@ -61,9 +66,11 @@ $rules = [ordered]@{
 
 $violations = [Collections.Generic.List[string]]::new()
 foreach ($path in @($sources | Sort-Object -Unique)) {
-    if ($allowedMigrationFiles -contains [IO.Path]::GetFullPath($path)) { continue }
+    $fullPath = [IO.Path]::GetFullPath($path)
+    if ($allowedMigrationFiles -contains $fullPath) { continue }
     $content = Get-Content -LiteralPath $path -Raw
     foreach ($entry in $rules.GetEnumerator()) {
+        if ($entry.Key -eq 'removed cleartext listen field' -and $fullPath -eq $localCollectorConfigReader) { continue }
         if ($content -match $entry.Value) {
             $relative = [IO.Path]::GetRelativePath($repo, $path).Replace('\', '/')
             $violations.Add("${relative}: $($entry.Key)")

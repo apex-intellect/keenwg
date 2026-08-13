@@ -15,13 +15,14 @@ import ru.anisimov.keenwg.data.companion.requireCompanionEndpoint
 import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.data.support.SupportExport
 import ru.anisimov.keenwg.data.support.SupportGateway
+import ru.anisimov.keenwg.R
 
 enum class SupportRequirement { COMPANION_PAIRING }
 
 data class SupportUiState(
     val busy: Boolean = false,
     val export: SupportExport? = null,
-    val error: String? = null,
+    val errorResource: Int? = null,
     val requirement: SupportRequirement? = null,
 )
 
@@ -37,7 +38,7 @@ class SupportViewModel(
 
     fun generate(): Job = viewModelScope.launch {
         if (!mutex.tryLock()) return@launch
-        _state.value = _state.value.copy(busy = true, error = null, requirement = null)
+        _state.value = _state.value.copy(busy = true, errorResource = null, requirement = null)
         try {
             val active = activeProfileFlow.first()
             if (runCatching { active?.requireCompanionEndpoint() }.getOrNull() == null) {
@@ -45,9 +46,9 @@ class SupportViewModel(
                 return@launch
             }
             val export = gateway.generate(active!!.profile, active.secrets.companionToken)
-            _state.value = _state.value.copy(export = export, error = null, requirement = null)
+            _state.value = _state.value.copy(export = export, errorResource = null, requirement = null)
         } catch (_: Exception) {
-            _state.value = _state.value.copy(error = "Не удалось сформировать безопасный отчёт", requirement = null)
+            _state.value = _state.value.copy(errorResource = R.string.support_generate_failed, requirement = null)
         } finally {
             _state.value = _state.value.copy(busy = false)
             mutex.unlock()

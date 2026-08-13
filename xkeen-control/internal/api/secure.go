@@ -41,6 +41,7 @@ type SecureServer struct {
 	support                   SupportReporter
 	backup                    BackupManager
 	routerLocal               RouterLocalService
+	wireGuardHistory          WireGuardHistoryService
 	subscriptionConfiguration SubscriptionConfiguration
 	selfUpdater               SelfUpdater
 	updateLock                sync.Mutex
@@ -134,6 +135,11 @@ func (s *SecureServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)
 		if ok {
 			s.handleWireGuard(w, request)
+		}
+	case r.URL.Path == "/v1/access/wireguard/history/query" && s.wireGuardHistory != nil:
+		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)
+		if ok {
+			s.handleWireGuardHistory(w, request)
 		}
 	case r.URL.Path == "/v1/access/wireguard/peers/review" && s.routerLocal != nil:
 		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)
