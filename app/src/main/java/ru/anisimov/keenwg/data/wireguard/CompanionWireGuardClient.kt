@@ -3,6 +3,7 @@ package ru.anisimov.keenwg.data.wireguard
 import java.util.Base64
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -93,8 +94,17 @@ class CompanionWireGuardClient(
     }
 
     override suspend fun load(endpoint: CompanionEndpoint): CompanionWireGuardDocument = withContext(Dispatchers.IO) {
-        execute(endpoint, "/v1/access/wireguard", "GET", null) { decodeDocument(it) }
+        try {
+            loadOnce(endpoint)
+        } catch (failure: XkeenException) {
+            if (failure.code !in RETRYABLE_LOAD_ERRORS) throw failure
+            delay(LOAD_RETRY_DELAY_MILLIS)
+            loadOnce(endpoint)
+        }
     }
+
+    private fun loadOnce(endpoint: CompanionEndpoint): CompanionWireGuardDocument =
+        execute(endpoint, "/v1/access/wireguard", "GET", null) { decodeDocument(it) }
 
     override suspend fun review(endpoint: CompanionEndpoint, request: CompanionPeerMutation): CompanionPeerPlan = withContext(Dispatchers.IO) {
         requireValidMutation(request)
@@ -271,5 +281,11 @@ class CompanionWireGuardClient(
         val CIDR = Regex("^(?:0|[1-9][0-9]{0,2})(?:\\.(?:0|[1-9][0-9]{0,2})){3}/(?:[0-9]|[12][0-9]|3[0-2])$")
         val UUID_PATTERN = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
         val TERMINAL_RESULTS = setOf("committed", "rolled_back", "rejected", "uncertain")
+        val RETRYABLE_LOAD_ERRORS = setOf(
+            XkeenErrorCode.NETWORK,
+            XkeenErrorCode.TIMEOUT,
+            XkeenErrorCode.COMPANION_UNAVAILABLE,
+        )
+        const val LOAD_RETRY_DELAY_MILLIS = 250L
     }
 }

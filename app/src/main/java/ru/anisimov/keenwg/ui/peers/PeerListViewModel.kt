@@ -52,13 +52,14 @@ class PeerListViewModel @JvmOverloads constructor(
     private val clock: PeerListClock = PeerListClock(System::currentTimeMillis),
 ) : ViewModel() {
     private val refreshMutex = Mutex()
+    private var consecutiveBackgroundFailures = 0
     private val _state = MutableStateFlow(PeerListUiState())
     val state: StateFlow<PeerListUiState> = _state.asStateFlow()
 
-    fun refresh(): Job = viewModelScope.launch { performRefresh() }
+    fun refresh(): Job = viewModelScope.launch { performRefresh(reportFailure = true) }
 
     fun startForegroundRefresh(): Job = viewModelScope.startForegroundRefresh(
-        rciRefresh = ::performRefresh,
+        rciRefresh = { performRefresh(reportFailure = false) },
         historyRefresh = {},
     )
 
@@ -84,34 +85,47 @@ class PeerListViewModel @JvmOverloads constructor(
         _state.value = _state.value.copy(busyKeys = _state.value.busyKeys - publicKey)
     }
 
-    private suspend fun performRefresh() {
+    private suspend fun performRefresh(reportFailure: Boolean) {
         if (!refreshMutex.tryLock()) return
         try {
             val hadContent = _state.value.peers.isNotEmpty()
             _state.value = _state.value.copy(
                 initialLoading = !hadContent,
                 refreshing = hadContent,
-                refreshError = null,
+                refreshError = if (reportFailure || !hadContent) null else _state.value.refreshError,
             )
             runCatching {
                 gateway.list(settingsGateway.settings())
             }.onSuccess { peers ->
+                consecutiveBackgroundFailures = 0
                 _state.value = _state.value.copy(
                     peers = peers,
                     initialLoading = false,
                     refreshing = false,
+                    refreshError = null,
                     lastUpdated = clock.now(),
                 )
             }.onFailure { failure ->
+                val error = failure.peerListError()
+                val visibleError = when {
+                    reportFailure || !hadContent -> error
+                    error != PeerListError.UNAVAILABLE -> error
+                    ++consecutiveBackgroundFailures >= BACKGROUND_FAILURE_THRESHOLD -> error
+                    else -> null
+                }
                 _state.value = _state.value.copy(
                     initialLoading = false,
                     refreshing = false,
-                    refreshError = failure.peerListError(),
+                    refreshError = visibleError,
                 )
             }
         } finally {
             refreshMutex.unlock()
         }
+    }
+
+    private companion object {
+        const val BACKGROUND_FAILURE_THRESHOLD = 2
     }
 }
 

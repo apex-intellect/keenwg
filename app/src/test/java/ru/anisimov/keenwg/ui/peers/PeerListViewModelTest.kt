@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -13,6 +14,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -54,6 +56,83 @@ class PeerListViewModelTest {
 
         assertEquals(listOf(peerA), vm.state.value.peers)
         assertEquals(PeerListError.UNAVAILABLE, vm.state.value.refreshError)
+    }
+
+    @Test fun `single transient background failure keeps content without alarming the user`() = runTest(dispatcher) {
+        val gateway = QueueGateway(mutableListOf({ listOf(peerA) }, { throw IOException("temporary") }))
+        val vm = viewModel(gateway)
+        val refreshJob = vm.startForegroundRefresh()
+        runCurrent()
+
+        advanceTimeBy(15_000L)
+        runCurrent()
+        refreshJob.cancel()
+
+        assertEquals(listOf(peerA), vm.state.value.peers)
+        assertFalse(vm.state.value.refreshing)
+        assertNull(vm.state.value.refreshError)
+    }
+
+    @Test fun `repeated background failure reports stale content`() = runTest(dispatcher) {
+        val gateway = QueueGateway(mutableListOf(
+            { listOf(peerA) },
+            { throw IOException("temporary") },
+            { throw IOException("still offline") },
+        ))
+        val vm = viewModel(gateway)
+        val refreshJob = vm.startForegroundRefresh()
+        runCurrent()
+
+        advanceTimeBy(15_000L)
+        runCurrent()
+        assertNull(vm.state.value.refreshError)
+        advanceTimeBy(15_000L)
+        runCurrent()
+        refreshJob.cancel()
+
+        assertEquals(PeerListError.UNAVAILABLE, vm.state.value.refreshError)
+    }
+
+    @Test fun `reported background outage is not cleared while the next check is running`() = runTest(dispatcher) {
+        val nextCheck = CompletableDeferred<List<Peer>>()
+        val gateway = QueueGateway(mutableListOf(
+            { listOf(peerA) },
+            { throw IOException("temporary") },
+            { throw IOException("still offline") },
+            { nextCheck.await() },
+        ))
+        val vm = viewModel(gateway)
+        val refreshJob = vm.startForegroundRefresh()
+        try {
+            runCurrent()
+            advanceTimeBy(30_000L)
+            runCurrent()
+            assertEquals(PeerListError.UNAVAILABLE, vm.state.value.refreshError)
+
+            advanceTimeBy(15_000L)
+            runCurrent()
+
+            assertTrue(vm.state.value.refreshing)
+            assertEquals(PeerListError.UNAVAILABLE, vm.state.value.refreshError)
+        } finally {
+            refreshJob.cancel()
+        }
+    }
+
+    @Test fun `background authorization failure asks to reconnect immediately`() = runTest(dispatcher) {
+        val gateway = QueueGateway(mutableListOf(
+            { listOf(peerA) },
+            { throw XkeenException(XkeenErrorCode.UNAUTHORIZED, "revoked") },
+        ))
+        val vm = viewModel(gateway)
+        val refreshJob = vm.startForegroundRefresh()
+        runCurrent()
+
+        advanceTimeBy(15_000L)
+        runCurrent()
+        refreshJob.cancel()
+
+        assertEquals(PeerListError.RECONNECT_REQUIRED, vm.state.value.refreshError)
     }
 
     @Test fun `unsupported companion schema asks for update`() = runTest(dispatcher) {
