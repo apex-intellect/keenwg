@@ -58,6 +58,25 @@ class PeerListViewModelTest {
         assertEquals(PeerListError.UNAVAILABLE, vm.state.value.refreshError)
     }
 
+    @Test fun `cached peers are visible before the router answers`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<List<Peer>>()
+        val vm = viewModel(
+            gateway = QueueGateway(
+                results = mutableListOf({ gate.await() }),
+                cached = listOf(peerA),
+            ),
+        )
+
+        vm.refresh()
+        runCurrent()
+
+        assertEquals(listOf(peerA), vm.state.value.peers)
+        assertFalse(vm.state.value.initialLoading)
+        assertTrue(vm.state.value.refreshing)
+        gate.complete(listOf(peerA, peerB))
+        advanceUntilIdle()
+    }
+
     @Test fun `single transient background failure keeps content without alarming the user`() = runTest(dispatcher) {
         val gateway = QueueGateway(mutableListOf({ listOf(peerA) }, { throw IOException("temporary") }))
         val vm = viewModel(gateway)
@@ -169,6 +188,33 @@ class PeerListViewModelTest {
         gate.complete(emptyList()); advanceUntilIdle()
     }
 
+    @Test fun `manual refresh waits for an active background request instead of being dropped`() = runTest(dispatcher) {
+        val firstStarted = CompletableDeferred<Unit>()
+        val firstResult = CompletableDeferred<List<Peer>>()
+        val gateway = QueueGateway(mutableListOf(
+            {
+                firstStarted.complete(Unit)
+                firstResult.await()
+            },
+            { listOf(peerB) },
+        ))
+        val vm = viewModel(gateway)
+        val foreground = vm.startForegroundRefresh()
+        runCurrent()
+        assertTrue(firstStarted.isCompleted)
+
+        val manual = vm.refresh()
+        runCurrent()
+        firstResult.complete(listOf(peerA))
+        runCurrent()
+        manual.join()
+        runCurrent()
+        foreground.cancel()
+
+        assertEquals(2, gateway.calls)
+        assertEquals(listOf(peerB), vm.state.value.peers)
+    }
+
     @Test fun `toggle marks only target peer busy and applies server confirmed value`() = runTest(dispatcher) {
         val confirm = CompletableDeferred<Unit>()
         val peers = MutableStateFlow(listOf(peerA, peerB))
@@ -201,7 +247,11 @@ class PeerListViewModelTest {
     )
 }
 
-private class QueueGateway(private val results: MutableList<suspend () -> List<Peer>>) : PeerListGateway {
+private class QueueGateway(
+    private val results: MutableList<suspend () -> List<Peer>>,
+    private val cached: List<Peer> = emptyList(),
+) : PeerListGateway {
     var calls = 0
+    override suspend fun cached(settings: ServerSettings) = cached
     override suspend fun list(settings: ServerSettings): List<Peer> { calls++; return results.removeAt(0).invoke() }
 }

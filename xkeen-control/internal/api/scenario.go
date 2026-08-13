@@ -29,6 +29,15 @@ func (s *SecureServer) handleScenarioCatalog(w http.ResponseWriter, r *http.Requ
 	if catalog.Presets == nil {
 		catalog.Presets = []scenario.Preset{}
 	}
+	for index := range catalog.Presets {
+		conditions := &catalog.Presets[index].Conditions
+		conditions.DeviceIDs = append([]string{}, conditions.DeviceIDs...)
+		conditions.Services = append([]string{}, conditions.Services...)
+		conditions.Domains = append([]string{}, conditions.Domains...)
+		conditions.Suffixes = append([]string{}, conditions.Suffixes...)
+		conditions.GeoSites = append([]string{}, conditions.GeoSites...)
+		conditions.CIDRs = append([]string{}, conditions.CIDRs...)
+	}
 	writeJSON(w, http.StatusOK, catalog)
 }
 

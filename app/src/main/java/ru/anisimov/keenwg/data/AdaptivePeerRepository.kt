@@ -5,6 +5,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import ru.anisimov.keenwg.data.network.isPaired
 import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.data.wireguard.CompanionPeerGateway
@@ -17,14 +19,30 @@ class AdaptivePeerRepository(
     private val companion: CompanionPeerGateway,
     private val legacy: PeerRepositoryGateway,
 ) : PeerRepositoryGateway {
+    private data class CacheScope(val profileId: String?, val settings: ServerSettings)
+
     private val _cachedPeers = MutableStateFlow<List<Peer>>(emptyList())
     override val cachedPeers: StateFlow<List<Peer>> = _cachedPeers.asStateFlow()
+    private val cacheMutex = Mutex()
+    private var cacheScope: CacheScope? = null
 
-    override suspend fun list(settings: ServerSettings): List<Peer> =
-        route(
+    override suspend fun cached(settings: ServerSettings): List<Peer> {
+        val active = activeProfile.first()
+        return cacheMutex.withLock {
+            _cachedPeers.value.takeIf {
+                cacheScope == CacheScope(active?.profile?.id, settings)
+            }.orEmpty()
+        }
+    }
+
+    override suspend fun list(settings: ServerSettings): List<Peer> {
+        val active = activeProfile.first()
+        return route(
+            active = active,
             paired = { companion.list(it, settings) },
             legacy = { legacy.list(settings) },
-        ).also { _cachedPeers.value = it }
+        ).also { storeCache(active, settings, it) }
+    }
 
     override suspend fun add(settings: ServerSettings, name: String, ip: String?, policy: AccessPolicy?): AddResult =
         route(
@@ -73,17 +91,34 @@ class AdaptivePeerRepository(
     )
 
     private suspend fun refreshCache(settings: ServerSettings) {
-        _cachedPeers.value = route(
+        val active = activeProfile.first()
+        val peers = route(
+            active = active,
             paired = { companion.list(it, settings) },
             legacy = { legacy.list(settings) },
         )
+        storeCache(active, settings, peers)
+    }
+
+    private suspend fun storeCache(
+        active: ActiveRouterProfile?,
+        settings: ServerSettings,
+        peers: List<Peer>,
+    ) = cacheMutex.withLock {
+        cacheScope = CacheScope(active?.profile?.id, settings)
+        _cachedPeers.value = peers
     }
 
     private suspend fun <T> route(
         paired: suspend (ActiveRouterProfile) -> T,
         legacy: suspend () -> T,
+    ): T = route(activeProfile.first(), paired, legacy)
+
+    private suspend fun <T> route(
+        active: ActiveRouterProfile?,
+        paired: suspend (ActiveRouterProfile) -> T,
+        legacy: suspend () -> T,
     ): T {
-        val active = activeProfile.first()
         return if (active.isPaired()) paired(requireNotNull(active)) else legacy()
     }
 }

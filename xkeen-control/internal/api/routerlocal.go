@@ -13,6 +13,7 @@ type RouterLocalService interface {
 	SnapshotHome(context.Context) (routerlocal.HomeDocument, error)
 	RecoverHome(context.Context) (routerlocal.HomeDocument, error)
 	SnapshotWireGuard(context.Context) (routerlocal.WireGuardDocument, error)
+	ReadWireGuard(context.Context) (routerlocal.WireGuardDocument, error)
 	RecoverWireGuard(context.Context) (routerlocal.WireGuardDocument, error)
 	ReviewReservation(context.Context, routerlocal.ReservationReviewRequest) (routerlocal.ReservationPlan, error)
 	ApplyReservation(context.Context, routerlocal.ReservationApplyRequest) (routerlocal.MutationResult, error)
@@ -101,7 +102,7 @@ func (s *SecureServer) handleWireGuard(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w, http.MethodGet)
 		return
 	}
-	document, err := s.routerLocal.RecoverWireGuard(r.Context())
+	document, err := s.routerLocal.ReadWireGuard(r.Context())
 	if err != nil {
 		writeRouterLocalError(w, err)
 		return

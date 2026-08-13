@@ -1,6 +1,5 @@
 package ru.anisimov.keenwg.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.MaterialTheme
@@ -19,11 +18,10 @@ fun KeenGlassSurface(
     Surface(
         modifier = modifier,
         shape = shape,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.84f),
+        color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)),
         tonalElevation = 0.dp,
-        shadowElevation = 2.dp,
+        shadowElevation = 1.dp,
     ) {
         Column(content = content)
     }

@@ -88,12 +88,12 @@ func (s *Service) Catalog(ctx context.Context) (Catalog, error) {
 }
 
 func clonePreset(input Preset) Preset {
-	input.Conditions.DeviceIDs = append([]string(nil), input.Conditions.DeviceIDs...)
-	input.Conditions.Services = append([]string(nil), input.Conditions.Services...)
-	input.Conditions.Domains = append([]string(nil), input.Conditions.Domains...)
-	input.Conditions.Suffixes = append([]string(nil), input.Conditions.Suffixes...)
-	input.Conditions.GeoSites = append([]string(nil), input.Conditions.GeoSites...)
-	input.Conditions.CIDRs = append([]string(nil), input.Conditions.CIDRs...)
+	input.Conditions.DeviceIDs = append([]string{}, input.Conditions.DeviceIDs...)
+	input.Conditions.Services = append([]string{}, input.Conditions.Services...)
+	input.Conditions.Domains = append([]string{}, input.Conditions.Domains...)
+	input.Conditions.Suffixes = append([]string{}, input.Conditions.Suffixes...)
+	input.Conditions.GeoSites = append([]string{}, input.Conditions.GeoSites...)
+	input.Conditions.CIDRs = append([]string{}, input.Conditions.CIDRs...)
 	return input
 }
 

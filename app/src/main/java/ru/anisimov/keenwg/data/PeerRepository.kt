@@ -50,6 +50,7 @@ fun interface AccessClock { fun nowEpochSeconds(): Long }
 
 interface PeerRepositoryGateway {
     val cachedPeers: StateFlow<List<Peer>>
+    suspend fun cached(settings: ServerSettings): List<Peer> = emptyList()
     suspend fun list(settings: ServerSettings): List<Peer>
     suspend fun add(settings: ServerSettings, name: String, ip: String? = null, policy: AccessPolicy? = null): AddResult
     suspend fun regenerate(settings: ServerSettings, publicKey: String): AddResult

@@ -141,7 +141,7 @@ class NetworkViewModelTest {
         val active = activeCompanionProfile()
         val vm = NetworkViewModel(flowOf(ServerSettings()), FakeGateway(), activeProfileFlow = flowOf(active), scenarioGateway = scenarios)
         advanceUntilIdle()
-        vm.selectSegment(NetworkSegment.SCENARIOS)
+        vm.selectSegment(NetworkSegment.DOMAINS)
         advanceUntilIdle()
         vm.reviewScenario("russia-direct")
         advanceUntilIdle()
@@ -158,7 +158,7 @@ class NetworkViewModelTest {
     @Test fun `pending recovery blocks scenarios until exact confirmed rollback`() = runTest(dispatcher) {
         val scenarios = FakeScenarios(recovery = RecoveryState(1, true, "scenario-apply-0009", listOf("routes")))
         val vm = NetworkViewModel(flowOf(ServerSettings()), FakeGateway(), activeProfileFlow = flowOf(activeCompanionProfile()), scenarioGateway = scenarios)
-        advanceUntilIdle(); vm.selectSegment(NetworkSegment.SCENARIOS); advanceUntilIdle()
+        advanceUntilIdle(); vm.selectSegment(NetworkSegment.DOMAINS); advanceUntilIdle()
         assertTrue(vm.state.value.writesBlocked)
         assertEquals("scenario-apply-0009", vm.state.value.recoveryState!!.planId)
         vm.reviewScenario("russia-direct"); advanceUntilIdle(); assertEquals(0, scenarios.reviews)
@@ -185,11 +185,31 @@ class NetworkViewModelTest {
         advanceUntilIdle()
         assertTrue(vm.state.value.writesBlocked)
 
-        vm.selectSegment(NetworkSegment.SCENARIOS)
+        vm.selectSegment(NetworkSegment.DOMAINS)
         advanceUntilIdle()
 
         assertFalse(vm.state.value.recoveryState!!.pending)
         assertTrue(vm.state.value.writesBlocked)
+    }
+
+    @Test fun `sites load ready rules and visible refresh retries both sources`() = runTest(dispatcher) {
+        val scenarios = FakeScenarios()
+        val vm = NetworkViewModel(
+            flowOf(ServerSettings()), FakeGateway(),
+            domainGateway = FakeDomains(),
+            activeProfileFlow = flowOf(activeCompanionProfile()),
+            scenarioGateway = scenarios,
+        )
+        advanceUntilIdle()
+
+        vm.selectSegment(NetworkSegment.DOMAINS)
+        advanceUntilIdle()
+        assertEquals(1, scenarios.catalogs)
+
+        vm.refreshVisible()
+        advanceUntilIdle()
+        assertEquals(2, scenarios.catalogs)
+        assertNotNull(vm.state.value.domains)
     }
 
     private class FakeGateway : NetworkGateway {
@@ -228,9 +248,12 @@ class NetworkViewModelTest {
     }
 
     private class FakeScenarios(var recovery: RecoveryState = RecoveryState(1, false, null, emptyList())) : ScenarioGateway {
-        var reviews = 0; var applies = 0; var recoveries = 0
+        var catalogs = 0; var reviews = 0; var applies = 0; var recoveries = 0
         private val preset = ScenarioPreset("russia-direct", "Russia direct", true)
-        override suspend fun catalog(profile: RouterProfile, token: String) = ScenarioCatalog(1, 7u, ScenarioModules(domains = true, ip = true), listOf(preset))
+        override suspend fun catalog(profile: RouterProfile, token: String): ScenarioCatalog {
+            catalogs++
+            return ScenarioCatalog(1, 7u, ScenarioModules(domains = true, ip = true), listOf(preset))
+        }
         override suspend fun review(profile: RouterProfile, token: String, presetId: String, stateVersion: ULong): ScenarioReview {
             reviews++
             val outcome = ru.anisimov.keenwg.data.routes.ScenarioOutcome("direct")

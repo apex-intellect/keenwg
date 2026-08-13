@@ -19,7 +19,6 @@ class NetworkPresentationTest {
                 R.string.rules_addresses,
                 R.string.rules_sites,
                 R.string.rules_check,
-                R.string.rules_sets,
             ),
             NetworkSegment.entries.map(::networkSegmentLabelResource),
         )

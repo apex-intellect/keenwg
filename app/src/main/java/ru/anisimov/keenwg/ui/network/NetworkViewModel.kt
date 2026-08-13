@@ -38,7 +38,7 @@ import ru.anisimov.keenwg.data.xkeen.XkeenException
 import ru.anisimov.keenwg.domain.model.ServerSettings
 import ru.anisimov.keenwg.R
 
-enum class NetworkSegment { DEVICES, IP_ADDRESSES, DOMAINS, EXPLAIN, SCENARIOS }
+enum class NetworkSegment { DEVICES, IP_ADDRESSES, DOMAINS, EXPLAIN }
 
 data class DomainEditorState(
     val original: DomainRule? = null,
@@ -104,7 +104,14 @@ class NetworkViewModel(
 
     fun selectSegment(segment: NetworkSegment) {
         _state.value = _state.value.copy(selectedSegment = segment)
-        if (segment == NetworkSegment.SCENARIOS && _state.value.scenarioCatalog == null) refreshScenarios()
+        if (segment == NetworkSegment.DOMAINS && _state.value.scenarioCatalog == null) refreshScenarios()
+    }
+
+    fun refreshVisible(): Job = viewModelScope.launch {
+        val content = refresh()
+        val readyRules = if (_state.value.selectedSegment == NetworkSegment.DOMAINS) refreshScenarios() else null
+        content.join()
+        readyRules?.join()
     }
 
     fun refresh(): Job = viewModelScope.launch {
@@ -252,11 +259,12 @@ class NetworkViewModel(
         return viewModelScope.launch {
             try {
                 val active = profiles.first() ?: throw ProtectedAccessMissing()
-                val before = _state.value
+                val beforeCatalog = _state.value.scenarioCatalog
                 val recovery = gateway.recovery(active.profile, active.secrets.companionToken)
-                val catalog = if (recovery.pending) before.scenarioCatalog else gateway.catalog(active.profile, active.secrets.companionToken)
-                val unrelatedBlock = before.writesBlocked && before.recoveryState?.pending != true
-                _state.value = before.copy(
+                val catalog = if (recovery.pending) beforeCatalog else gateway.catalog(active.profile, active.secrets.companionToken)
+                val latest = _state.value
+                val unrelatedBlock = latest.writesBlocked && latest.recoveryState?.pending != true
+                _state.value = latest.copy(
                     scenarioCatalog = catalog,
                     scenarioReview = null,
                     recoveryState = recovery,

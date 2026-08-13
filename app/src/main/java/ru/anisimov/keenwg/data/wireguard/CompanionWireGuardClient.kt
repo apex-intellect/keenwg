@@ -86,6 +86,7 @@ interface CompanionWireGuardGateway {
 class CompanionWireGuardClient(
     private val transport: CompanionHttpTransport = CompanionHttpTransport(),
     private val keyFactory: () -> String = { UUID.randomUUID().toString() },
+    private val delayMillis: suspend (Long) -> Unit = { delay(it) },
 ) : CompanionWireGuardGateway {
     private val json = Json {
         ignoreUnknownKeys = false
@@ -94,13 +95,15 @@ class CompanionWireGuardClient(
     }
 
     override suspend fun load(endpoint: CompanionEndpoint): CompanionWireGuardDocument = withContext(Dispatchers.IO) {
-        try {
-            loadOnce(endpoint)
-        } catch (failure: XkeenException) {
-            if (failure.code !in RETRYABLE_LOAD_ERRORS) throw failure
-            delay(LOAD_RETRY_DELAY_MILLIS)
-            loadOnce(endpoint)
+        LOAD_RETRY_DELAYS.forEach { wait ->
+            try {
+                return@withContext loadOnce(endpoint)
+            } catch (failure: XkeenException) {
+                if (failure.code !in RETRYABLE_LOAD_ERRORS) throw failure
+                delayMillis(wait)
+            }
         }
+        loadOnce(endpoint)
     }
 
     private fun loadOnce(endpoint: CompanionEndpoint): CompanionWireGuardDocument =
@@ -286,6 +289,6 @@ class CompanionWireGuardClient(
             XkeenErrorCode.TIMEOUT,
             XkeenErrorCode.COMPANION_UNAVAILABLE,
         )
-        const val LOAD_RETRY_DELAY_MILLIS = 250L
+        val LOAD_RETRY_DELAYS = listOf(300L, 900L, 1_800L)
     }
 }

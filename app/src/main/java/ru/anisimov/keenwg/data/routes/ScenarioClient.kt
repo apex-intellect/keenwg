@@ -46,7 +46,14 @@ interface ScenarioGateway{
     suspend fun rollback(profile:RouterProfile,token:String,planId:String):ScenarioApplyResult
 }
 
-class ScenarioClient(private val json:Json=Json{ignoreUnknownKeys=false;explicitNulls=false;encodeDefaults=true},private val keyFactory:()->String={UUID.randomUUID().toString()}):ScenarioGateway{
+internal val scenarioWireJson = Json {
+    ignoreUnknownKeys = false
+    explicitNulls = false
+    encodeDefaults = true
+    coerceInputValues = true
+}
+
+class ScenarioClient(private val json:Json=scenarioWireJson,private val keyFactory:()->String={UUID.randomUUID().toString()}):ScenarioGateway{
     private val clients=ConcurrentHashMap<ClientKey,OkHttpClient>()
     override suspend fun catalog(profile:RouterProfile,token:String)=request<ScenarioCatalog>(profile,token,"/v1/scenarios","GET",null).also(::validate)
     override suspend fun review(profile:RouterProfile,token:String,presetId:String,stateVersion:ULong)=request<ScenarioReview>(profile,token,"/v1/scenarios/${safeID(presetId)}/review","POST",json.encodeToString(ScenarioReviewRequest(stateVersion=stateVersion))).also(::validate)

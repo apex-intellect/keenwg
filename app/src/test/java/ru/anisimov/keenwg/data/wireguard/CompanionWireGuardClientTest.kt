@@ -10,16 +10,20 @@ import ru.anisimov.keenwg.data.xkeen.XkeenException
 import ru.anisimov.keenwg.test.TestCompanionServer
 
 class CompanionWireGuardClientTest {
-    @Test fun transientInventoryFailureIsRetriedOnce() = runTest {
+    @Test fun transientInventoryFailureIsRetriedUntilRouterIsReady() = runTest {
+        val waits = mutableListOf<Long>()
         val server = TestCompanionServer(
+            MockResponse().setResponseCode(503).setBody("""{"error":"router_unavailable"}"""),
+            MockResponse().setResponseCode(503).setBody("""{"error":"router_unavailable"}"""),
             MockResponse().setResponseCode(503).setBody("""{"error":"router_unavailable"}"""),
             MockResponse().setBody(documentJson()),
         )
 
-        val loaded = CompanionWireGuardClient().load(server.endpoint())
+        val loaded = CompanionWireGuardClient(delayMillis = { waits += it }).load(server.endpoint())
 
         assertEquals("wg-v1", loaded.stateVersion)
-        assertEquals(2, server.requestCount)
+        assertEquals(listOf(300L, 900L, 1_800L), waits)
+        assertEquals(4, server.requestCount)
         server.close()
     }
 

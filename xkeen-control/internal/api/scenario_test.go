@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,6 +25,21 @@ func TestScenarioReviewAllowsViewerButApplyRequiresOperator(t *testing.T) {
 	secure.ServeHTTP(list, catalogRequest(http.MethodGet, "/v1/scenarios", viewer.Token, ""))
 	if list.Code != http.StatusOK || !bytes.Contains(list.Body.Bytes(), []byte(`"russia-direct"`)) {
 		t.Fatalf("list=%d %s", list.Code, list.Body.Bytes())
+	}
+	var catalog struct {
+		Presets []struct {
+			Conditions scenario.Conditions `json:"conditions"`
+		} `json:"presets"`
+	}
+	if err := json.Unmarshal(list.Body.Bytes(), &catalog); err != nil {
+		t.Fatal(err)
+	}
+	for _, preset := range catalog.Presets {
+		conditions := preset.Conditions
+		if conditions.DeviceIDs == nil || conditions.Services == nil || conditions.Domains == nil ||
+			conditions.Suffixes == nil || conditions.GeoSites == nil || conditions.CIDRs == nil {
+			t.Fatalf("catalog contains null condition arrays: %s", list.Body.Bytes())
+		}
 	}
 	review := httptest.NewRecorder()
 	secure.ServeHTTP(review, catalogRequest(http.MethodPost, "/v1/scenarios/media/review", viewer.Token, `{"schema_version":1,"state_version":7}`))

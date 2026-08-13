@@ -12,7 +12,6 @@ import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -61,7 +60,6 @@ fun NetworkSegmentControl(state: NetworkUiState, onSelect: (NetworkSegment) -> U
                                 NetworkSegment.IP_ADDRESSES -> Icons.Default.Router
                                 NetworkSegment.DOMAINS -> Icons.Default.Language
                                 NetworkSegment.EXPLAIN -> Icons.Default.Search
-                                NetworkSegment.SCENARIOS -> Icons.Default.Tune
                             },
                             contentDescription = null,
                         )
@@ -79,5 +77,4 @@ internal fun networkSegmentLabelResource(segment: NetworkSegment): Int = when (s
     NetworkSegment.IP_ADDRESSES -> R.string.rules_addresses
     NetworkSegment.DOMAINS -> R.string.rules_sites
     NetworkSegment.EXPLAIN -> R.string.rules_check
-    NetworkSegment.SCENARIOS -> R.string.rules_sets
 }

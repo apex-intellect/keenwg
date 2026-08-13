@@ -9,7 +9,6 @@ fun segmentCount(segment: NetworkSegment, state: NetworkUiState): Int = when (se
     NetworkSegment.IP_ADDRESSES -> state.exclusions?.entries?.size ?: 0
     NetworkSegment.DOMAINS -> state.domains?.rules?.size ?: 0
     NetworkSegment.EXPLAIN -> state.routeExplanation?.steps?.size ?: 0
-    NetworkSegment.SCENARIOS -> state.scenarioCatalog?.presets?.size ?: 0
 }
 
 fun domainEffectResource(effect: String): Int = if (effect == "vpn") R.string.rules_via_vpn else R.string.rules_direct

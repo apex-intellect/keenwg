@@ -55,7 +55,7 @@ func TestSecureRouterLocalRoutesKeepTrustedPhonesSeparateAndEnforceScopes(t *tes
 			}
 		})
 	}
-	if local.homeReads == 0 || local.wireGuardReads == 0 || local.reservationApplies != 1 || local.peerApplies != 1 {
+	if local.homeReads == 0 || local.wireGuardReadCalls != 1 || local.reservationApplies != 1 || local.peerApplies != 1 {
 		t.Fatalf("unexpected calls: %+v", local)
 	}
 }
@@ -99,6 +99,7 @@ type routerLocalStub struct {
 	homeErr            error
 	homeReads          int
 	wireGuardReads     int
+	wireGuardReadCalls int
 	reservationApplies int
 	peerApplies        int
 }
@@ -116,6 +117,10 @@ func (s *routerLocalStub) SnapshotWireGuard(context.Context) (routerlocal.WireGu
 }
 func (s *routerLocalStub) RecoverWireGuard(ctx context.Context) (routerlocal.WireGuardDocument, error) {
 	return s.SnapshotWireGuard(ctx)
+}
+func (s *routerLocalStub) ReadWireGuard(context.Context) (routerlocal.WireGuardDocument, error) {
+	s.wireGuardReadCalls++
+	return s.wireGuard, nil
 }
 func (s *routerLocalStub) ReviewReservation(_ context.Context, request routerlocal.ReservationReviewRequest) (routerlocal.ReservationPlan, error) {
 	return routerlocal.ReservationPlan{SchemaVersion: 1, PlanID: "plan-1", ExpiresAt: time.Unix(1_900_000_000, 0), StateVersion: request.StateVersion, MAC: request.MAC, AfterIP: pointerText(request.ReservedIP)}, nil

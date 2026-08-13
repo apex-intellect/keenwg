@@ -184,6 +184,84 @@ func TestUncertainPeerMutationBlocksWritesUntilFreshInventory(t *testing.T) {
 	}
 }
 
+func TestWireGuardReadReusesOnlyAShortLivedVerifiedInventory(t *testing.T) {
+	runner := newStatefulRunner(t)
+	now := time.Unix(1_800_000_000, 0)
+	service := newService(runner, func() time.Time { return now }, func() string { return "plan" })
+
+	first, err := service.ReadWireGuard(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.ReadWireGuard(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.StateVersion != second.StateVersion || runner.wireGuardRuntimeReads != 1 {
+		t.Fatalf("fresh cache was not reused: reads=%d first=%q second=%q", runner.wireGuardRuntimeReads, first.StateVersion, second.StateVersion)
+	}
+
+	now = now.Add(3 * time.Second)
+	if _, err := service.ReadWireGuard(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if runner.wireGuardRuntimeReads != 2 {
+		t.Fatalf("expired inventory was reused: reads=%d", runner.wireGuardRuntimeReads)
+	}
+}
+
+func TestCommittedPeerMutationReplacesTheReadCache(t *testing.T) {
+	runner := newStatefulRunner(t)
+	service := newTestService(runner)
+	before, err := service.ReadWireGuard(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	disabled := false
+	request := PeerReviewRequest{
+		StateVersion: before.StateVersion,
+		InterfaceID:  "Wireguard0",
+		Action:       PeerSetEnabled,
+		PublicKey:    oldPeerKey,
+		Enabled:      &disabled,
+	}
+	plan, err := service.ReviewPeer(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.ApplyPeer(context.Background(), PeerApplyRequest{
+		PeerReviewRequest: request,
+		PlanID:            plan.PlanID,
+		IdempotencyKey:    "43ce1437-c9d7-44f9-855f-fbb091a10af5",
+	})
+	if err != nil || result.Status != MutationCommitted {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	readsAfterCommit := runner.wireGuardRuntimeReads
+	after, err := service.ReadWireGuard(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var peer *WireGuardPeer
+	for _, iface := range after.Interfaces {
+		if iface.ID != "Wireguard0" {
+			continue
+		}
+		for index := range iface.Peers {
+			if iface.Peers[index].PublicKey == oldPeerKey {
+				value := iface.Peers[index]
+				peer = &value
+			}
+		}
+	}
+	if peer == nil || peer.Enabled {
+		t.Fatalf("read cache still contains pre-commit peer: %+v", peer)
+	}
+	if runner.wireGuardRuntimeReads != readsAfterCommit {
+		t.Fatalf("committed inventory was not cached: reads=%d -> %d", readsAfterCommit, runner.wireGuardRuntimeReads)
+	}
+}
+
 func TestUncertainReservationMutationBlocksReviewBeforeExplicitInventory(t *testing.T) {
 	runner := newStatefulRunner(t)
 	service := newTestService(runner)
@@ -222,13 +300,14 @@ func reservationFor(devices []HomeDevice, mac string) string {
 }
 
 type statefulRunner struct {
-	t             *testing.T
-	reservations  map[string]string
-	peers         map[string]WireGuardPeer
-	commands      []string
-	mutationCount int
-	failNextSave  bool
-	failSaves     int
+	t                     *testing.T
+	reservations          map[string]string
+	peers                 map[string]WireGuardPeer
+	commands              []string
+	mutationCount         int
+	failNextSave          bool
+	failSaves             int
+	wireGuardRuntimeReads int
 }
 
 func newStatefulRunner(t *testing.T) *statefulRunner {
@@ -253,6 +332,7 @@ func (r *statefulRunner) Run(_ context.Context, command Command) ([]byte, error)
 		return []byte(r.runningXML()), nil
 	case "show interface Wireguard0":
 		r.commands = append(r.commands, command.value)
+		r.wireGuardRuntimeReads++
 		return []byte(r.wireGuardXML()), nil
 	case SaveConfiguration().value:
 		r.commands = append(r.commands, command.value)

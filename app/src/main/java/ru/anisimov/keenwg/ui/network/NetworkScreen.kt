@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
@@ -68,7 +69,7 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 title = { Column { Text(stringResource(R.string.rules_title)); Text(stringResource(R.string.rules_subtitle), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
-                actions = { IconButton(onClick = vm::refresh, enabled = !state.refreshing && !state.busy) { Icon(Icons.Default.Refresh, stringResource(R.string.rules_refresh_description)) } },
+                actions = { IconButton(onClick = vm::refreshVisible, enabled = !state.refreshing && !state.busy && !state.scenarioBusy) { Icon(Icons.Default.Refresh, stringResource(R.string.rules_refresh_description)) } },
             )
         },
     ) { padding ->
@@ -98,9 +99,8 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
             when (state.selectedSegment) {
                 NetworkSegment.DEVICES -> devicesSection(state, vm)
                 NetworkSegment.IP_ADDRESSES -> ipSection(state, vm)
-                NetworkSegment.DOMAINS -> domainSection(state, vm)
+                NetworkSegment.DOMAINS -> domainSection(state, vm) { recoveryConfirmOpen = true }
                 NetworkSegment.EXPLAIN -> explainSection(state, vm)
-                NetworkSegment.SCENARIOS -> scenariosSection(state, vm) { recoveryConfirmOpen = true }
             }
         }
     }
@@ -145,13 +145,33 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.scenariosSection(state: NetworkUiState, vm: NetworkViewModel, onRequestRecovery: () -> Unit) {
-    item { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        SectionTitle(stringResource(R.string.rules_sets_title), stringResource(R.string.rules_sets_subtitle), Modifier.weight(1f))
-        IconButton(onClick = vm::refreshScenarios, enabled = !state.scenarioBusy) { Icon(Icons.Default.Refresh, stringResource(R.string.rules_sets_refresh_description)) }
+private fun androidx.compose.foundation.lazy.LazyListScope.readyRulesSection(state: NetworkUiState, vm: NetworkViewModel, onRequestRecovery: () -> Unit) {
+    item { SectionTitle(stringResource(R.string.rules_sets_title), stringResource(R.string.rules_sets_subtitle)) }
+    if (state.scenarioBusy && state.scenarioCatalog == null) item {
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.Center) {
+            CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+        }
+    }
+    state.scenarioErrorResource?.let { message -> item {
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.ui_networkscreen_32500a15fa), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(message), style = MaterialTheme.typography.bodySmall)
+                }
+                TextButton(onClick = vm::refreshScenarios, enabled = !state.scenarioBusy) {
+                    Text(stringResource(R.string.action_try_again))
+                }
+            }
+        }
     } }
-    if (state.scenarioBusy && state.scenarioCatalog == null) item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(24.dp)) } }
-    state.scenarioErrorResource?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_32500a15fa), detail = stringResource(it), isError = true) } }
     state.recoveryState?.takeIf { it.pending }?.let { recovery ->
         item { Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -167,14 +187,28 @@ private fun androidx.compose.foundation.lazy.LazyListScope.scenariosSection(stat
         isError = result.status != "committed",
     ) } }
     state.scenarioCatalog?.let { catalog ->
-        item { StatusNotice(stringResource(R.string.ui_networkscreen_b28f9cb23a), detail = listOfNotNull(if (catalog.modules.domains) stringResource(R.string.ui_networkscreen_8fa9edd917) else null, if (catalog.modules.ip) "IP/CIDR" else null, if (catalog.modules.devices) stringResource(R.string.ui_networkscreen_d14eb265d3) else null, if (catalog.modules.services) stringResource(R.string.ui_networkscreen_2a5347d7f8) else null).joinToString().ifBlank { stringResource(R.string.ui_networkscreen_65329f77aa) }) }
         items(catalog.presets, key = { it.id }) { preset ->
-            Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text(preset.id.scenarioPresetLabel(preset.label), style = MaterialTheme.typography.titleMedium)
-                Text(preset.conditions.scenarioConditionsLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(preset.outcome.scenarioOutcomeLabel(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                OutlinedButton(onClick = { vm.reviewScenario(preset.id) }, Modifier.fillMaxWidth(), enabled = !state.scenarioBusy && !state.writesBlocked) { Text(stringResource(R.string.ui_networkscreen_9a506a2a8b)) }
-            } }
+            Surface(
+                onClick = { vm.reviewScenario(preset.id) },
+                enabled = !state.scenarioBusy && !state.writesBlocked,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
+                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(preset.id.scenarioPresetLabel(preset.label), style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            preset.id.scenarioPresetSummary(preset.conditions),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                        )
+                    }
+                    Text(preset.outcome.scenarioOutcomeLabel(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.ui_networkscreen_9a506a2a8b), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 }
@@ -185,6 +219,14 @@ private fun String.scenarioPresetLabel(fallback: String) = when (this) {
     "okko-direct" -> stringResource(R.string.scenario_preset_okko_direct)
     "emias-direct" -> stringResource(R.string.scenario_preset_emias_direct)
     else -> fallback
+}
+
+@Composable
+private fun String.scenarioPresetSummary(conditions: ru.anisimov.keenwg.data.routes.ScenarioConditions) = when (this) {
+    "russia-direct" -> stringResource(R.string.scenario_preset_russia_detail)
+    "okko-direct" -> stringResource(R.string.scenario_preset_okko_detail)
+    "emias-direct" -> stringResource(R.string.scenario_preset_emias_detail)
+    else -> conditions.scenarioConditionsLabel()
 }
 
 @Composable
@@ -330,13 +372,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ipSection(state: Netw
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: NetworkUiState, vm: NetworkViewModel) {
+private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: NetworkUiState, vm: NetworkViewModel, onRequestRecovery: () -> Unit) {
     item {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionTitle(stringResource(R.string.rules_sites_title), stringResource(R.string.rules_sites_subtitle), Modifier.weight(1f))
             OutlinedButton(onClick = vm::openDomainCreate, enabled = state.domains != null && !state.busy && !state.writesBlocked) { Icon(Icons.Default.Add, null); Text(stringResource(R.string.rules_sites_add)) }
         }
     }
+    readyRulesSection(state, vm, onRequestRecovery)
     state.domainErrorResource?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_a8bfafa797), detail = stringResource(it), isError = true) } }
     state.domains?.warnings?.forEach { warning -> item { StatusNotice(stringResource(R.string.ui_networkscreen_2e92862ecd), detail = warning, isError = true) } }
     val rules = state.domains?.rules.orEmpty()

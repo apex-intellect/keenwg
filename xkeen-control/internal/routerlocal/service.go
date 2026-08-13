@@ -40,9 +40,10 @@ const (
 	PeerRotate     = "rotate"
 	PeerRevoke     = "revoke"
 
-	planTTL          = 5 * time.Minute
-	maxStoredPlans   = 256
-	maxStoredResults = 256
+	planTTL           = 5 * time.Minute
+	maxStoredPlans    = 256
+	maxStoredResults  = 256
+	wireGuardCacheTTL = 2 * time.Second
 )
 
 type HomeDocument struct {
@@ -160,6 +161,12 @@ type Service struct {
 	results            map[string]storedResult
 	homeUncertain      bool
 	wireGuardUncertain bool
+	wireGuardCache     *cachedWireGuard
+}
+
+type cachedWireGuard struct {
+	document  WireGuardDocument
+	expiresAt time.Time
 }
 
 func NewService(runner Runner) *Service {
@@ -252,15 +259,61 @@ func (s *Service) SnapshotWireGuard(ctx context.Context) (WireGuardDocument, err
 	return WireGuardDocument{SchemaVersion: 1, StateVersion: wireGuardStateVersion(interfaces), Interfaces: interfaces}, nil
 }
 
+// ReadWireGuard serves a very short-lived, verified inventory and serializes
+// cache misses with mutations. It never uses cached state as a recovery
+// barrier after an uncertain write.
+func (s *Service) ReadWireGuard(ctx context.Context) (WireGuardDocument, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	if s.wireGuardWritesNeedRecovery() {
+		return s.RecoverWireGuard(ctx)
+	}
+	if document, ok := s.cachedWireGuard(); ok {
+		return document, nil
+	}
+	document, err := s.SnapshotWireGuard(ctx)
+	if err == nil {
+		s.storeWireGuardCache(document)
+	}
+	return document, err
+}
+
 // RecoverWireGuard is the explicit read barrier after an uncertain mutation.
 func (s *Service) RecoverWireGuard(ctx context.Context) (WireGuardDocument, error) {
 	document, err := s.SnapshotWireGuard(ctx)
 	if err == nil {
 		s.stateMu.Lock()
 		s.wireGuardUncertain = false
+		s.wireGuardCache = &cachedWireGuard{document: cloneWireGuardDocument(document), expiresAt: s.clock().Add(wireGuardCacheTTL)}
 		s.stateMu.Unlock()
 	}
 	return document, err
+}
+
+func (s *Service) cachedWireGuard() (WireGuardDocument, bool) {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if s.wireGuardCache == nil || !s.clock().Before(s.wireGuardCache.expiresAt) {
+		s.wireGuardCache = nil
+		return WireGuardDocument{}, false
+	}
+	return cloneWireGuardDocument(s.wireGuardCache.document), true
+}
+
+func (s *Service) storeWireGuardCache(document WireGuardDocument) {
+	s.stateMu.Lock()
+	s.wireGuardCache = &cachedWireGuard{document: cloneWireGuardDocument(document), expiresAt: s.clock().Add(wireGuardCacheTTL)}
+	s.stateMu.Unlock()
+}
+
+func cloneWireGuardDocument(document WireGuardDocument) WireGuardDocument {
+	copyDocument := document
+	copyDocument.Interfaces = append([]WireGuardInterface(nil), document.Interfaces...)
+	for index := range copyDocument.Interfaces {
+		copyDocument.Interfaces[index].Addresses = append([]string(nil), document.Interfaces[index].Addresses...)
+		copyDocument.Interfaces[index].Peers = append([]WireGuardPeer(nil), document.Interfaces[index].Peers...)
+	}
+	return copyDocument
 }
 
 func (s *Service) ReviewReservation(ctx context.Context, request ReservationReviewRequest) (ReservationPlan, error) {
@@ -448,11 +501,14 @@ func (s *Service) ApplyPeer(ctx context.Context, request PeerApplyRequest) (Muta
 		result := s.rollbackPeer(ctx, stored.plan, beforeDocument)
 		if result.Status == MutationUncertain {
 			s.markWireGuardUncertain()
+		} else if result.WireGuard != nil {
+			s.storeWireGuardCache(*result.WireGuard)
 		}
 		s.remember(request.IdempotencyKey, hash, result)
 		return result, nil
 	}
 	result := MutationResult{SchemaVersion: 1, Status: MutationCommitted, WireGuard: &committed}
+	s.storeWireGuardCache(committed)
 	s.remember(request.IdempotencyKey, hash, result)
 	return result, nil
 }
@@ -478,6 +534,7 @@ func (s *Service) markHomeUncertain() {
 func (s *Service) markWireGuardUncertain() {
 	s.stateMu.Lock()
 	s.wireGuardUncertain = true
+	s.wireGuardCache = nil
 	s.stateMu.Unlock()
 }
 

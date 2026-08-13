@@ -25,11 +25,15 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AlertDialog
@@ -63,6 +67,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.ui.components.StatusNotice
 import ru.anisimov.keenwg.data.catalog.CatalogErrorCode
+import ru.anisimov.keenwg.data.catalog.CatalogGroup
+import ru.anisimov.keenwg.data.catalog.CatalogNodeTest
 import ru.anisimov.keenwg.data.catalog.ImportOrigin
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -209,10 +215,9 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
     val cards = connectionCards(catalog, state.selectedGroupId)
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 32.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item { Button(onClick = onAdd, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) { Text(stringResource(R.string.ui_connectionsscreen_19bb65cdf3)) } }
         state.notice?.let { notice ->
             item {
                 StatusNotice(
@@ -232,39 +237,41 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = state.selectedGroupId == null, onClick = { viewModel.selectGroup(null) }, label = { Text(stringResource(R.string.ui_connectionsscreen_215816bf42)) })
-                catalog.groups.forEach { group ->
-                    FilterChip(
-                        selected = state.selectedGroupId == group.id,
-                        onClick = { viewModel.selectGroup(group.id) },
-                        label = {
-                            Text(
-                                if (groupDisplayKind(group) == GroupDisplayKind.PRIMARY) {
-                                    stringResource(R.string.connections_group_primary)
-                                } else {
-                                    group.label
-                                },
-                            )
-                        },
-                    )
-                }
-            }
+            ConnectionToolbar(
+                groups = catalog.groups,
+                selectedGroupId = state.selectedGroupId,
+                onSelectGroup = viewModel::selectGroup,
+                onAdd = onAdd,
+            )
         }
         items(catalog.sources, key = { "source-${it.id}" }) { source ->
-            Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f))) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            ) {
                 val sourceKind = sourceDisplayKind(source)
                 val action = state.sourceActions[source.id]
                 val mode = subscriptionSourceMode(source, state.sourceConfiguration[source.id], action)
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        if (sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
-                            stringResource(R.string.connections_source_xkeen)
-                        } else {
-                            source.label
-                        },
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
+                                stringResource(R.string.connections_source_xkeen)
+                            } else {
+                                source.label
+                            },
+                            modifier = Modifier.weight(1f),
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            pluralStringResource(R.plurals.connections_server_count, source.nodeCount, source.nodeCount),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     when (mode) {
                         SubscriptionSourceMode.NEEDS_LINK -> {
                             Text(
@@ -279,7 +286,6 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
                             )
                             Button(
                                 onClick = { viewModel.editSubscriptionLink(source.id) },
-                                modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(18.dp),
                             ) { Text(stringResource(R.string.connections_subscription_add_link)) }
                         }
@@ -291,106 +297,202 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
                             }
                         }
                         SubscriptionSourceMode.READY -> {
-                        Text(
-                            pluralStringResource(R.plurals.connections_server_count, source.nodeCount, source.nodeCount),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        if (source.status.name == "STALE") {
-                            Text(
-                                stringResource(R.string.connections_subscription_stale),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary,
-                            )
-                        }
-                        if (sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
-                            Text(
-                                stringResource(R.string.connections_subscription_helper),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                            if (source.status.name == "STALE") {
+                                Text(
+                                    stringResource(R.string.connections_subscription_stale),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                )
+                            }
                             if (source.foreign) {
-                                Button(
-                                    onClick = { viewModel.refreshSource(source.id) },
-                                    enabled = source.id !in state.busySources,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(18.dp),
-                                ) {
-                                    if (source.id in state.busySources) {
-                                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                                    } else {
-                                        Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
-                                    }
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        stringResource(
-                                            if (source.id in state.busySources) {
-                                                R.string.connections_subscription_refreshing
-                                            } else {
-                                                R.string.connections_subscription_refresh
-                                            },
-                                        ),
-                                    )
-                                }
-                                if (source.id == XKEEN_SUBSCRIPTION_SOURCE_ID &&
-                                    state.sourceConfiguration[source.id] != null
-                                ) {
-                                    TextButton(
-                                        onClick = { viewModel.editSubscriptionLink(source.id) },
-                                        enabled = source.id !in state.busySources,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) { Text(stringResource(R.string.connections_subscription_change_link)) }
-                                }
+                                SubscriptionSourceActions(
+                                    busy = source.id in state.busySources,
+                                    canEditLink = source.id == XKEEN_SUBSCRIPTION_SOURCE_ID &&
+                                        state.sourceConfiguration[source.id] != null,
+                                    onRefresh = { viewModel.refreshSource(source.id) },
+                                    onEditLink = { viewModel.editSubscriptionLink(source.id) },
+                                )
                             }
                         }
                     }
                 }
             }
         }
-        item { Text(stringResource(R.string.ui_connectionsscreen_eef29a39f7), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
+        item {
+            Text(
+                stringResource(R.string.ui_connectionsscreen_eef29a39f7),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
         items(cards, key = { it.id }) { card ->
             val test = state.tests[card.id]?.result
             Card(
                 onClick = { viewModel.requestActivation(card.id) },
                 enabled = !card.active && card.id !in state.busyNodes,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 158.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = if (card.active) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surface),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (card.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    contentColor = if (card.active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                    disabledContainerColor = if (card.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    disabledContentColor = if (card.active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                ),
             ) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(card.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text(card.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(
-                                if (card.sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
-                                    stringResource(R.string.connections_source_xkeen_node)
-                                } else {
-                                    card.customSourceLabel
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        if (card.active) Icon(Icons.Default.CheckCircle, stringResource(R.string.active), tint = MaterialTheme.colorScheme.tertiary)
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            card.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            card.subtitle,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (card.active) {
+                                MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                        Text(
+                            if (card.sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
+                                stringResource(R.string.connections_source_xkeen_node)
+                            } else {
+                                card.customSourceLabel
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (card.active) {
+                                MaterialTheme.colorScheme.onPrimary.copy(alpha = .9f)
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
-                    Box(Modifier.fillMaxWidth().height(20.dp), contentAlignment = Alignment.CenterStart) {
-                        if (test != null) {
-                            Text(
-                                if (test.reachable) stringResource(R.string.reachable_latency, test.latencyMs)
-                                else stringResource(R.string.ui_connectionsscreen_53ba89acf4),
-                                style = MaterialTheme.typography.labelMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                    if (card.testable && !card.active) OutlinedButton(onClick = { viewModel.testNode(card.id) }, enabled = card.id !in state.busyNodes, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.Speed, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(if (test == null) stringResource(R.string.ui_connectionsscreen_e4424a6df6) else stringResource(R.string.ui_connectionsscreen_dc7dbeb809))
-                    }
+                    ConnectionCardTrailing(
+                        card = card,
+                        test = test,
+                        busy = card.id in state.busyNodes,
+                        onTest = { viewModel.testNode(card.id) },
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ConnectionToolbar(
+    groups: List<CatalogGroup>,
+    selectedGroupId: String?,
+    onSelectGroup: (String?) -> Unit,
+    onAdd: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = selectedGroupId == null,
+                onClick = { onSelectGroup(null) },
+                label = { Text(stringResource(R.string.ui_connectionsscreen_215816bf42)) },
+            )
+            groups.forEach { group ->
+                FilterChip(
+                    selected = selectedGroupId == group.id,
+                    onClick = { onSelectGroup(group.id) },
+                    label = {
+                        Text(
+                            if (groupDisplayKind(group) == GroupDisplayKind.PRIMARY) {
+                                stringResource(R.string.connections_group_primary)
+                            } else {
+                                group.label
+                            },
+                        )
+                    },
+                )
+            }
+        }
+        TextButton(onClick = onAdd) {
+            Icon(Icons.Default.Add, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.connections_add_action))
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionSourceActions(
+    busy: Boolean,
+    canEditLink: Boolean,
+    onRefresh: () -> Unit,
+    onEditLink: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = onRefresh, enabled = !busy) {
+            if (busy) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(6.dp))
+            Text(
+                stringResource(
+                    if (busy) R.string.connections_subscription_refreshing
+                    else R.string.connections_subscription_refresh,
+                ),
+            )
+        }
+        if (canEditLink) {
+            TextButton(onClick = onEditLink, enabled = !busy) {
+                Icon(Icons.Default.Link, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.connections_subscription_change_link))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConnectionCardTrailing(
+    card: ConnectionCard,
+    test: CatalogNodeTest?,
+    busy: Boolean,
+    onTest: () -> Unit,
+) {
+    if (card.active) {
+        Icon(Icons.Default.CheckCircle, stringResource(R.string.active), tint = MaterialTheme.colorScheme.onPrimary)
+        return
+    }
+    if (!card.testable) return
+    Column(horizontalAlignment = Alignment.End) {
+        Box(Modifier.height(20.dp), contentAlignment = Alignment.CenterEnd) {
+            when {
+                busy -> CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                test != null -> Text(
+                    if (test.reachable) stringResource(R.string.reachable_latency, test.latencyMs)
+                    else stringResource(R.string.ui_connectionsscreen_53ba89acf4),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        TextButton(onClick = onTest, enabled = !busy) {
+            Icon(Icons.Default.Speed, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(5.dp))
+            Text(stringResource(R.string.connections_test_action))
         }
     }
 }

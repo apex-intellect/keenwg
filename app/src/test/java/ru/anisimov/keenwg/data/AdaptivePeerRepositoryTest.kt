@@ -47,6 +47,20 @@ class AdaptivePeerRepositoryTest {
         assertEquals(1, legacy.loads)
     }
 
+    @Test fun cachedPeersAreNeverReusedForAnotherRouterProfile() = runTest {
+        val profiles = MutableStateFlow(activeProfile(true, id = "router-a"))
+        val repository = AdaptivePeerRepository(profiles, FakeCompanionPeers(), FakeLegacyPeers())
+        val settings = ServerSettings(host = "192.168.1.1", password = "")
+
+        val loaded = repository.list(settings)
+        assertEquals(6, repository.cached(settings).size)
+
+        profiles.value = activeProfile(true, id = "router-b")
+
+        assertEquals(emptyList<Peer>(), repository.cached(settings))
+        assertEquals(6, loaded.size)
+    }
+
     private class FakeCompanionPeers(private val fail: Boolean = false) : CompanionPeerGateway {
         override val cachedPeers = MutableStateFlow<List<Peer>>(emptyList())
         var loads = 0
@@ -80,9 +94,9 @@ class AdaptivePeerRepositoryTest {
         override suspend fun accessPolicyFor(publicKey: String): AccessPolicy? = null
     }
 
-    private fun activeProfile(paired: Boolean) = ActiveRouterProfile(
+    private fun activeProfile(paired: Boolean, id: String = "router") = ActiveRouterProfile(
         RouterProfile(
-            id = "router", displayName = "Router", host = "192.168.1.1", rciPort = 80,
+            id = id, displayName = "Router", host = "192.168.1.1", rciPort = 80,
             interfaceId = "Wireguard0", serverPublicKey = "", endpoint = "", subnetBase = "10.8.0.",
             dns = "192.168.1.1", mtu = 1380, keepalive = 25,
             companionUrl = if (paired) "https://192.168.1.1:18779" else "",
