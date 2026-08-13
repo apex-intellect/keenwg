@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">KeenWG — Apex Core</title>
+  <desc id="desc">The Apex Intellect orb centered on a quiet black adaptive-icon field.</desc>
+  <defs>
+    <radialGradient id="field" cx="50%" cy="42%" r="68%">
+      <stop offset="0" stop-color="#152033"/>
+      <stop offset="0.62" stop-color="#090B0E"/>
+      <stop offset="1" stop-color="#050608"/>
+    </radialGradient>
+    <radialGradient id="apexOrb" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(563.238 37.1797) scale(48.2957 48.2553)">
+      <stop offset="0.162" stop-color="#00EFFE"/>
+      <stop offset="0.246" stop-color="#00E5FE"/>
+      <stop offset="0.388" stop-color="#00CAFE"/>
+      <stop offset="0.571" stop-color="#009FFE"/>
+      <stop offset="0.606" stop-color="#0096FF"/>
+      <stop offset="0.885" stop-color="#0043FF"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#field)"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="2"/>
+  <g transform="translate(256 256) scale(3.2) translate(-563.238 -37.18)">
+    <path d="M600.308 42.453C600.522 40.8768 600.643 39.2715 600.653 37.6391C600.547 16.8598 583.824 0.223469 563.313 0.000109663C563.197 -0.000861465 563.083 0.00496317 562.966 0.00399204C542.426 0.151604 525.821 16.8278 525.821 37.3856C525.821 50.1802 532.256 61.4686 542.066 68.2092C547.891 72.1209 554.92 74.4545 562.626 74.337C581.991 75.0508 597.819 59.3778 600.308 42.453ZM586.939 23.2402C593.094 31.2627 595.249 40.4282 593.585 50.4308C592.565 56.5644 583.378 66.7564 583.31 66.6632C584.674 64.3403 586.269 62.1183 587.36 59.6759C591.07 51.3718 590.078 43.2911 585.584 35.5696C581.641 28.795 576.389 23.1673 570.184 18.3068C566.569 15.476 559.897 8.72568 559.804 8.32849C570.166 11.203 580.189 14.4398 586.94 23.2392L586.939 23.2402ZM553.889 23.9161C551.517 26.7518 548.934 27.8482 545.923 28.1784C540.187 28.8067 535.786 26.3342 531.997 22.337C538.876 25.7729 546.368 21.8981 553.889 23.9161ZM543.04 46.5725C536.009 41.712 530.391 35.9445 529.008 27.1276C528.914 26.5333 528.836 25.936 528.75 25.3397C530.35 30.2954 533.729 33.7682 538.208 36.2261C541.317 37.9333 544.647 39.2463 547.759 40.9487C554.362 44.5603 559.893 49.28 562.239 56.6829C563.043 59.2205 563.108 61.9872 563.17 64.718C558.594 56.1799 550.479 51.7156 543.04 46.5725Z" fill="url(#apexOrb)"/>
+  </g>
+</svg>
