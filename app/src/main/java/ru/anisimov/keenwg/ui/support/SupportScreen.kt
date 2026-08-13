@@ -91,7 +91,15 @@ fun SupportScreen(
                     }
                 }
             }
-            state.error?.let { item { StatusNotice(stringResource(R.string.support_error_title), detail = it, isError = true) } }
+            state.errorResource?.let { errorResource ->
+                item {
+                    StatusNotice(
+                        stringResource(R.string.support_error_title),
+                        detail = stringResource(errorResource),
+                        isError = true,
+                    )
+                }
+            }
             if (state.requirement == SupportRequirement.COMPANION_PAIRING) {
                 item {
                     StatusNotice(

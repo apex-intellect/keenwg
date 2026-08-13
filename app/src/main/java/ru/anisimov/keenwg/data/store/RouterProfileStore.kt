@@ -65,7 +65,7 @@ class RouterProfileStore internal constructor(
     }
 
     suspend fun upsert(profile: RouterProfile, secrets: RouterSecrets, select: Boolean) {
-        require(profile.schemaVersion == 3 && profile.id.isNotBlank() && profile.displayName.isNotBlank())
+        require(profile.schemaVersion == 4 && profile.id.isNotBlank() && profile.displayName.isNotBlank())
         dataStore.edit { preferences ->
             val current = mutableSnapshot(preferences)
             val profiles = current.index.profiles.toMutableList()

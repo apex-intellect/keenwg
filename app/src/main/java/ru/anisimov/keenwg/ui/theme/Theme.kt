@@ -3,39 +3,39 @@ package ru.anisimov.keenwg.ui.theme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-private val KeenDarkColors = darkColorScheme(
+private val KeenLightColors = lightColorScheme(
     primary = KeenPrimary,
-    onPrimary = Color(0xFF002D3A),
+    onPrimary = Color.White,
     primaryContainer = KeenPrimaryContainer,
-    onPrimaryContainer = Color(0xFFD9F4FC),
-    secondary = KeenWarning,
-    onSecondary = Color(0xFF3F2E00),
+    onPrimaryContainer = Color(0xFF0A316E),
+    secondary = KeenCyan,
+    onSecondary = KeenText,
     secondaryContainer = KeenWarningContainer,
-    onSecondaryContainer = Color(0xFFFFE7AD),
+    onSecondaryContainer = Color(0xFF4C3400),
     tertiary = KeenSuccess,
-    onTertiary = Color(0xFF00382F),
+    onTertiary = Color.White,
     tertiaryContainer = KeenSuccessContainer,
-    onTertiaryContainer = Color(0xFFB8F4E7),
-    background = KeenBackground,
+    onTertiaryContainer = Color(0xFF07523D),
+    background = Color.Transparent,
     onBackground = KeenText,
     surface = KeenSurface,
     onSurface = KeenText,
     surfaceVariant = KeenSurfaceElevated,
     onSurfaceVariant = KeenTextSecondary,
     surfaceContainer = KeenSurface,
-    surfaceContainerHigh = KeenNavigation,
+    surfaceContainerHigh = KeenSurfaceElevated,
     surfaceContainerHighest = KeenSurfaceElevated,
     outline = KeenOutline,
-    outlineVariant = Color(0xFF203040),
+    outlineVariant = Color(0xFFE4E6E9),
     error = KeenError,
-    onError = Color(0xFF4A0005),
+    onError = Color.White,
     errorContainer = KeenErrorContainer,
-    onErrorContainer = Color(0xFFFFDAD8),
+    onErrorContainer = Color(0xFF781D25),
     scrim = Color(0x99000000),
 )
 
@@ -49,11 +49,10 @@ private val KeenWgShapes = Shapes(
 
 @Composable
 fun KeenWgTheme(
-    darkTheme: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
-        colorScheme = KeenDarkColors,
+        colorScheme = KeenLightColors,
         typography = KeenWgTypography,
         shapes = KeenWgShapes,
         content = content,

@@ -13,12 +13,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import ru.anisimov.keenwg.data.ServiceLocator
 import ru.anisimov.keenwg.data.discovery.DiscoveryPreview
-import ru.anisimov.keenwg.data.collector.CollectorClient
-import ru.anisimov.keenwg.data.collector.CollectorMeta
 import ru.anisimov.keenwg.data.discovery.RouterDiscovery
 import ru.anisimov.keenwg.data.rci.RciClient
 import ru.anisimov.keenwg.domain.ServerSettingsValidator
 import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.R
 
 interface SettingsStoreGateway {
     val settings: Flow<ServerSettings>
@@ -30,25 +29,14 @@ interface SettingsRciGateway {
     suspend fun get(settings: ServerSettings, path: String): String
 }
 
-fun interface SettingsCollectorGateway {
-    suspend fun probe(settings: ServerSettings): CollectorMeta
-}
-
 class SettingsViewModel(
     private val store: SettingsStoreGateway = serviceSettingsStore(),
     private val rci: SettingsRciGateway = serviceSettingsRci(),
-    private val collector: SettingsCollectorGateway = SettingsCollectorGateway { CollectorClient().probe(it) },
 ) : ViewModel() {
-    constructor() : this(
-        store = serviceSettingsStore(),
-        rci = serviceSettingsRci(),
-        collector = SettingsCollectorGateway { CollectorClient().probe(it) },
-    )
-
     val settings: StateFlow<ServerSettings> =
         store.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ServerSettings())
     private val operationMutex = Mutex()
-    private val _msg = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    private val _msg = MutableSharedFlow<Int>(extraBufferCapacity = 4)
     val msg = _msg.asSharedFlow()
     val preview = MutableStateFlow<DiscoveryPreview?>(null)
 
@@ -57,14 +45,14 @@ class SettingsViewModel(
         rci.authenticate(draft)
         rci.get(draft, "show/version")
         store.save(draft)
-        _msg.emit("Настройки проверены и сохранены ✓")
+        _msg.emit(R.string.settings_message_saved)
     }
 
     fun discover(draft: ServerSettings) = guarded {
-        require(draft.host.isNotBlank() && draft.port in 1..65535 && draft.login.isNotBlank()) { "Проверьте адрес, порт и логин роутера" }
+        require(draft.host.isNotBlank() && draft.port in 1..65535 && draft.login.isNotBlank())
         rci.authenticate(draft)
         preview.value = RouterDiscovery.discover(rci.get(draft, "show/interface"), draft)
-        _msg.emit("Проверьте найденные параметры перед сохранением")
+        _msg.emit(R.string.settings_message_review_discovered)
     }
 
     fun applyPreviewAndSave(draft: ServerSettings, found: DiscoveryPreview, acceptEndpointCandidate: Boolean) = guarded {
@@ -74,13 +62,7 @@ class SettingsViewModel(
         rci.get(reviewed, "show/version")
         store.save(reviewed)
         preview.value = null
-        _msg.emit("Настройки проверены и сохранены ✓")
-    }
-
-    fun testCollector(draft: ServerSettings) = guarded {
-        ServerSettingsValidator.validateCollectorUrl(draft.collectorUrl)?.let { error(it) }
-        val meta = collector.probe(draft)
-        _msg.emit("Сборщик ${meta.version} доступен, токен принят")
+        _msg.emit(R.string.settings_message_saved)
     }
 
     fun save(draft: ServerSettings) = saveAndTest(draft)
@@ -90,8 +72,8 @@ class SettingsViewModel(
     private fun guarded(block: suspend () -> Unit) = viewModelScope.launch {
         if (!operationMutex.tryLock()) return@launch
         try {
-            runCatching { block() }.onFailure { error ->
-                _msg.emit(error.message ?: "Не удалось выполнить операцию")
+            runCatching { block() }.onFailure {
+                _msg.emit(R.string.settings_error_operation_failed)
             }
         } finally {
             operationMutex.unlock()

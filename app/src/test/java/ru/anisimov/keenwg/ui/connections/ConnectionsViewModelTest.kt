@@ -62,7 +62,7 @@ class ConnectionsViewModelTest {
         assertNull(vm.state.value.catalog)
         assertFalse(vm.state.value.loading)
         assertEquals(CatalogErrorCode.UNSUPPORTED_SCHEMA, vm.state.value.loadError)
-        assertNull(vm.state.value.message)
+        assertNull(vm.state.value.messageResource)
 
         gateway.snapshotFailure = null
         vm.loadCatalog()
@@ -70,7 +70,7 @@ class ConnectionsViewModelTest {
 
         assertNotNull(vm.state.value.catalog)
         assertNull(vm.state.value.loadError)
-        assertNull(vm.state.value.message)
+        assertNull(vm.state.value.messageResource)
         assertEquals(2, gateway.snapshotCalls)
     }
 

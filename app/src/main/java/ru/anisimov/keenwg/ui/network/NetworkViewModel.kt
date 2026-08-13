@@ -36,6 +36,7 @@ import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.data.xkeen.XkeenErrorCode
 import ru.anisimov.keenwg.data.xkeen.XkeenException
 import ru.anisimov.keenwg.domain.model.ServerSettings
+import ru.anisimov.keenwg.R
 
 enum class NetworkSegment { DEVICES, IP_ADDRESSES, DOMAINS, EXPLAIN, SCENARIOS }
 
@@ -50,27 +51,28 @@ data class NetworkUiState(
     val refreshing: Boolean = false,
     val selectedSegment: NetworkSegment = NetworkSegment.DEVICES,
     val devices: List<NetworkDevice> = emptyList(),
-    val deviceError: String? = null,
+    val deviceErrorResource: Int? = null,
     val pendingDevice: NetworkDevice? = null,
     val busy: Boolean = false,
     val writesBlocked: Boolean = false,
-    val message: String? = null,
+    val messageResource: Int? = null,
+    val messageIsError: Boolean = false,
     val exclusions: NetworkExclusionStatus? = null,
-    val exclusionError: String? = null,
+    val exclusionErrorResource: Int? = null,
     val exclusionEditorOpen: Boolean = false,
     val pendingExclusionDelete: NetworkExclusionEntry? = null,
     val domains: DomainRoutingStatus? = null,
-    val domainError: String? = null,
+    val domainErrorResource: Int? = null,
     val domainEditor: DomainEditorState? = null,
     val pendingDomainDelete: DomainRule? = null,
     val routeChecking: Boolean = false,
     val routeExplanation: RouteExplanation? = null,
-    val routeError: String? = null,
+    val routeErrorResource: Int? = null,
     val scenarioBusy: Boolean = false,
     val scenarioCatalog: ScenarioCatalog? = null,
     val scenarioReview: ScenarioReview? = null,
     val scenarioResult: ScenarioApplyResult? = null,
-    val scenarioError: String? = null,
+    val scenarioErrorResource: Int? = null,
     val recoveryState: RecoveryState? = null,
 )
 
@@ -112,7 +114,8 @@ class NetworkViewModel(
             _state.value = current.copy(
                 loading = current.devices.isEmpty() && current.exclusions == null && current.domains == null,
                 refreshing = current.devices.isNotEmpty() || current.exclusions != null || current.domains != null,
-                message = null,
+                messageResource = null,
+                messageIsError = false,
             )
             val settings = settingsFlow.first()
             val companionEndpoint = runCatching { activeProfileFlow?.first()?.requireCompanionEndpoint() }.getOrNull()
@@ -128,11 +131,11 @@ class NetworkViewModel(
                 loading = false,
                 refreshing = false,
                 devices = devicesResult.getOrNull() ?: before.devices,
-                deviceError = devicesResult.exceptionOrNull()?.safeMessage("Не удалось получить устройства"),
+                deviceErrorResource = devicesResult.exceptionOrNull()?.let { R.string.network_error_devices },
                 exclusions = exclusionsResult.getOrNull() ?: before.exclusions,
-                exclusionError = exclusionsResult.exceptionOrNull()?.safeMessage("Не удалось получить IP-исключения"),
+                exclusionErrorResource = exclusionsResult.exceptionOrNull()?.let { R.string.network_error_exclusions },
                 domains = loadedDomains ?: before.domains,
-                domainError = domainsResult.exceptionOrNull()?.domainMessage(),
+                domainErrorResource = domainsResult.exceptionOrNull()?.domainMessageResource(),
                 writesBlocked = if (before.recoveryState?.pending == true) true
                     else if (loadedDomains != null && loadedDomains.warnings.isEmpty()) false
                     else before.writesBlocked,
@@ -143,7 +146,7 @@ class NetworkViewModel(
     }
 
     fun requestStaticEdit(device: NetworkDevice) {
-        if (!_state.value.busy && !_state.value.writesBlocked) _state.value = _state.value.copy(pendingDevice = device, message = null)
+        if (!_state.value.busy && !_state.value.writesBlocked) _state.value = _state.value.copy(pendingDevice = device, messageResource = null)
     }
 
     fun dismissEdit() { if (!_state.value.busy) _state.value = _state.value.copy(pendingDevice = null) }
@@ -165,7 +168,7 @@ class NetworkViewModel(
 
     fun openDomainCreate() {
         if (!_state.value.busy && !_state.value.writesBlocked && domainGateway != null) {
-            _state.value = _state.value.copy(domainEditor = DomainEditorState(), message = null)
+            _state.value = _state.value.copy(domainEditor = DomainEditorState(), messageResource = null)
         }
     }
 
@@ -173,7 +176,7 @@ class NetworkViewModel(
         if (!_state.value.busy && !_state.value.writesBlocked && !rule.isProtected && rule.source != "system") {
             _state.value = _state.value.copy(
                 domainEditor = DomainEditorState(rule, DomainRuleDraft(rule.kind, rule.value, rule.effect, rule.label, rule.enabled)),
-                message = null,
+                messageResource = null,
             )
         }
     }
@@ -220,11 +223,11 @@ class NetworkViewModel(
         val profiles = activeProfileFlow ?: return completedJob()
         val value = target.trim().lowercase()
         if (value.isBlank() || protocol !in setOf("tcp", "udp") || port !in 0..65535 || _state.value.routeChecking) return completedJob()
-        _state.value = _state.value.copy(routeChecking = true, routeError = null, routeExplanation = null)
+        _state.value = _state.value.copy(routeChecking = true, routeErrorResource = null, routeExplanation = null)
         return viewModelScope.launch {
             try {
-                val active = profiles.first() ?: error("Защищённый доступ не настроен")
-                if (active.profile.companionUrl.isBlank() || active.secrets.companionToken.isBlank()) error("Защищённый доступ не настроен")
+                val active = profiles.first() ?: throw ProtectedAccessMissing()
+                if (active.profile.companionUrl.isBlank() || active.secrets.companionToken.isBlank()) throw ProtectedAccessMissing()
                 val looksLikeIp = value.contains(':') || value.matches(Regex("^[0-9.]+$"))
                 val request = RouteExplainRequest(
                     domain = value.takeUnless { looksLikeIp }, ip = value.takeIf { looksLikeIp },
@@ -233,7 +236,9 @@ class NetworkViewModel(
                 val explanation = gateway.explain(active.profile, active.secrets.companionToken, request)
                 _state.value = _state.value.copy(routeExplanation = explanation)
             } catch (failure: Exception) {
-                _state.value = _state.value.copy(routeError = failure.safeMessage("Не удалось объяснить маршрут"))
+                _state.value = _state.value.copy(
+                    routeErrorResource = if (failure is ProtectedAccessMissing) R.string.network_error_protected_access else R.string.network_error_explain,
+                )
             } finally {
                 _state.value = _state.value.copy(routeChecking = false)
             }
@@ -243,10 +248,10 @@ class NetworkViewModel(
     fun refreshScenarios(): Job {
         val gateway = scenarioGateway ?: return completedJob(); val profiles = activeProfileFlow ?: return completedJob()
         if (_state.value.scenarioBusy) return completedJob()
-        _state.value = _state.value.copy(scenarioBusy = true, scenarioError = null)
+        _state.value = _state.value.copy(scenarioBusy = true, scenarioErrorResource = null)
         return viewModelScope.launch {
             try {
-                val active = profiles.first() ?: error("Защищённый доступ не настроен")
+                val active = profiles.first() ?: throw ProtectedAccessMissing()
                 val before = _state.value
                 val recovery = gateway.recovery(active.profile, active.secrets.companionToken)
                 val catalog = if (recovery.pending) before.scenarioCatalog else gateway.catalog(active.profile, active.secrets.companionToken)
@@ -258,7 +263,7 @@ class NetworkViewModel(
                     writesBlocked = recovery.pending || unrelatedBlock,
                 )
             }
-            catch (failure: Exception) { _state.value = _state.value.copy(scenarioError = failure.safeMessage("Не удалось получить сценарии")) }
+            catch (failure: Exception) { _state.value = _state.value.copy(scenarioErrorResource = if (failure is ProtectedAccessMissing) R.string.network_error_protected_access else R.string.network_error_scenarios) }
             finally { _state.value = _state.value.copy(scenarioBusy = false) }
         }
     }
@@ -266,10 +271,10 @@ class NetworkViewModel(
     fun reviewScenario(presetId: String): Job {
         val gateway = scenarioGateway ?: return completedJob(); val profiles = activeProfileFlow ?: return completedJob(); val catalog = _state.value.scenarioCatalog ?: return completedJob()
         if (_state.value.scenarioBusy || _state.value.writesBlocked) return completedJob()
-        _state.value = _state.value.copy(scenarioBusy = true, scenarioError = null, scenarioResult = null)
+        _state.value = _state.value.copy(scenarioBusy = true, scenarioErrorResource = null, scenarioResult = null)
         return viewModelScope.launch {
-            try { val active = profiles.first() ?: error("Защищённый доступ не настроен"); _state.value = _state.value.copy(scenarioReview = gateway.review(active.profile, active.secrets.companionToken, presetId, catalog.stateVersion)) }
-            catch (failure: Exception) { _state.value = _state.value.copy(scenarioError = failure.safeMessage("Не удалось подготовить сценарий")) }
+            try { val active = profiles.first() ?: throw ProtectedAccessMissing(); _state.value = _state.value.copy(scenarioReview = gateway.review(active.profile, active.secrets.companionToken, presetId, catalog.stateVersion)) }
+            catch (failure: Exception) { _state.value = _state.value.copy(scenarioErrorResource = if (failure is ProtectedAccessMissing) R.string.network_error_protected_access else R.string.network_error_scenario_review) }
             finally { _state.value = _state.value.copy(scenarioBusy = false) }
         }
     }
@@ -279,10 +284,10 @@ class NetworkViewModel(
     fun applyReviewedScenario(): Job {
         val gateway = scenarioGateway ?: return completedJob(); val profiles = activeProfileFlow ?: return completedJob(); val review = _state.value.scenarioReview ?: return completedJob()
         if (_state.value.scenarioBusy || _state.value.writesBlocked) return completedJob()
-        _state.value = _state.value.copy(scenarioBusy = true, scenarioError = null)
+        _state.value = _state.value.copy(scenarioBusy = true, scenarioErrorResource = null)
         return viewModelScope.launch {
             try {
-                val active = profiles.first() ?: error("Защищённый доступ не настроен")
+                val active = profiles.first() ?: throw ProtectedAccessMissing()
                 val result = gateway.apply(active.profile, active.secrets.companionToken, review.plan.presetId, review.plan.stateVersion, review.planId)
                 val recovery = if (result.status == "uncertain") gateway.recovery(active.profile, active.secrets.companionToken) else null
                 _state.value = _state.value.copy(
@@ -292,7 +297,7 @@ class NetworkViewModel(
                     writesBlocked = result.status == "uncertain",
                 )
                 if (result.status == "committed") _state.value = _state.value.copy(scenarioCatalog = gateway.catalog(active.profile, active.secrets.companionToken))
-            } catch (failure: Exception) { _state.value = _state.value.copy(scenarioError = failure.safeMessage("Не удалось применить сценарий")) }
+            } catch (failure: Exception) { _state.value = _state.value.copy(scenarioErrorResource = if (failure is ProtectedAccessMissing) R.string.network_error_protected_access else R.string.network_error_scenario_apply) }
             finally { _state.value = _state.value.copy(scenarioBusy = false) }
         }
     }
@@ -300,15 +305,15 @@ class NetworkViewModel(
     fun confirmRecovery(): Job {
         val gateway = scenarioGateway ?: return completedJob(); val profiles = activeProfileFlow ?: return completedJob(); val recovery = _state.value.recoveryState ?: return completedJob(); val planId = recovery.planId ?: return completedJob()
         if (!recovery.pending || _state.value.scenarioBusy) return completedJob()
-        _state.value = _state.value.copy(scenarioBusy = true, scenarioError = null)
+        _state.value = _state.value.copy(scenarioBusy = true, scenarioErrorResource = null)
         return viewModelScope.launch {
             try {
-                val active = profiles.first() ?: error("Защищённый доступ не настроен")
+                val active = profiles.first() ?: throw ProtectedAccessMissing()
                 val result = gateway.rollback(active.profile, active.secrets.companionToken, planId)
                 val current = gateway.recovery(active.profile, active.secrets.companionToken)
                 val catalog = if (current.pending) _state.value.scenarioCatalog else gateway.catalog(active.profile, active.secrets.companionToken)
                 _state.value = _state.value.copy(scenarioResult = result, recoveryState = current, scenarioCatalog = catalog, writesBlocked = current.pending)
-            } catch (failure: Exception) { _state.value = _state.value.copy(scenarioError = failure.safeMessage("Не удалось восстановить маршруты")) }
+            } catch (failure: Exception) { _state.value = _state.value.copy(scenarioErrorResource = if (failure is ProtectedAccessMissing) R.string.network_error_protected_access else R.string.network_error_scenario_restore) }
             finally { _state.value = _state.value.copy(scenarioBusy = false) }
         }
     }
@@ -316,15 +321,15 @@ class NetworkViewModel(
     private fun mutateDevice(operation: suspend (ServerSettings, NetworkDevice) -> Unit): Job {
         val device = _state.value.pendingDevice ?: return completedJob()
         if (!_state.value.busy && !_state.value.writesBlocked && mutationMutex.tryLock()) {
-            _state.value = _state.value.copy(busy = true, message = null)
+            _state.value = _state.value.copy(busy = true, messageResource = null, messageIsError = false)
             return viewModelScope.launch {
                 try {
                     val settings = settingsFlow.first()
                     operation(settings, device)
                     val devices = gateway.load(settings)
-                    _state.value = _state.value.copy(devices = devices, pendingDevice = null, message = "Изменение сохранено и проверено")
-                } catch (failure: Exception) {
-                    _state.value = _state.value.copy(message = failure.safeMessage("Не удалось изменить статический адрес"))
+                    _state.value = _state.value.copy(devices = devices, pendingDevice = null, messageResource = R.string.network_message_device_saved, messageIsError = false)
+                } catch (_: Exception) {
+                    _state.value = _state.value.copy(messageResource = R.string.network_error_device_change, messageIsError = true)
                 } finally {
                     _state.value = _state.value.copy(busy = false, loading = false, refreshing = false)
                     mutationMutex.unlock()
@@ -338,20 +343,24 @@ class NetworkViewModel(
         val client = exclusionGateway ?: return completedJob()
         val current = _state.value.exclusions ?: return completedJob()
         if (!_state.value.busy && !_state.value.writesBlocked && mutationMutex.tryLock()) {
-            _state.value = _state.value.copy(busy = true, message = null)
+            _state.value = _state.value.copy(busy = true, messageResource = null, messageIsError = false)
             return viewModelScope.launch {
                 try {
-                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: error("Защищённый доступ не настроен")
+                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: throw ProtectedAccessMissing()
                     val result = client.mutate(endpoint, current.stateVersion, action, value)
                     _state.value = _state.value.copy(
                         exclusions = result.status,
                         exclusionEditorOpen = false,
                         pendingExclusionDelete = null,
                         writesBlocked = result.result == "uncertain",
-                        message = transactionMessage(result.result, "IP-исключения применены и XKeen перезапущен"),
+                        messageResource = transactionMessageResource(result.result, R.string.network_message_exclusions_applied),
+                        messageIsError = result.result != "committed",
                     )
                 } catch (failure: Exception) {
-                    _state.value = _state.value.copy(message = failure.safeMessage("Не удалось изменить исключения"))
+                    _state.value = _state.value.copy(
+                        messageResource = if (failure is ProtectedAccessMissing) R.string.network_error_protected_access else R.string.network_error_exclusion_change,
+                        messageIsError = true,
+                    )
                 } finally {
                     _state.value = _state.value.copy(busy = false)
                     mutationMutex.unlock()
@@ -365,20 +374,24 @@ class NetworkViewModel(
         val client = domainGateway ?: return completedJob()
         val current = _state.value.domains ?: return completedJob()
         if (!_state.value.busy && !_state.value.writesBlocked && mutationMutex.tryLock()) {
-            _state.value = _state.value.copy(busy = true, message = null)
+            _state.value = _state.value.copy(busy = true, messageResource = null, messageIsError = false)
             return viewModelScope.launch {
                 try {
-                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: error("Защищённый доступ не настроен")
+                    val endpoint = activeProfileFlow?.first()?.requireCompanionEndpoint() ?: throw ProtectedAccessMissing()
                     val result = operation(client, endpoint, current)
                     _state.value = _state.value.copy(
                         domains = result.status,
                         domainEditor = null,
                         pendingDomainDelete = null,
                         writesBlocked = result.result == "uncertain",
-                        message = transactionMessage(result.result, "Доменные маршруты применены и проверены"),
+                        messageResource = transactionMessageResource(result.result, R.string.network_message_domains_applied),
+                        messageIsError = result.result != "committed",
                     )
                 } catch (failure: Exception) {
-                    _state.value = _state.value.copy(message = failure.safeMessage("Не удалось изменить доменные маршруты"))
+                    _state.value = _state.value.copy(
+                        messageResource = if (failure is ProtectedAccessMissing) R.string.network_error_protected_access else R.string.network_error_domain_change,
+                        messageIsError = true,
+                    )
                 } finally {
                     _state.value = _state.value.copy(busy = false)
                     mutationMutex.unlock()
@@ -391,17 +404,18 @@ class NetworkViewModel(
     private fun validDraft(draft: DomainRuleDraft) = draft.kind in setOf("domain", "suffix", "geosite") &&
         draft.effect in setOf("direct", "vpn") && draft.value.trim().isNotEmpty()
 
-    private fun transactionMessage(result: String, committed: String) = when (result) {
-        "committed" -> committed
-        "rolled_back" -> "Изменение отменено; прежние правила восстановлены"
-        "rejected" -> "Правила изменились; обновите список и повторите"
-        else -> "Состояние маршрутов требует проверки; новые изменения временно заблокированы"
+    private fun transactionMessageResource(result: String, committedResource: Int) = when (result) {
+        "committed" -> committedResource
+        "rolled_back" -> R.string.network_transaction_rolled_back
+        "rejected" -> R.string.network_transaction_rejected
+        else -> R.string.network_transaction_uncertain
     }
 
-    private fun Throwable.domainMessage(): String = if (this is XkeenException && code in setOf(XkeenErrorCode.NOT_FOUND, XkeenErrorCode.UNSUPPORTED_SCHEMA)) {
-        "Обновите защищённый доступ, чтобы управлять доменами"
-    } else safeMessage("Не удалось получить доменные правила")
+    private fun Throwable.domainMessageResource(): Int = if (this is XkeenException && code in setOf(XkeenErrorCode.NOT_FOUND, XkeenErrorCode.UNSUPPORTED_SCHEMA)) {
+        R.string.network_error_domain_upgrade
+    } else R.string.network_error_domains
 
-    private fun Throwable.safeMessage(fallback: String) = message?.takeIf { it.isNotBlank() } ?: fallback
     private fun completedJob() = Job().apply { complete() }
 }
+
+private class ProtectedAccessMissing : IllegalStateException()

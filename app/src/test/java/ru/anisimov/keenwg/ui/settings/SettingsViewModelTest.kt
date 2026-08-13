@@ -3,9 +3,7 @@ package ru.anisimov.keenwg.ui.settings
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -16,7 +14,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import ru.anisimov.keenwg.data.collector.CollectorMeta
 import ru.anisimov.keenwg.domain.model.ServerSettings
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -51,28 +48,6 @@ class SettingsViewModelTest {
         assertEquals(listOf(valid), store.saved)
     }
 
-    @Test fun `collector probe uses dedicated settings and does not save`() = runTest(dispatcher) {
-        val store = FakeSettingsStore()
-        val probed = mutableListOf<ServerSettings>()
-        val collector = SettingsCollectorGateway { settings ->
-            probed += settings
-            CollectorMeta("1.0.0", 2_000)
-        }
-        val draft = ServerSettings(
-            collectorUrl = "http://10.8.0.1:18777",
-            collectorToken = "collector-secret",
-        )
-        val vm = SettingsViewModel(store = store, collector = collector)
-        val message = async { vm.msg.first() }
-        runCurrent()
-
-        vm.testCollector(draft)
-        advanceUntilIdle()
-
-        assertEquals(listOf(draft), probed)
-        assertEquals(emptyList<ServerSettings>(), store.saved)
-        assertEquals("Сборщик 1.0.0 доступен, токен принят", message.await())
-    }
 }
 
 private class FakeSettingsStore : SettingsStoreGateway {

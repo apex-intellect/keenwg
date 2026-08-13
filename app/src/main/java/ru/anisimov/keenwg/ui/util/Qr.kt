@@ -11,7 +11,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 
 @Composable
-fun QrImage(text: String, modifier: Modifier = Modifier, contentDescription: String = "QR-код") {
+fun QrImage(text: String, modifier: Modifier = Modifier, contentDescription: String? = null) {
     val bitmap = remember(text) { qrBitmap(text, 512) }
     Image(bitmap = bitmap.asImageBitmap(), contentDescription = contentDescription, modifier = modifier)
 }

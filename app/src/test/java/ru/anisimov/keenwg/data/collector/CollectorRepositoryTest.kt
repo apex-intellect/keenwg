@@ -4,17 +4,15 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import ru.anisimov.keenwg.domain.model.ServerSettings
-
 class CollectorRepositoryTest {
     @Test fun `lineage histories merge overlapping buckets without double counting observation`() = runTest {
         val old = history("a".repeat(64), listOf(point(100, 60, 30, 10, 20), point(160, 60, 60, 5, 7)), resets = 1)
         val fresh = history("b".repeat(64), listOf(point(160, 60, 20, 3, 4), point(220, 60, 60, 8, 9)), resets = 2)
         val gateway = object : CollectorHistoryGateway {
-            override suspend fun history(settings: ServerSettings, peerId: String, range: HistoryRange) = if (peerId.startsWith('a')) old else fresh
+            override suspend fun history(peerId: String, range: HistoryRange) = if (peerId.startsWith('a')) old else fresh
         }
 
-        val merged = CollectorRepository(gateway).history(ServerSettings(), listOf(old.peerId, fresh.peerId), HistoryRange(100, 280), 280)
+        val merged = CollectorRepository(gateway).history(listOf(old.peerId, fresh.peerId), HistoryRange(100, 280), 280)
 
         assertEquals(180L, merged.observedSeconds)
         assertEquals(150L, merged.onlineSeconds)
@@ -29,11 +27,11 @@ class CollectorRepositoryTest {
         val points = (0 until 600).map { index -> point(100L + index * 60L, 60, 30, 1, 2) }
         val source = history("c".repeat(64), points, resets = 0, from = 100, to = 36_100)
         val gateway = object : CollectorHistoryGateway {
-            override suspend fun history(settings: ServerSettings, peerId: String, range: HistoryRange) = source
+            override suspend fun history(peerId: String, range: HistoryRange) = source
         }
 
         val merged = CollectorRepository(gateway).history(
-            ServerSettings(), listOf(source.peerId), HistoryRange(100, 36_100, "raw"), 36_100,
+            listOf(source.peerId), HistoryRange(100, 36_100, "raw"), 36_100,
         )
 
         assertEquals(36_000L, merged.observedSeconds)

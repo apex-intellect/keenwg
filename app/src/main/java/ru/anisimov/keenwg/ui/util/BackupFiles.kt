@@ -8,6 +8,7 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import java.io.ByteArrayOutputStream
 import java.io.File
+import ru.anisimov.keenwg.R
 
 fun readBackupArchive(resolver: ContentResolver, uri: Uri): ByteArray {
     val input = requireNotNull(resolver.openInputStream(uri))
@@ -30,10 +31,10 @@ fun shareBackupArchive(context: Context, archive: ByteArray) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = BACKUP_MIME
         putExtra(Intent.EXTRA_STREAM, uri)
-        clipData = ClipData.newRawUri("KeenWG encrypted backup", uri)
+        clipData = ClipData.newRawUri(context.getString(R.string.backup_clip_label), uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(send, context.getString(ru.anisimov.keenwg.R.string.backup_share_chooser)))
+    context.startActivity(Intent.createChooser(send, context.getString(R.string.backup_share_chooser)))
 }
 
 internal fun writeBackupExportFile(cacheDir: File, archive: ByteArray): File {

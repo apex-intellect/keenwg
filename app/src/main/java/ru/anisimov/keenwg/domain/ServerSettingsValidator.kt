@@ -4,7 +4,6 @@ import com.wireguard.crypto.Key
 import ru.anisimov.keenwg.domain.model.ServerSettings
 import java.net.Inet6Address
 import java.net.InetAddress
-import java.net.URI
 
 data class ValidationIssue(val field: String, val message: String)
 
@@ -29,10 +28,7 @@ object ServerSettingsValidator {
         if (settings.keepalive != 0 && settings.keepalive !in 3..3600) add(issue("keepalive", "Некорректный keepalive"))
     }
 
-    fun validateForSave(settings: ServerSettings): List<ValidationIssue> =
-        validateForMutation(settings) + listOfNotNull(
-            validateCollectorUrl(settings.collectorUrl)?.let { issue("collectorUrl", it) },
-        )
+    fun validateForSave(settings: ServerSettings): List<ValidationIssue> = validateForMutation(settings)
 
     fun requireForMutation(settings: ServerSettings) {
         val issues = validateForMutation(settings)
@@ -46,23 +42,6 @@ object ServerSettingsValidator {
 
     fun isCanonicalKey(value: String): Boolean =
         value.length == 44 && runCatching { Key.fromBase64(value).toBase64() == value }.getOrDefault(false)
-
-    fun validateCollectorUrl(value: String): String? {
-        return validatePrivateServiceUrl(value, "сборщика")
-    }
-
-    private fun validatePrivateServiceUrl(value: String, serviceName: String): String? {
-        if (value.isBlank()) return null
-        val uri = runCatching { URI(value) }.getOrNull() ?: return "Некорректный адрес $serviceName"
-        if (uri.userInfo != null || uri.host.isNullOrBlank() || uri.rawQuery != null || uri.rawFragment != null) return "Некорректный адрес $serviceName"
-        if (uri.path !in listOf("", "/")) return "Адрес $serviceName не должен содержать путь"
-        if (uri.port !in -1..65535 || uri.port == 0) return "Некорректный порт $serviceName"
-        return when (uri.scheme?.lowercase()) {
-            "https" -> null
-            "http" -> if (isPrivateIpv4(uri.host)) null else "HTTP разрешён только для локального IPv4-адреса"
-            else -> "Используйте HTTP или HTTPS"
-        }
-    }
 
     private fun isEndpoint(value: String): Boolean {
         if (value.isBlank()) return false

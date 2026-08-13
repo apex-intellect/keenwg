@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Search
@@ -54,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -82,30 +82,38 @@ fun SettingsScreen(
     val preview by vm.preview.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var draft by remember(saved) { mutableStateOf(saved) }
     var portText by remember(saved) { mutableStateOf(saved.port.toString()) }
     var mtuText by remember(saved) { mutableStateOf(saved.mtu.toString()) }
     var keepaliveText by remember(saved) { mutableStateOf(saved.keepalive.toString()) }
-    var formError by remember { mutableStateOf<String?>(null) }
+    var formErrorResource by remember { mutableStateOf<Int?>(null) }
     var busyAction by remember { mutableStateOf<String?>(null) }
     var showAdvanced by remember { mutableStateOf(false) }
     var hiddenPreview by remember { mutableStateOf<DiscoveryPreview?>(null) }
     val savingLabel = stringResource(R.string.settings_saving)
 
     LaunchedEffect(vm) {
-        vm.msg.collect { snackbar.showSnackbar(it) }
+        vm.msg.collect { snackbar.showSnackbar(context.getString(it)) }
     }
 
     fun parsedDraft(): ServerSettings? = parseNumericSettings(draft, portText, mtuText, keepaliveText)
-        .onFailure { formError = it.message }
+        .onFailure { error ->
+            formErrorResource = when ((error as? NumericSettingsException)?.field) {
+                NumericSettingsField.PORT -> R.string.settings_error_port_number
+                NumericSettingsField.MTU -> R.string.settings_error_mtu_number
+                NumericSettingsField.KEEPALIVE -> R.string.settings_error_keepalive_number
+                null -> R.string.settings_error_operation_failed
+            }
+        }
         .getOrNull()
 
     fun runOperation(label: String, operation: (ServerSettings) -> Job) {
         if (productState?.mutationsEnabled == false) return
         val current = parsedDraft() ?: return
         if (busyAction != null) return
-        formError = null
+        formErrorResource = null
         busyAction = label
         val job = operation(current)
         scope.launch {
@@ -141,7 +149,7 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            formError?.let { StatusNotice(stringResource(R.string.ui_settingsscreen_f236f158aa), detail = it, isError = true) }
+            formErrorResource?.let { StatusNotice(stringResource(R.string.ui_settingsscreen_f236f158aa), detail = stringResource(it), isError = true) }
 
             SettingsSection(
                 icon = { Icon(Icons.Default.Router, contentDescription = null) },
@@ -150,24 +158,24 @@ fun SettingsScreen(
             ) {
                 SettingsTextField(
                     value = draft.host,
-                    onValueChange = { draft = draft.copy(host = it); formError = null },
+                    onValueChange = { draft = draft.copy(host = it); formErrorResource = null },
                     label = stringResource(R.string.ui_settingsscreen_83cabd76c8),
                     placeholder = "192.168.1.1",
                 )
                 SettingsTextField(
                     value = portText,
-                    onValueChange = { portText = it.filter(Char::isDigit); formError = null },
+                    onValueChange = { portText = it.filter(Char::isDigit); formErrorResource = null },
                     label = stringResource(R.string.ui_settingsscreen_39d3c42bd5),
                     keyboardType = KeyboardType.Number,
                 )
                 SettingsTextField(
                     value = draft.login,
-                    onValueChange = { draft = draft.copy(login = it); formError = null },
+                    onValueChange = { draft = draft.copy(login = it); formErrorResource = null },
                     label = stringResource(R.string.ui_settingsscreen_5be12bfe49),
                 )
                 SettingsTextField(
                     value = draft.password,
-                    onValueChange = { draft = draft.copy(password = it); formError = null },
+                    onValueChange = { draft = draft.copy(password = it); formErrorResource = null },
                     label = stringResource(R.string.ui_settingsscreen_cb1a2074b3),
                     password = true,
                 )
@@ -180,49 +188,22 @@ fun SettingsScreen(
             ) {
                 SettingsTextField(
                     value = draft.interfaceId,
-                    onValueChange = { draft = draft.copy(interfaceId = it); formError = null },
+                    onValueChange = { draft = draft.copy(interfaceId = it); formErrorResource = null },
                     label = stringResource(R.string.ui_settingsscreen_517c6d91fc),
                     placeholder = "Wireguard0",
                 )
                 SettingsTextField(
                     value = draft.endpoint,
-                    onValueChange = { draft = draft.copy(endpoint = it); formError = null },
+                    onValueChange = { draft = draft.copy(endpoint = it); formErrorResource = null },
                     label = stringResource(R.string.ui_settingsscreen_8480b573ef),
                     placeholder = "vpn.example.net:51820",
                 )
                 SettingsTextField(
                     value = draft.serverPublicKey,
-                    onValueChange = { draft = draft.copy(serverPublicKey = it); formError = null },
+                    onValueChange = { draft = draft.copy(serverPublicKey = it); formErrorResource = null },
                     label = stringResource(R.string.ui_settingsscreen_151e612124),
                     mono = true,
                 )
-            }
-
-            SettingsSection(
-                icon = { Icon(Icons.Default.History, contentDescription = null) },
-                title = stringResource(R.string.ui_settingsscreen_1417b7792d),
-                subtitle = stringResource(R.string.ui_settingsscreen_0737242cfc),
-            ) {
-                SettingsTextField(
-                    value = draft.collectorUrl,
-                    onValueChange = { draft = draft.copy(collectorUrl = it); formError = null },
-                    label = stringResource(R.string.ui_settingsscreen_fd4b2db378),
-                    placeholder = "http://10.8.0.1:18777",
-                )
-                SettingsTextField(
-                    value = draft.collectorToken,
-                    onValueChange = { draft = draft.copy(collectorToken = it); formError = null },
-                    label = stringResource(R.string.ui_settingsscreen_8a39c18d47),
-                    password = true,
-                )
-                OutlinedButton(
-                    onClick = { runOperation("Проверяем историю…", vm::testCollector) },
-                    enabled = busyAction == null && productState?.mutationsEnabled != false,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Default.History, contentDescription = null)
-                    Text(stringResource(R.string.ui_settingsscreen_5ca026bf4c))
-                }
             }
 
             SettingsSection(
@@ -232,28 +213,28 @@ fun SettingsScreen(
             ) {
                 SettingsTextField(
                     value = draft.subnetBase,
-                    onValueChange = { draft = draft.copy(subnetBase = it); formError = null },
+                    onValueChange = { draft = draft.copy(subnetBase = it); formErrorResource = null },
                     label = stringResource(R.string.ui_settingsscreen_2635aebaee),
                     placeholder = "10.8.0.",
                     mono = true,
                 )
                 SettingsTextField(
                     value = draft.dns,
-                    onValueChange = { draft = draft.copy(dns = it); formError = null },
+                    onValueChange = { draft = draft.copy(dns = it); formErrorResource = null },
                     label = "DNS",
                     mono = true,
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SettingsTextField(
                         value = mtuText,
-                        onValueChange = { mtuText = it.filter(Char::isDigit); formError = null },
+                        onValueChange = { mtuText = it.filter(Char::isDigit); formErrorResource = null },
                         label = "MTU",
                         keyboardType = KeyboardType.Number,
                         modifier = Modifier.weight(1f),
                     )
                     SettingsTextField(
                         value = keepaliveText,
-                        onValueChange = { keepaliveText = it.filter(Char::isDigit); formError = null },
+                        onValueChange = { keepaliveText = it.filter(Char::isDigit); formErrorResource = null },
                         label = stringResource(R.string.ui_settingsscreen_a4ddfbe571),
                         keyboardType = KeyboardType.Number,
                         modifier = Modifier.weight(1f),
@@ -278,14 +259,14 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Text(
-                                "Получить интерфейс и публичный ключ с роутера. Найденные изменения сначала появятся для проверки — endpoint не заменяется без вашего согласия.",
+                                stringResource(R.string.settings_discovery_explanation),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             OutlinedButton(
                                 onClick = {
                                     hiddenPreview = null
-                                    runOperation("Получаем параметры…", vm::discover)
+                                    runOperation(context.getString(R.string.settings_discovering), vm::discover)
                                 },
                                 enabled = busyAction == null && productState?.mutationsEnabled != false,
                                 modifier = Modifier.fillMaxWidth(),
@@ -294,7 +275,7 @@ fun SettingsScreen(
                                 Text(stringResource(R.string.ui_settingsscreen_b810b420a8))
                             }
                             Text(
-                                "HTTP разрешён только для локальных адресов. Для публичного имени сборщика требуется HTTPS.",
+                                stringResource(R.string.settings_http_notice),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -333,7 +314,7 @@ fun SettingsScreen(
             onDismiss = { hiddenPreview = found },
             onApply = { acceptEndpoint ->
                 val current = parsedDraft() ?: return@DiscoveryPreviewDialog
-                busyAction = "Применяем и проверяем…"
+                busyAction = context.getString(R.string.settings_applying)
                 val job = vm.applyPreviewAndSave(current, found, acceptEndpoint)
                 scope.launch {
                     job.join()
@@ -414,7 +395,16 @@ private fun DiscoveryPreviewDialog(
     onApply: (Boolean) -> Unit,
 ) {
     var acceptEndpoint by remember(preview) { mutableStateOf(false) }
-    val rows = discoveryPreviewRows(current, preview)
+    val rows = discoveryPreviewRows(
+        current = current,
+        preview = preview,
+        labels = DiscoveryPreviewLabels(
+            interfaceLabel = stringResource(R.string.settings_preview_interface),
+            publicKeyLabel = stringResource(R.string.settings_preview_public_key),
+            endpointLabel = stringResource(R.string.settings_preview_endpoint),
+            notSetLabel = stringResource(R.string.settings_not_set),
+        ),
+    )
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.ui_settingsscreen_103fb24291)) },
@@ -425,7 +415,7 @@ private fun DiscoveryPreviewDialog(
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(row.label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
                             Text(
-                                if (row.changed) "изменится" else "без изменений",
+                                if (row.changed) stringResource(R.string.settings_preview_changed) else stringResource(R.string.settings_preview_unchanged),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = if (row.changed) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.tertiary,
                             )
@@ -442,7 +432,7 @@ private fun DiscoveryPreviewDialog(
                         }
                     }
                     Text(
-                        "Текущий endpoint не меняется, пока вы явно не выберете этот вариант.",
+                        stringResource(R.string.settings_endpoint_consent),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -457,19 +447,29 @@ private fun DiscoveryPreviewDialog(
 }
 
 internal data class DiscoveryPreviewRow(val label: String, val value: String, val changed: Boolean)
+internal data class DiscoveryPreviewLabels(
+    val interfaceLabel: String,
+    val publicKeyLabel: String,
+    val endpointLabel: String,
+    val notSetLabel: String,
+)
 
 private val LocalSettingsFieldsEnabled = staticCompositionLocalOf { true }
 
-internal fun discoveryPreviewRows(current: ServerSettings, preview: DiscoveryPreview): List<DiscoveryPreviewRow> = listOf(
-    DiscoveryPreviewRow("Интерфейс", preview.interfaceId, preview.interfaceId != current.interfaceId),
+internal fun discoveryPreviewRows(
+    current: ServerSettings,
+    preview: DiscoveryPreview,
+    labels: DiscoveryPreviewLabels,
+): List<DiscoveryPreviewRow> = listOf(
+    DiscoveryPreviewRow(labels.interfaceLabel, preview.interfaceId, preview.interfaceId != current.interfaceId),
     DiscoveryPreviewRow(
-        "Публичный ключ",
+        labels.publicKeyLabel,
         preview.serverPublicKey,
         preview.serverPublicKey != current.serverPublicKey,
     ),
     DiscoveryPreviewRow(
-        "Endpoint",
-        preview.reviewedEndpoint.ifBlank { current.endpoint.ifBlank { "не задан" } },
+        labels.endpointLabel,
+        preview.reviewedEndpoint.ifBlank { current.endpoint.ifBlank { labels.notSetLabel } },
         preview.reviewedEndpoint.isNotBlank() && preview.reviewedEndpoint != current.endpoint,
     ),
 )
@@ -480,8 +480,11 @@ internal fun parseNumericSettings(
     mtu: String,
     keepalive: String,
 ): Result<ServerSettings> = runCatching {
-    val parsedPort = port.toIntOrNull() ?: error("Порт должен быть числом")
-    val parsedMtu = mtu.toIntOrNull() ?: error("MTU должен быть числом")
-    val parsedKeepalive = keepalive.toIntOrNull() ?: error("Keepalive должен быть числом")
+    val parsedPort = port.toIntOrNull() ?: throw NumericSettingsException(NumericSettingsField.PORT)
+    val parsedMtu = mtu.toIntOrNull() ?: throw NumericSettingsException(NumericSettingsField.MTU)
+    val parsedKeepalive = keepalive.toIntOrNull() ?: throw NumericSettingsException(NumericSettingsField.KEEPALIVE)
     draft.copy(port = parsedPort, mtu = parsedMtu, keepalive = parsedKeepalive)
 }
+
+internal enum class NumericSettingsField { PORT, MTU, KEEPALIVE }
+internal class NumericSettingsException(val field: NumericSettingsField) : IllegalArgumentException()

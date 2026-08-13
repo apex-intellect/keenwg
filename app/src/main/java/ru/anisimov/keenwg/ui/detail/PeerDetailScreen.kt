@@ -75,9 +75,8 @@ import kotlinx.coroutines.launch
 import ru.anisimov.keenwg.domain.model.HandshakeKind
 import ru.anisimov.keenwg.domain.model.Peer
 import ru.anisimov.keenwg.domain.model.PeerStats
-import ru.anisimov.keenwg.ui.SELF_PEER_BLOCK_MESSAGE
 import ru.anisimov.keenwg.ui.SelfPeerGuard
-import ru.anisimov.keenwg.ui.add.normalizePeerName
+import ru.anisimov.keenwg.domain.normalizePeerName
 import ru.anisimov.keenwg.ui.components.ObservedTimeline
 import ru.anisimov.keenwg.ui.components.SessionRail
 import ru.anisimov.keenwg.ui.components.StatusNotice
@@ -85,6 +84,7 @@ import ru.anisimov.keenwg.ui.peers.peerStatusLabel
 import ru.anisimov.keenwg.ui.theme.MonoLabel
 import ru.anisimov.keenwg.ui.util.QrImage
 import ru.anisimov.keenwg.ui.util.bytesLabel
+import ru.anisimov.keenwg.ui.util.durationLabel
 import ru.anisimov.keenwg.ui.util.shareConf
 import ru.anisimov.keenwg.domain.model.AccessExpiry
 import java.text.SimpleDateFormat
@@ -145,7 +145,7 @@ fun PeerDetailScreen(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                snackbar.showSnackbar("Не удалось безопасно проверить текущее подключение. Действие отменено.")
+                snackbar.showSnackbar(context.getString(R.string.self_peer_check_failed))
             } finally {
                 safetyCheckInProgress = false
             }
@@ -158,7 +158,7 @@ fun PeerDetailScreen(
             TopAppBar(
                 title = {
                     Text(
-                        peer?.name?.ifBlank { "Доступ WireGuard" } ?: "Доступ WireGuard",
+                        peer?.name?.ifBlank { stringResource(R.string.access_default_name) } ?: stringResource(R.string.access_default_name),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -185,7 +185,7 @@ fun PeerDetailScreen(
             peer == null -> MissingDetail(
                 modifier = Modifier.padding(contentPadding),
                 notFound = state.notFound,
-                message = state.loadError,
+                message = state.loadErrorResource?.let { stringResource(it) },
                 onBack = onBack,
                 onRetry = { vm.load(pub) },
             )
@@ -204,8 +204,8 @@ fun PeerDetailScreen(
                         detail = stringResource(R.string.access_read_only_detail),
                     )
                 }
-                state.refreshError?.let {
-                    StatusNotice(stringResource(R.string.ui_peerdetailscreen_b9f61453dd), detail = it, isError = true)
+                state.refreshErrorResource?.let {
+                    StatusNotice(stringResource(R.string.ui_peerdetailscreen_b9f61453dd), detail = stringResource(it), isError = true)
                 }
                 PeerStatusHero(peer = peer, stats = state.stats)
                 state.accessPolicy?.let { policy ->
@@ -268,10 +268,10 @@ fun PeerDetailScreen(
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Surface(color = androidx.compose.ui.graphics.Color.White, shape = MaterialTheme.shapes.medium) {
-                        QrImage(conf, Modifier.padding(10.dp).size(240.dp))
+                        QrImage(conf, Modifier.padding(10.dp).size(240.dp), stringResource(R.string.qr_code_description))
                     }
                     Text(
-                        "QR-код содержит приватный ключ. Показывайте его только владельцу устройства.",
+                        stringResource(R.string.qr_private_key_warning),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -362,7 +362,7 @@ fun PeerDetailScreen(
         AlertDialog(
             onDismissRequest = { showSelfBlocked = false },
             title = { Text(stringResource(R.string.ui_peerdetailscreen_22d7f3b33c)) },
-            text = { Text(SELF_PEER_BLOCK_MESSAGE) },
+            text = { Text(stringResource(R.string.self_peer_block_message)) },
             confirmButton = { TextButton(onClick = { showSelfBlocked = false }) { Text(stringResource(R.string.ui_peerdetailscreen_e2ce86b38f)) } },
         )
     }
@@ -391,7 +391,7 @@ private fun PeerStatusHero(peer: Peer, stats: PeerStats?) {
                 Text(peer.ip ?: stringResource(R.string.ui_peerdetailscreen_c83580eaa5), style = MonoLabel, modifier = Modifier.padding(top = 4.dp))
                 stats?.lastOnlineAt?.let {
                     Text(
-                        "Последнее наблюдение: ${timestampLabel(it)}",
+                        stringResource(R.string.peer_last_observed, timestampLabel(it)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 5.dp),
@@ -408,58 +408,74 @@ private fun HistorySection(
     onSelectRange: (PeerHistoryRange) -> Unit,
     onRetry: () -> Unit,
 ) {
+    val historyErrorDetail = state.historyError?.let { historyErrorDetail(it) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.ui_peerdetailscreen_45451fbf75), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Пробелы в данных не считаются отключением",
+                    stringResource(R.string.peer_history_gaps_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                state.collectorLastUpdated?.let {
+                state.historyLastUpdated?.let {
                     Text(
-                        "История обновлена ${timestampLabel(it)}",
+                        stringResource(R.string.peer_history_updated_at, timestampLabel(it)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            if (state.collectorRefreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+                if (state.historyRefreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RangeChip("24 часа", PeerHistoryRange.DAY, state.selectedRange, onSelectRange)
-            RangeChip("7 дней", PeerHistoryRange.WEEK, state.selectedRange, onSelectRange)
-            RangeChip("30 дней", PeerHistoryRange.MONTH, state.selectedRange, onSelectRange)
+            RangeChip(stringResource(R.string.history_range_day), PeerHistoryRange.DAY, state.selectedRange, onSelectRange)
+            RangeChip(stringResource(R.string.history_range_week), PeerHistoryRange.WEEK, state.selectedRange, onSelectRange)
+            RangeChip(stringResource(R.string.history_range_month), PeerHistoryRange.MONTH, state.selectedRange, onSelectRange)
         }
         when {
-            state.collectorLoading && state.stats == null -> Card(Modifier.fillMaxWidth()) {
+            state.historyLoading && state.stats == null -> Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.ui_peerdetailscreen_efb18c179d))
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
             }
             state.stats != null -> StatsContent(state.stats)
-            state.collectorError != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.historyError != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatusNotice(
                     title = stringResource(R.string.ui_peerdetailscreen_a9d6061f62),
-                    detail = stringResource(R.string.ui_peerdetailscreen_48af135c57),
+                    detail = requireNotNull(historyErrorDetail),
                 )
-                TextButton(onClick = onRetry) { Text(stringResource(R.string.ui_peerdetailscreen_298e41327f)) }
+                TextButton(onClick = onRetry, enabled = !state.historyRefreshing) {
+                    Text(stringResource(R.string.ui_peerdetailscreen_298e41327f))
+                }
             }
             else -> StatusNotice(
                 title = stringResource(R.string.ui_peerdetailscreen_b2a7ed60d8),
                 detail = stringResource(R.string.ui_peerdetailscreen_1bacf422f8),
             )
         }
-        if (state.collectorError != null && state.stats != null) {
+        if (state.historyError != null && state.stats != null) {
             StatusNotice(
                 title = stringResource(R.string.ui_peerdetailscreen_8fb994bbd9),
-                detail = state.collectorError,
+                detail = requireNotNull(historyErrorDetail),
             )
         }
     }
 }
+
+@Composable
+private fun historyErrorDetail(error: PeerHistoryError): String = stringResource(
+    when (error) {
+        PeerHistoryError.PROTECTED_ACCESS_REQUIRED -> R.string.peer_history_protected_access_required
+        PeerHistoryError.UPDATE_COMPONENT -> R.string.peer_history_update_component
+        PeerHistoryError.RECONNECT -> R.string.peer_history_reconnect
+        PeerHistoryError.UNSUPPORTED_RESPONSE -> R.string.peer_history_unsupported_response
+        PeerHistoryError.UNAVAILABLE -> R.string.peer_history_unavailable
+    },
+)
 
 @Composable
 private fun RangeChip(
@@ -506,12 +522,12 @@ private fun StatsContent(stats: PeerStats) {
             )
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard("В сети", durationLabel(stats.onlineSeconds), Modifier.weight(1f))
-            MetricCard("Покрытие", "${(stats.coverageRatio * 100).roundToInt()}%", Modifier.weight(1f))
+            MetricCard(stringResource(R.string.peer_metric_online), durationLabel(stats.onlineSeconds), Modifier.weight(1f))
+            MetricCard(stringResource(R.string.peer_metric_coverage), "${(stats.coverageRatio * 100).roundToInt()}%", Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard("На устройство", bytesLabel(stats.clientDownloadBytes), Modifier.weight(1f))
-            MetricCard("С устройства", bytesLabel(stats.clientUploadBytes), Modifier.weight(1f))
+            MetricCard(stringResource(R.string.peer_metric_received), bytesLabel(stats.clientDownloadBytes), Modifier.weight(1f))
+            MetricCard(stringResource(R.string.peer_metric_sent), bytesLabel(stats.clientUploadBytes), Modifier.weight(1f))
         }
     }
 }
@@ -573,11 +589,11 @@ private fun ExpandableTechnical(expanded: Boolean, onToggle: () -> Unit, peer: P
             }
             if (expanded) {
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TechnicalLine("IP", peer.ip ?: "не назначен")
-                    TechnicalLine("Публичный ключ", peer.publicKey)
-                    TechnicalLine("Состояние", peerStatusLabel(peer))
-                    TechnicalLine("На устройство (с запуска интерфейса)", bytesLabel(peer.clientDownloadBytes))
-                    TechnicalLine("С устройства (с запуска интерфейса)", bytesLabel(peer.clientUploadBytes))
+                    TechnicalLine(stringResource(R.string.peer_technical_ip), peer.ip ?: stringResource(R.string.access_ip_unassigned))
+                    TechnicalLine(stringResource(R.string.peer_technical_public_key), peer.publicKey)
+                    TechnicalLine(stringResource(R.string.peer_technical_state), peerStatusLabel(peer))
+                    TechnicalLine(stringResource(R.string.peer_technical_received), bytesLabel(peer.clientDownloadBytes))
+                    TechnicalLine(stringResource(R.string.peer_technical_sent), bytesLabel(peer.clientUploadBytes))
                 }
             }
         }
@@ -672,18 +688,6 @@ private fun MissingDetail(
         if (!notFound) Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) { Text(stringResource(R.string.ui_peerdetailscreen_5189135a61)) }
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.ui_peerdetailscreen_59df144dcc)) }
     }
-}
-
-internal fun durationLabel(seconds: Long): String {
-    val safe = seconds.coerceAtLeast(0)
-    val days = safe / 86_400
-    val hours = (safe % 86_400) / 3_600
-    val minutes = (safe % 3_600) / 60
-    return buildList {
-        if (days > 0) add("$days д")
-        if (hours > 0) add("$hours ч")
-        if (minutes > 0 || isEmpty()) add("$minutes мин")
-    }.joinToString(" ")
 }
 
 private fun timestampLabel(epochSeconds: Long): String =

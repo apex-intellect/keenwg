@@ -2,15 +2,13 @@ package ru.anisimov.keenwg.data.collector
 
 import ru.anisimov.keenwg.domain.model.PeerStats
 import ru.anisimov.keenwg.domain.model.PeerStatsPoint
-import ru.anisimov.keenwg.domain.model.ServerSettings
-
 interface StatsGateway {
-    suspend fun history(settings: ServerSettings, peerIds: List<String>, range: HistoryRange, now: Long): PeerStats
+    suspend fun history(peerIds: List<String>, range: HistoryRange, now: Long): PeerStats
 }
 
 class CollectorRepository(private val gateway: CollectorHistoryGateway) : StatsGateway {
-    override suspend fun history(settings: ServerSettings, peerIds: List<String>, range: HistoryRange, now: Long): PeerStats {
-        val histories = peerIds.distinct().map { gateway.history(settings, it, range) }
+    override suspend fun history(peerIds: List<String>, range: HistoryRange, now: Long): PeerStats {
+        val histories = peerIds.distinct().map { gateway.history(it, range) }
         val merged = histories.flatMap(CollectorHistory::points)
             .groupBy(CollectorPoint::at)
             .toSortedMap()

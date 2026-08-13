@@ -59,7 +59,7 @@ class PeerListViewModel @JvmOverloads constructor(
 
     fun startForegroundRefresh(): Job = viewModelScope.startForegroundRefresh(
         rciRefresh = ::performRefresh,
-        collectorRefresh = {},
+        historyRefresh = {},
     )
 
     fun setEnabled(publicKey: String, enabled: Boolean): Job = viewModelScope.launch {

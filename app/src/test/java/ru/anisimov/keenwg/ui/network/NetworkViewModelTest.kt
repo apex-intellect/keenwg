@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -70,7 +71,7 @@ class NetworkViewModelTest {
         advanceUntilIdle()
 
         assertEquals(NetworkSegment.DEVICES, vm.state.value.selectedSegment)
-        assertTrue(vm.state.value.deviceError!!.isNotBlank())
+        assertNotNull(vm.state.value.deviceErrorResource)
         assertEquals("okko.sport", vm.state.value.domains!!.rules.single().value)
         vm.selectSegment(NetworkSegment.DOMAINS)
         assertEquals(NetworkSegment.DOMAINS, vm.state.value.selectedSegment)

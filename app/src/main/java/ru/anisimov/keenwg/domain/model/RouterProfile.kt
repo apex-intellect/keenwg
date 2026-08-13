@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class RouterProfile(
-    val schemaVersion: Int = 3,
+    val schemaVersion: Int = 4,
     val id: String,
     val displayName: String,
     val host: String,
@@ -23,7 +23,6 @@ data class RouterProfile(
     val keepalive: Int,
     val companionUrl: String = "",
     val certificatePin: String = "",
-    val collectorUrl: String = "",
 ) {
     companion object {
         fun fromServerSettings(id: String, displayName: String, settings: ServerSettings) = RouterProfile(
@@ -39,7 +38,6 @@ data class RouterProfile(
             dns = settings.dns,
             mtu = settings.mtu,
             keepalive = settings.keepalive,
-            collectorUrl = settings.collectorUrl,
         )
     }
 
@@ -55,8 +53,6 @@ data class RouterProfile(
         dns = dns,
         mtu = mtu,
         keepalive = keepalive,
-        collectorUrl = collectorUrl,
-        collectorToken = secrets.collectorToken,
     )
 }
 
@@ -66,13 +62,11 @@ data class RouterSecrets(
     val rciPassword: String = "",
     val companionToken: String = "",
     val companionDeviceId: String = "",
-    val collectorToken: String = "",
 ) {
     companion object {
         fun fromServerSettings(settings: ServerSettings) = RouterSecrets(
             rciLogin = settings.login,
             rciPassword = settings.password,
-            collectorToken = settings.collectorToken,
         )
     }
 }

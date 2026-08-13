@@ -1,5 +1,6 @@
 package ru.anisimov.keenwg.ui.system
 
+import ru.anisimov.keenwg.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,7 +96,7 @@ class DevicesViewModelTest {
         vm.requestRevoke("phone-2")
         vm.confirmRevoke(); advanceUntilIdle()
 
-        assertTrue(vm.state.value.error.orEmpty().contains("последнего владельца"))
+        assertEquals(R.string.devices_error_last_owner, vm.state.value.errorResource)
         assertTrue(vm.state.value.devices.any { it.id == "phone-2" })
     }
 

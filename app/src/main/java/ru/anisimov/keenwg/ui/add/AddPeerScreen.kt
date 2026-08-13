@@ -1,6 +1,7 @@
 package ru.anisimov.keenwg.ui.add
 
 import ru.anisimov.keenwg.R
+import ru.anisimov.keenwg.domain.normalizePeerName
 
 import androidx.compose.ui.res.stringResource
 
@@ -102,10 +103,10 @@ fun AddPeerScreen(
                         onHistoryEnabledChange = vm::onHistoryEnabledChange,
                     )
                 }
-                state.error?.let {
+                state.errorResource?.let { errorResource ->
                     StatusNotice(
                         title = stringResource(R.string.ui_addpeerscreen_5e9288c0d8),
-                        detail = it,
+                        detail = stringResource(errorResource),
                         isError = true,
                     )
                 }
@@ -160,7 +161,7 @@ fun AddPeerScreen(
                             color = androidx.compose.ui.graphics.Color.White,
                             shape = MaterialTheme.shapes.medium,
                         ) {
-                            QrImage(result.conf, Modifier.padding(12.dp).size(248.dp))
+                            QrImage(result.conf, Modifier.padding(12.dp).size(248.dp), stringResource(R.string.qr_code_description))
                         }
                     }
                 }

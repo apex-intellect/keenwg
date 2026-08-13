@@ -9,9 +9,9 @@ import kotlinx.coroutines.supervisorScope
 
 fun CoroutineScope.startForegroundRefresh(
     rciRefresh: suspend () -> Unit,
-    collectorRefresh: suspend () -> Unit,
+    historyRefresh: suspend () -> Unit,
     rciIntervalMs: Long = 15_000L,
-    collectorIntervalMs: Long = 60_000L,
+    historyIntervalMs: Long = 60_000L,
 ): Job = launch {
     supervisorScope {
         launch {
@@ -22,8 +22,8 @@ fun CoroutineScope.startForegroundRefresh(
         }
         launch {
             while (isActive) {
-                collectorRefresh()
-                delay(collectorIntervalMs)
+                historyRefresh()
+                delay(historyIntervalMs)
             }
         }
     }

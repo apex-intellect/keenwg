@@ -5,10 +5,11 @@ import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.anisimov.keenwg.data.rci.RciClient
-import ru.anisimov.keenwg.data.collector.CollectorClient
 import ru.anisimov.keenwg.data.collector.CollectorRepository
+import ru.anisimov.keenwg.data.collector.CompanionHistoryClient
 import ru.anisimov.keenwg.data.collector.StatsGateway
 import ru.anisimov.keenwg.data.store.KeystoreCipher
 import ru.anisimov.keenwg.data.store.PeerConfStore
@@ -31,6 +32,7 @@ import ru.anisimov.keenwg.data.capability.CapabilityRegistry
 import ru.anisimov.keenwg.data.companion.CompanionClient
 import ru.anisimov.keenwg.data.companion.CompanionHttpTransport
 import ru.anisimov.keenwg.data.companion.HttpCompanionClient
+import ru.anisimov.keenwg.data.companion.requireCompanionEndpoint
 import ru.anisimov.keenwg.data.installer.AndroidCompanionAssetSource
 import ru.anisimov.keenwg.data.installer.CompanionAssetVerifier
 import ru.anisimov.keenwg.data.installer.InstallerCoordinator
@@ -125,7 +127,16 @@ object ServiceLocator {
             accessPolicyStore = accessPolicyStore,
         )
         repository = AdaptivePeerRepository(routerProfileStore.activeProfile, companionPeers, legacyPeers)
-        statsGateway = CollectorRepository(CollectorClient())
+        statsGateway = CollectorRepository(
+            CompanionHistoryClient(
+                endpointProvider = {
+                    routerProfileStore.activeProfile.first()?.let { active ->
+                        runCatching { active.requireCompanionEndpoint() }.getOrNull()
+                    }
+                },
+                transport = companionTransport,
+            ),
+        )
         xkeenRepository = XkeenRepository(XkeenClient(companionTransport))
         xkeenPreferenceStore = XkeenPreferenceStore(app)
         expertModeStore = ExpertModeStore(app)

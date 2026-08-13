@@ -21,11 +21,11 @@ fun shareConf(context: Context, fileName: String, conf: String) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = "application/octet-stream"
         putExtra(Intent.EXTRA_STREAM, uri)
-        clipData = ClipData.newRawUri("Конфигурация WireGuard", uri)
+        clipData = ClipData.newRawUri(context.getString(R.string.share_wireguard_clip_label), uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(
-        Intent.createChooser(send, "Поделиться конфигурацией WireGuard").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        Intent.createChooser(send, context.getString(R.string.share_wireguard_chooser)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
     )
 }
 
@@ -41,7 +41,7 @@ internal fun sanitizeConfFileName(value: String): String {
 fun shareSupportReport(context: Context, export: SupportExport) {
     val files = writeSupportExportFiles(context.cacheDir, export.bundle.generatedAt, export.json, export.text)
     val uris = ArrayList(files.map { FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", it) })
-    val clip = ClipData.newRawUri("KeenWG support report", uris.first()).apply {
+    val clip = ClipData.newRawUri(context.getString(R.string.share_support_clip_label), uris.first()).apply {
         uris.drop(1).forEach { addItem(ClipData.Item(it)) }
     }
     val send = Intent(Intent.ACTION_SEND_MULTIPLE).apply {

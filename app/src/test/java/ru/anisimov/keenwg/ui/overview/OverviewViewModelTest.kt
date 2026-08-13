@@ -111,7 +111,7 @@ class OverviewViewModelTest {
 
         val state = harness.vm.state.value
         assertEquals(OverviewHealth.DEGRADED, state.health)
-        assertFalse(state.message.orEmpty().contains("device-token"))
+        assertTrue(state.messageResource != null)
         assertNull(state.activeXkeenNode)
     }
 
@@ -166,7 +166,6 @@ class OverviewViewModelTest {
         keepalive = 25,
         companionUrl = companionUrl,
         certificatePin = pin,
-        collectorUrl = "",
     )
 
     private fun capability(id: String) = Capability(

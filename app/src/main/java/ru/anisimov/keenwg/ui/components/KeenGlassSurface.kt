@@ -19,11 +19,11 @@ fun KeenGlassSurface(
     Surface(
         modifier = modifier,
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.84f),
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)),
-        tonalElevation = 3.dp,
-        shadowElevation = 1.dp,
+        tonalElevation = 0.dp,
+        shadowElevation = 2.dp,
     ) {
         Column(content = content)
     }

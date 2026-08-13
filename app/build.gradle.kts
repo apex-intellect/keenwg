@@ -8,6 +8,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val officialSignerSha256 = rootProject.file("docs/release-signing-cert.sha256").readText().trim().lowercase()
+check(officialSignerSha256.matches(Regex("[0-9a-f]{64}"))) {
+    "docs/release-signing-cert.sha256 must contain one SHA-256 digest"
+}
+
 android {
     namespace = "ru.anisimov.keenwg"
     compileSdk = 35
@@ -16,9 +21,11 @@ android {
         applicationId = "ru.anisimov.keenwg"
         minSdk = 26
         targetSdk = 35
-        versionCode = 24
-        versionName = "2.2.0"
+        versionCode = 25
+        versionName = "2.2.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        resourceConfigurations += listOf("en", "ru")
+        buildConfigField("String", "OFFICIAL_SIGNER_SHA256", "\"$officialSignerSha256\"")
     }
 
     buildTypes {
@@ -59,6 +66,7 @@ android {
         // Keep the already-compressed companion bundle byte-for-byte stable in the APK.
         // The .tgz suffix also avoids AAPT's special .gz expansion and suffix removal.
         noCompress += "tgz"
+        generateLocaleConfig = true
     }
 }
 
@@ -126,7 +134,8 @@ val verifyLocaleResources by tasks.registering {
     val russian = layout.projectDirectory.file("src/main/res/values-ru/strings.xml")
     inputs.files(english, russian)
     doLast {
-        fun names(file: File) = Regex("<string\\s+name=\"([^\"]+)\"").findAll(file.readText()).map { it.groupValues[1] }.toSet()
+        fun names(file: File) = Regex("<(?:string|plurals|string-array)\\s+name=\"([^\"]+)\"")
+            .findAll(file.readText()).map { it.groupValues[1] }.toSet()
         val englishNames = names(english.asFile)
         val russianNames = names(russian.asFile)
         check(englishNames == russianNames) { "English/Russian string resources differ: EN-only=${englishNames - russianNames}, RU-only=${russianNames - englishNames}" }
@@ -137,15 +146,14 @@ val verifyLocaleResources by tasks.registering {
 
 val verifyUiResources by tasks.registering {
     group = "verification"
-    description = "Rejects hardcoded Cyrillic text in user-visible Compose arguments."
+    description = "Rejects hardcoded Cyrillic text anywhere in app UI sources."
     val uiSources = fileTree("src/main/java/ru/anisimov/keenwg/ui") { include("**/*.kt") }
     inputs.files(uiSources)
     doLast {
-        val visibleArgument = Regex("""\bText\s*\(|contentDescription\s*=|onClickLabel\s*=|\b(?:title|label|placeholder|subtitle|detail)\s*=""")
         val cyrillic = Regex("[А-Яа-яЁё]")
         val findings = uiSources.files.sortedBy { it.path }.flatMap { file ->
             file.readLines().mapIndexedNotNull { index, line ->
-                if (cyrillic.containsMatchIn(line) && visibleArgument.containsMatchIn(line)) {
+                if (cyrillic.containsMatchIn(line)) {
                     "${file.relativeTo(projectDir)}:${index + 1}"
                 } else null
             }
@@ -168,6 +176,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.activity:activity-compose:1.9.2")
+    implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")

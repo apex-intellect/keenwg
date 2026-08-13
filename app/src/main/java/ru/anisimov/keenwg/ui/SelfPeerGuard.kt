@@ -50,6 +50,3 @@ internal class SelfPeerGuard(
         )
     }
 }
-
-internal const val SELF_PEER_BLOCK_MESSAGE =
-    "Это подключение используется сейчас. Переключитесь на домашний Wi‑Fi и укажите LAN-адрес роутера, затем повторите действие."

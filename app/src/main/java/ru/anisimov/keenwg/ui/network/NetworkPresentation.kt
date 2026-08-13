@@ -2,6 +2,7 @@ package ru.anisimov.keenwg.ui.network
 
 import ru.anisimov.keenwg.R
 import ru.anisimov.keenwg.data.network.DomainRule
+import java.net.IDN
 
 fun segmentCount(segment: NetworkSegment, state: NetworkUiState): Int = when (segment) {
     NetworkSegment.DEVICES -> state.devices.size
@@ -11,20 +12,23 @@ fun segmentCount(segment: NetworkSegment, state: NetworkUiState): Int = when (se
     NetworkSegment.SCENARIOS -> state.scenarioCatalog?.presets?.size ?: 0
 }
 
-fun domainEffectLabel(effect: String): String = if (effect == "vpn") "Через VPN" else "Напрямую"
+fun domainEffectResource(effect: String): Int = if (effect == "vpn") R.string.rules_via_vpn else R.string.rules_direct
 
-fun domainSourceLabel(source: String): String = when (source) {
-    "zone" -> "зона"
-    "geosite" -> "GeoSite"
-    "system" -> "системное"
-    else -> "вручную"
+fun domainSourceResource(source: String): Int = when (source) {
+    "zone" -> R.string.domain_source_zone
+    "geosite" -> R.string.domain_source_geosite
+    "system" -> R.string.domain_source_system
+    else -> R.string.domain_source_manual
 }
 
-fun domainMatcherLabel(rule: DomainRule): String = when (rule.kind) {
-    "suffix" -> "Зона · .${displayZone(rule.value)}"
-    "geosite" -> "GeoSite · ${rule.value}"
-    else -> "Домен · ${rule.value}"
+fun domainMatcherResource(rule: DomainRule): Int = when (rule.kind) {
+    "suffix" -> R.string.domain_matcher_zone
+    "geosite" -> R.string.domain_matcher_geosite
+    else -> R.string.domain_matcher_domain
 }
+
+fun domainMatcherValue(rule: DomainRule): String =
+    if (rule.kind == "suffix") IDN.toUnicode(rule.value) else rule.value
 
 fun canEditDomainRule(rule: DomainRule): Boolean = !rule.isProtected && rule.source != "system"
 
@@ -32,9 +36,4 @@ internal fun domainRuleKindResource(kind: String): Int = when (kind) {
     "suffix" -> R.string.rules_site_zone
     "geosite" -> R.string.rules_site_category
     else -> R.string.rules_site_domain
-}
-
-private fun displayZone(value: String): String = when (value) {
-    "xn--p1ai" -> "рф"
-    else -> value
 }

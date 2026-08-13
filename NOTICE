@@ -1,8 +1,12 @@
 KeenWG
-Copyright 2026 KeenWG contributors
+Copyright 2026 Apex Intellect and KeenWG contributors
+
+Official project: https://github.com/apex-intellect/keenwg
 
 This product includes software developed by third parties. Dependency coordinates are listed in the release CycloneDX SBOM. Bundled Manrope and JetBrains Mono font license texts are included in the Android assets.
 
 License families and upstream locations for direct dependencies are documented in THIRD-PARTY-NOTICES.md. The generated CycloneDX SBOM is the authoritative versioned dependency inventory for each artifact.
+
+The Apache License 2.0 covers the source code, not a right to present modified builds as official Apex Intellect or KeenWG releases. See TRADEMARKS.md for the project identity and redistribution policy.
 
 WireGuard is a registered trademark of Jason A. Donenfeld. Keenetic, XKeen, Xray, sing-box and AmneziaWG names belong to their respective owners. Their mention describes interoperability and does not imply endorsement.

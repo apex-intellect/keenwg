@@ -45,11 +45,11 @@ fun DomainRuleCard(rule: DomainRule, onEdit: () -> Unit, onDelete: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(rule.label.ifBlank { rule.value }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-                        Text(domainEffectLabel(rule.effect), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp))
+                        Text(stringResource(domainEffectResource(rule.effect)), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp))
                     }
                 }
-                Text(domainMatcherLabel(rule), style = MonoLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(stringResource(R.string.domain_rule_state, domainSourceLabel(rule.source), stringResource(if (rule.enabled) R.string.state_enabled else R.string.state_disabled)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(domainMatcherResource(rule), domainMatcherValue(rule)), style = MonoLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.domain_rule_state, stringResource(domainSourceResource(rule.source)), stringResource(if (rule.enabled) R.string.state_enabled else R.string.state_disabled)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (editable) {
                 IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, stringResource(R.string.rules_site_edit_description, rule.value)) }

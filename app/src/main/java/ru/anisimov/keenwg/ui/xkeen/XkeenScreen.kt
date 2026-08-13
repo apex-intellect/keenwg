@@ -5,7 +5,6 @@ import ru.anisimov.keenwg.R
 import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -52,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -82,7 +83,7 @@ fun XkeenScreen(
                     Column {
                         Text(stringResource(R.string.ui_xkeenscreen_1f8c321147))
                         Text(
-                            "Ручной выбор страны",
+                            stringResource(R.string.xkeen_manual_country),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -156,10 +157,14 @@ private fun RouteContent(
                 StatusNotice(stringResource(R.string.ui_xkeenscreen_d33acb5d9b), detail = stringResource(R.string.ui_xkeenscreen_0fd6014bb4), isError = true)
             }
         }
-        state.message?.let { message ->
+        state.messageResource?.let { messageResource ->
             item {
                 val safe = state.operation?.result == XkeenOperationResult.SUCCESS
-                StatusNotice(if (safe) stringResource(R.string.ui_xkeenscreen_ef05d57959) else stringResource(R.string.ui_xkeenscreen_f2baf7459b), detail = message, isError = !safe)
+                StatusNotice(
+                    if (safe) stringResource(R.string.ui_xkeenscreen_ef05d57959) else stringResource(R.string.ui_xkeenscreen_f2baf7459b),
+                    detail = stringResource(messageResource),
+                    isError = !safe,
+                )
             }
         }
         item {
@@ -180,7 +185,7 @@ private fun RouteContent(
                     Text(if (state.busy) stringResource(R.string.ui_xkeenscreen_d2606cebc8) else stringResource(R.string.ui_xkeenscreen_ce7e3fd182))
                 }
                 Text(
-                    lastRefreshLabel(status?.subscription?.refreshedAt),
+                    lastRefreshText(status?.subscription?.refreshedAt),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -246,7 +251,11 @@ private fun ActiveRouteCard(active: XkeenActiveNode) {
             Text(active.flag ?: "◎", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 14.dp))
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.ui_xkeenscreen_51d102ff33), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
-                Text(cleanNodeName(active.flag, active.displayName), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text(
+                    cleanNodeName(active.flag, active.displayName, stringResource(R.string.xkeen_server_fallback)),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
                 Text(
                     "${active.host}:${active.port} · ${active.resolvedIp}",
                     style = MaterialTheme.typography.bodySmall,
@@ -255,7 +264,11 @@ private fun ActiveRouteCard(active: XkeenActiveNode) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Icon(Icons.Default.CheckCircle, "Маршрут активен", tint = MaterialTheme.colorScheme.tertiary)
+            Icon(
+                Icons.Default.CheckCircle,
+                stringResource(R.string.xkeen_route_active_description),
+                tint = MaterialTheme.colorScheme.tertiary,
+            )
         }
     }
 }
@@ -273,10 +286,9 @@ private fun NodeRouteCard(
 ) {
     val cardColor = if (active) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surface
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .clickable(enabled = enabled && !active, onClickLabel = stringResource(R.string.select_node, node.displayName), onClick = onClick),
+        onClick = onClick,
+        enabled = enabled && !active,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 106.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor),
     ) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -284,7 +296,11 @@ private fun NodeRouteCard(
             Text(node.flag ?: "◎", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(cleanNodeName(node.flag, node.displayName), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Text(
+                        cleanNodeName(node.flag, node.displayName, stringResource(R.string.xkeen_server_fallback)),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
                     if (active) ActiveBadge()
                 }
                 Text(
@@ -295,22 +311,33 @@ private fun NodeRouteCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 3.dp),
                 )
-                warningLabel(node)?.let { warning ->
-                    Row(Modifier.padding(top = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.WarningAmber, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(15.dp))
-                        Text(warning, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
+                Box(Modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.CenterStart) {
+                    when {
+                        diagnostic != null -> Text(
+                            diagnosticLabel(diagnostic),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (diagnostic.status == XkeenDiagnosticStatus.REACHABLE) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        hasConfigurationWarning(node) -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.WarningAmber, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(15.dp))
+                            Text(
+                                stringResource(R.string.xkeen_configuration_warning),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 4.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        recent -> Text(
+                            stringResource(R.string.ui_xkeenscreen_53944be764),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                        )
                     }
-                }
-                diagnostic?.let {
-                    Text(
-                        diagnosticLabel(it),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (it.status == XkeenDiagnosticStatus.REACHABLE) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 5.dp),
-                    )
-                }
-                if (recent) {
-                    Text(stringResource(R.string.ui_xkeenscreen_53944be764), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
             IconButton(onClick = onFavorite) {
@@ -325,12 +352,16 @@ private fun NodeRouteCard(
     }
 }
 
-private fun diagnosticLabel(value: XkeenNodeDiagnostic): String = when (value.status) {
-    XkeenDiagnosticStatus.REACHABLE -> "Доступен · ${value.connectMs} мс"
-    XkeenDiagnosticStatus.UNREACHABLE -> "Недоступен"
-    XkeenDiagnosticStatus.TIMEOUT -> "Таймаут подключения"
-    XkeenDiagnosticStatus.DNS_ERROR -> "Ошибка DNS"
-}
+@Composable
+private fun diagnosticLabel(value: XkeenNodeDiagnostic): String = stringResource(
+    when (value.status) {
+        XkeenDiagnosticStatus.REACHABLE -> R.string.xkeen_diagnostic_reachable
+        XkeenDiagnosticStatus.UNREACHABLE -> R.string.xkeen_diagnostic_unreachable
+        XkeenDiagnosticStatus.TIMEOUT -> R.string.xkeen_diagnostic_timeout
+        XkeenDiagnosticStatus.DNS_ERROR -> R.string.xkeen_diagnostic_dns
+    },
+    value.connectMs,
+)
 
 @Composable
 private fun RouteRail(active: Boolean) {
@@ -367,9 +398,15 @@ private fun SelectionDialog(
         title = { Text(stringResource(R.string.ui_xkeenscreen_0dc7eba110)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("${current?.flag.orEmpty()} ${current?.let { cleanNodeName(it.flag, it.displayName) } ?: stringResource(R.string.xkeen_current_route)}  →  ${target.flag.orEmpty()} ${cleanNodeName(target.flag, target.displayName)}")
+                val fallback = stringResource(R.string.xkeen_server_fallback)
+                Text("${current?.flag.orEmpty()} ${current?.let { cleanNodeName(it.flag, it.displayName, fallback) } ?: stringResource(R.string.xkeen_current_route)}  →  ${target.flag.orEmpty()} ${cleanNodeName(target.flag, target.displayName, fallback)}")
                 Text(stringResource(R.string.ui_xkeenscreen_e1bd32a0d4))
-                warningLabel(target)?.let { StatusNotice(stringResource(R.string.ui_xkeenscreen_233a8e993a), detail = it) }
+                if (hasConfigurationWarning(target)) {
+                    StatusNotice(
+                        stringResource(R.string.ui_xkeenscreen_233a8e993a),
+                        detail = stringResource(R.string.xkeen_configuration_warning),
+                    )
+                }
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         },
@@ -379,6 +416,16 @@ private fun SelectionDialog(
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.ui_xkeenscreen_8fbe9b75cb)) }
         },
+    )
+}
+
+@Composable
+private fun lastRefreshText(epochSeconds: Long?): String {
+    if (epochSeconds == null) return stringResource(R.string.xkeen_subscription_never_updated)
+    val locale = LocalConfiguration.current.locales[0]
+    return stringResource(
+        R.string.xkeen_subscription_updated_at,
+        formatRefreshTimestamp(epochSeconds, locale = locale),
     )
 }
 

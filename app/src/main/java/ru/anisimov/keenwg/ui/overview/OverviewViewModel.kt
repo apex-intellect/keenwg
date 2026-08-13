@@ -21,6 +21,7 @@ import ru.anisimov.keenwg.data.companion.requireCompanionEndpoint
 import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.domain.model.RouterProfilesState
 import ru.anisimov.keenwg.ui.navigation.visibleTopLevelDestinations
+import ru.anisimov.keenwg.R
 
 class OverviewViewModel(
     private val profilesFlow: Flow<RouterProfilesState>,
@@ -69,7 +70,7 @@ class OverviewViewModel(
             is RouterProfilesState.Locked -> _state.value = OverviewState(
                 loading = false,
                 health = OverviewHealth.LOCKED,
-                message = "Защищённое хранилище профилей заблокировано",
+                messageResource = R.string.overview_message_storage_locked,
                 mutationsEnabled = false,
                 destinations = visibleTopLevelDestinations(null, locked = true),
             )
@@ -87,7 +88,7 @@ class OverviewViewModel(
                 selectedProfileId = state.selectedId,
                 selectedProfileName = selected?.displayName,
                 showProfileSelector = state.profiles.size > 1,
-                message = "Профиль роутера требует повторной настройки",
+                messageResource = R.string.overview_message_profile_reconfigure,
                 mutationsEnabled = false,
             )
             return
@@ -110,7 +111,7 @@ class OverviewViewModel(
             showProfileSelector = state.profiles.size > 1,
             capabilities = optionalModules,
             destinations = visibleTopLevelDestinations(optionalModules, locked = false),
-            message = if (companionPartial) "Настройка защищённого доступа не завершена" else null,
+            messageResource = if (companionPartial) R.string.overview_message_setup_incomplete else null,
             mutationsEnabled = true,
         )
 
@@ -127,7 +128,8 @@ class OverviewViewModel(
             _state.value = _state.value.copy(
                 loading = false,
                 activeXkeenNode = activeNode,
-                message = _state.value.message ?: if (nodeUnavailable) "Статус XKeen временно недоступен" else null,
+                messageResource = _state.value.messageResource
+                    ?: if (nodeUnavailable) R.string.overview_message_xkeen_unavailable else null,
             )
             return
         }
@@ -141,14 +143,14 @@ class OverviewViewModel(
                 capabilities = merged,
                 destinations = visibleTopLevelDestinations(merged, locked = false),
                 activeXkeenNode = activeNode,
-                message = if (nodeUnavailable) "Статус XKeen временно недоступен" else null,
+                messageResource = if (nodeUnavailable) R.string.overview_message_xkeen_unavailable else null,
             )
         } catch (_: Exception) {
             _state.value = _state.value.copy(
                 loading = false,
                 health = OverviewHealth.DEGRADED,
                 activeXkeenNode = activeNode,
-                message = "Защищённый канал с роутером временно недоступен",
+                messageResource = R.string.overview_message_channel_unavailable,
             )
         }
     }

@@ -19,7 +19,7 @@ import ru.anisimov.keenwg.domain.model.ServerSettings
 class SettingsStoreContractTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
 
-    @Test fun `router profile secrets are encrypted without a flat collector token mirror`() = runTest {
+    @Test fun `router credentials stay encrypted and obsolete collector mirrors are absent`() = runTest {
         val dataStore = PreferenceDataStoreFactory.create(
             scope = TestScope(UnconfinedTestDispatcher(testScheduler)),
             produceFile = { temporaryFolder.newFile("settings.preferences_pb") },
@@ -37,13 +37,13 @@ class SettingsStoreContractTest {
         }
         val store = SettingsStore(dataStore, cipher)
 
-        store.save(ServerSettings(collectorToken = "collector-secret"))
+        store.save(ServerSettings(password = "router-secret"))
 
-        assertEquals("collector-secret", store.settings.first().collectorToken)
+        assertEquals("router-secret", store.settings.first().password)
         val preferences = dataStore.data.first()
         val raw = preferences[SettingsKeys.secrets].orEmpty()
         assertEquals("opaque-ciphertext", raw)
-        assertFalse(raw.contains("collector-secret"))
+        assertFalse(raw.contains("router-secret"))
         assertNull(preferences[stringPreferencesKey("collector_token_enc")])
     }
 }

@@ -14,17 +14,17 @@ class TimelineSummaryTest {
             points = emptyList(),
         )
 
-        assertEquals(
-            "За 24 часа устройство наблюдалось в сети 8 ч 42 мин; данных нет за 37 мин.",
-            timelineSemanticSummary(stats),
-        )
+        val summary = timelineSummaryFacts(stats)
+        assertEquals(86_400, summary.periodSeconds)
+        assertEquals(31_320, summary.onlineSeconds)
+        assertEquals(2_220, summary.missingSeconds)
     }
 
     @Test fun `zero coverage is unavailable history rather than offline`() {
-        val summary = timelineSemanticSummary(stats(observed = 0, online = 0, points = emptyList()))
+        val summary = timelineSummaryFacts(stats(observed = 0, online = 0, points = emptyList()))
 
-        assertEquals("За 24 часа данных истории пока нет.", summary)
-        assertTrue(!summary.contains("не в сети"))
+        assertEquals(0, summary.observedSeconds)
+        assertEquals(86_400, summary.missingSeconds)
     }
 
     @Test fun `builder preserves gaps and partial observed buckets`() {

@@ -5,7 +5,6 @@ import org.junit.Test
 import ru.anisimov.keenwg.domain.model.HandshakeKind
 import ru.anisimov.keenwg.domain.model.HandshakeNormalizer
 import ru.anisimov.keenwg.domain.model.HandshakeStatus
-import ru.anisimov.keenwg.ui.util.handshakeLabel
 
 class HandshakeNormalizerTest {
     private data class Case(
@@ -32,10 +31,4 @@ class HandshakeNormalizerTest {
         }
     }
 
-    @Test fun `formats honest Russian labels`() {
-        assertEquals("59 с назад", handshakeLabel(HandshakeStatus(HandshakeKind.AGE, 59)))
-        assertEquals("1 ч назад", handshakeLabel(HandshakeStatus(HandshakeKind.AGE, 3600)))
-        assertEquals("Подключений пока не было", handshakeLabel(HandshakeStatus(HandshakeKind.NEVER)))
-        assertEquals("Время подключения неизвестно", handshakeLabel(HandshakeStatus(HandshakeKind.INVALID)))
-    }
 }

@@ -54,16 +54,16 @@ class RouterProfileStoreTest {
         val state = store.state.first() as RouterProfilesState.Ready
         assertEquals(1, state.profiles.size)
         assertEquals("home", state.selectedId)
-        assertEquals(3, state.profiles.single().schemaVersion)
+        assertEquals(4, state.profiles.single().schemaVersion)
         assertEquals(firstRaw, secondRaw)
         val active = store.activeProfile.first()!!
         assertEquals("router-secret", active.secrets.rciPassword)
-        assertEquals("collector-secret", active.secrets.collectorToken)
         assertEquals("device-token", active.secrets.companionToken)
         assertEquals("https://192.168.1.1:18779", active.profile.companionUrl)
         val rawSecrets = dataStore.data.first()[stringPreferencesKey("router_secrets_enc")].orEmpty()
         assertTrue(rawSecrets.startsWith("enc:"))
         assertTrue(!rawSecrets.contains("router-secret"))
+        assertFalse(cipher.decrypt(rawSecrets).contains("collector", ignoreCase = true))
         val migratedPreferences = dataStore.data.first()
         assertEquals(null, migratedPreferences[stringPreferencesKey("host")])
         assertEquals(null, migratedPreferences[stringPreferencesKey("xkeen_controller_url")])
@@ -99,7 +99,7 @@ class RouterProfileStoreTest {
     @Test fun `secret decrypt failure exposes locked state and no active settings`() = runTest {
         val dataStore = testDataStore("locked.preferences_pb")
         val profile = RouterProfile.fromServerSettings("router-one", "Home", ServerSettings())
-        val index = RouterProfileIndex(schemaVersion = 3, selectedProfileId = profile.id, profiles = listOf(profile))
+        val index = RouterProfileIndex(schemaVersion = 4, selectedProfileId = profile.id, profiles = listOf(profile))
         dataStore.edit { preferences ->
             preferences[stringPreferencesKey("router_profiles_json")] = RouterProfileCodec.encodeIndex(index)
             preferences[stringPreferencesKey("router_secrets_enc")] = "broken"
@@ -117,7 +117,7 @@ class RouterProfileStoreTest {
     @Test fun `schema two gains ssh defaults without losing router identity`() {
         val index = RouterProfileCodec.decodeIndex(schemaTwoIndex())
 
-        assertEquals(3, index.schemaVersion)
+        assertEquals(4, index.schemaVersion)
         assertEquals("home", index.selectedProfileId)
         assertEquals("192.168.1.1", index.profiles.single().sshHost)
         assertEquals("https://192.168.1.1:18779", index.profiles.single().companionUrl)
@@ -125,12 +125,12 @@ class RouterProfileStoreTest {
 
     @Test fun `codec rejects unknown schema version`() {
         val error = runCatching {
-            RouterProfileCodec.decodeIndex("""{"schema_version":4,"selected_profile_id":"x","profiles":[]}""")
+            RouterProfileCodec.decodeIndex("""{"schema_version":5,"selected_profile_id":"x","profiles":[]}""")
         }.exceptionOrNull()
         assertTrue(error is IllegalArgumentException)
     }
 
-    @Test fun `codec upgrades schema one and drops only obsolete xkeen credentials`() {
+    @Test fun `codec upgrades schema one and drops obsolete direct service credentials`() {
         val index = RouterProfileCodec.decodeIndex("""{
           "schema_version":1,"selected_profile_id":"home","profiles":[{
             "schemaVersion":1,"id":"home","displayName":"Home","host":"192.168.1.1","rciPort":80,
@@ -147,13 +147,40 @@ class RouterProfileStoreTest {
           }}
         }""")
 
-        assertEquals(3, index.schemaVersion)
-        assertEquals(3, index.profiles.single().schemaVersion)
+        assertEquals(4, index.schemaVersion)
+        assertEquals(4, index.profiles.single().schemaVersion)
         assertEquals("https://192.168.1.1:18779", index.profiles.single().companionUrl)
         assertEquals("device-token", secrets.getValue("home").companionToken)
-        assertEquals("collector-token", secrets.getValue("home").collectorToken)
         assertFalse(RouterProfileCodec.encodeIndex(index).contains("legacyXkeen"))
         assertFalse(RouterProfileCodec.encodeSecrets(secrets).contains("legacyXkeen"))
+        assertFalse(RouterProfileCodec.encodeIndex(index).contains("collector", ignoreCase = true))
+        assertFalse(RouterProfileCodec.encodeSecrets(secrets).contains("collector", ignoreCase = true))
+    }
+
+    @Test fun `current migration removes obsolete direct collector address and secret`() {
+        val index = RouterProfileCodec.decodeIndex("""{
+          "schema_version":3,"selected_profile_id":"home","profiles":[{
+            "schemaVersion":3,"id":"home","displayName":"Home","host":"192.168.1.1","rciPort":80,
+            "sshHost":"192.168.1.1","sshPort":222,"sshUsername":"root",
+            "sshHostKeyAlgorithm":"","sshHostKeySha256":"",
+            "interfaceId":"Wireguard0","serverPublicKey":"","endpoint":"","subnetBase":"10.8.0.",
+            "dns":"192.168.1.1","mtu":1380,"keepalive":25,
+            "companionUrl":"https://192.168.1.1:18779","certificatePin":"sha256/pin",
+            "collectorUrl":"http://10.8.0.1:18777"
+          }]
+        }""")
+        val secrets = RouterProfileCodec.decodeSecrets("""{
+          "schema_version":2,"secrets":{"home":{
+            "rciLogin":"admin","rciPassword":"router-secret","companionToken":"device-token",
+            "companionDeviceId":"phone-1","collectorToken":"collector-secret"
+          }}
+        }""")
+
+        assertEquals(4, index.schemaVersion)
+        assertEquals(4, index.profiles.single().schemaVersion)
+        assertFalse(RouterProfileCodec.encodeIndex(index).contains("collector", ignoreCase = true))
+        assertFalse(RouterProfileCodec.encodeSecrets(secrets).contains("collector", ignoreCase = true))
+        assertEquals("device-token", secrets.getValue("home").companionToken)
     }
 
     @Test fun `protected access identity trust and device token are saved in one selected profile update`() = runTest {

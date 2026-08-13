@@ -25,6 +25,6 @@ data class OverviewState(
         TopLevelDestination.SYSTEM,
     ),
     val activeXkeenNode: String? = null,
-    val message: String? = null,
+    val messageResource: Int? = null,
     val mutationsEnabled: Boolean = false,
 )

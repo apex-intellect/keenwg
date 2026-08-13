@@ -22,6 +22,8 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import ru.anisimov.keenwg.domain.model.PeerStats
 import ru.anisimov.keenwg.domain.model.PeerStatsPoint
+import ru.anisimov.keenwg.ui.util.durationLabel
+import ru.anisimov.keenwg.ui.util.historyPeriodLabel
 import kotlin.math.max
 import kotlin.math.min
 
@@ -75,15 +77,34 @@ fun buildTimelineSlices(stats: PeerStats): List<TimelineSlice> {
     return slices
 }
 
-fun timelineSemanticSummary(stats: PeerStats): String {
-    val period = periodLabel((stats.to - stats.from).coerceAtLeast(0))
-    if (stats.observedSeconds <= 0) return "За $period данных истории пока нет."
-    val online = durationLabel(stats.onlineSeconds.coerceAtLeast(0))
-    val missing = ((stats.to - stats.from) - stats.observedSeconds).coerceAtLeast(0)
-    return if (missing == 0L) {
-        "За $period устройство наблюдалось в сети $online; период наблюдений покрыт полностью."
+data class TimelineSummaryFacts(
+    val periodSeconds: Long,
+    val observedSeconds: Long,
+    val onlineSeconds: Long,
+    val missingSeconds: Long,
+)
+
+fun timelineSummaryFacts(stats: PeerStats): TimelineSummaryFacts {
+    val period = (stats.to - stats.from).coerceAtLeast(0)
+    val observed = stats.observedSeconds.coerceIn(0, period)
+    return TimelineSummaryFacts(
+        periodSeconds = period,
+        observedSeconds = observed,
+        onlineSeconds = stats.onlineSeconds.coerceIn(0, observed),
+        missingSeconds = (period - observed).coerceAtLeast(0),
+    )
+}
+
+@Composable
+private fun timelineSemanticSummary(stats: PeerStats): String {
+    val facts = timelineSummaryFacts(stats)
+    val period = historyPeriodLabel(facts.periodSeconds)
+    if (facts.observedSeconds <= 0) return stringResource(R.string.history_semantic_no_data, period)
+    val online = durationLabel(facts.onlineSeconds)
+    return if (facts.missingSeconds == 0L) {
+        stringResource(R.string.history_semantic_complete, period, online)
     } else {
-        "За $period устройство наблюдалось в сети $online; данных нет за ${durationLabel(missing)}."
+        stringResource(R.string.history_semantic_missing, period, online, durationLabel(facts.missingSeconds))
     }
 }
 
@@ -155,25 +176,3 @@ private fun noData(at: Long, duration: Long) = TimelineSlice(
     coverageFraction = 0f,
     onlineFraction = 0f,
 )
-
-private fun periodLabel(seconds: Long): String = when (seconds) {
-    86_400L -> "24 часа"
-    604_800L -> "7 дней"
-    2_592_000L -> "30 дней"
-    else -> durationLabel(seconds)
-}
-
-internal fun durationLabel(seconds: Long): String {
-    val safe = seconds.coerceAtLeast(0)
-    val days = safe / 86_400
-    val hours = (safe % 86_400) / 3_600
-    val minutes = (safe % 3_600) / 60
-    return when {
-        days > 0 && hours > 0 -> "$days д $hours ч"
-        days > 0 -> "$days д"
-        hours > 0 && minutes > 0 -> "$hours ч $minutes мин"
-        hours > 0 -> "$hours ч"
-        minutes > 0 -> "$minutes мин"
-        else -> "меньше минуты"
-    }
-}

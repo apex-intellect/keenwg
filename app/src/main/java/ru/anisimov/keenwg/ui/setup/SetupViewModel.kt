@@ -97,7 +97,7 @@ class SetupViewModel(
         val active = activeProfileFlow.first()
         val candidate = endpoint
         if (active == null || candidate == null || credential == null) {
-            fail(InstallPhase.CONNECT, "Профиль роутера недоступен", true)
+            fail(InstallPhase.CONNECT, true)
             return
         }
         try {
@@ -112,9 +112,9 @@ class SetupViewModel(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: InstallerException) {
-            fail(failure.phase, failure.safeMessage, failure.rollbackVerified)
+            fail(failure.phase, failure.rollbackVerified)
         } catch (_: Exception) {
-            fail(InstallPhase.CONNECT, "Не удалось подключиться к роутеру", true)
+            fail(InstallPhase.CONNECT, true)
         }
     }
 
@@ -123,7 +123,7 @@ class SetupViewModel(
         val candidate = endpoint
         val secret = credential
         if (active == null || candidate == null || secret == null) {
-            fail(InstallPhase.PROBE, "Профиль роутера недоступен", true)
+            fail(InstallPhase.PROBE, true)
             return
         }
         _state.value = SetupState.Checking(SetupProgress.CHECKING_ROUTER, InstallPhase.PROBE)
@@ -147,15 +147,15 @@ class SetupViewModel(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: InstallerException) {
-            fail(failure.phase, failure.safeMessage, failure.rollbackVerified)
+            fail(failure.phase, failure.rollbackVerified)
         } catch (_: Exception) {
-            fail(InstallPhase.PROBE, "Настройка роутера не завершена", true)
+            fail(InstallPhase.PROBE, true)
         }
     }
 
-    private fun fail(phase: InstallPhase, message: String, rollbackVerified: Boolean) {
+    private fun fail(phase: InstallPhase, rollbackVerified: Boolean) {
         clearCredential()
-        _state.value = SetupState.Failed(phase, message, rollbackVerified)
+        _state.value = SetupState.Failed(phase, rollbackVerified)
     }
 
     private fun clearCredential() {

@@ -103,8 +103,10 @@ fun DevicesScreen(
         ) {
             item { Spacer(Modifier.height(2.dp)) }
             item { CompanionStatusCard(state) }
-            state.error?.let { item { StatusNotice(stringResource(R.string.ui_devicesscreen_87f1858048), detail = it, isError = true) } }
-            state.message?.let { item { StatusNotice(it) } }
+            state.errorResource?.let { errorResource ->
+                item { StatusNotice(stringResource(R.string.ui_devicesscreen_87f1858048), detail = stringResource(errorResource), isError = true) }
+            }
+            state.messageResource?.let { messageResource -> item { StatusNotice(stringResource(messageResource)) } }
             if (state.loading) {
                 item {
                     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -160,10 +162,13 @@ private fun CompanionStatusCard(state: DevicesUiState) {
                 ) { Icon(Icons.Default.Devices, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
                 Column(Modifier.padding(start = 12.dp).weight(1f)) {
                     Text(stringResource(R.string.system_connection_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("API: ${state.apiState}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        stringResource(R.string.devices_api_label, stringResource(state.apiStateResource)),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-            StatusRow("Версия", state.companionVersion.ifBlank { "—" })
+            StatusRow(stringResource(R.string.devices_status_version), state.companionVersion.ifBlank { "—" })
             StatusRow("TLS pin", if (state.pinSuffix.isBlank()) "—" else "…${state.pinSuffix}", mono = true)
         }
     }
@@ -240,9 +245,9 @@ private fun RevokeDialog(confirmation: RevokeConfirmation, busy: Boolean, onDism
         text = {
             Text(
                 when {
-                    current && confirmation.finalWarning -> "После отзыва этот телефон сразу потеряет защищённый доступ. Вернуть его можно будет только новым приглашением владельца."
-                    current -> "Вы выбрали текущий телефон. Потребуется ещё одно явное подтверждение."
-                    else -> "${confirmation.device.label} больше не сможет подключаться к этому роутеру через KeenWG."
+                    current && confirmation.finalWarning -> stringResource(R.string.devices_revoke_current_final)
+                    current -> stringResource(R.string.devices_revoke_current_first)
+                    else -> stringResource(R.string.devices_revoke_other, confirmation.device.label)
                 },
             )
         },
@@ -273,8 +278,11 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
-private fun scopeLabel(scope: DeviceScope) = when (scope) {
-    DeviceScope.OWNER -> "Владелец"
-    DeviceScope.OPERATOR -> "Оператор"
-    DeviceScope.VIEWER -> "Только просмотр"
-}
+@Composable
+private fun scopeLabel(scope: DeviceScope) = stringResource(
+    when (scope) {
+        DeviceScope.OWNER -> R.string.devices_scope_owner
+        DeviceScope.OPERATOR -> R.string.devices_scope_operator
+        DeviceScope.VIEWER -> R.string.devices_scope_viewer
+    },
+)

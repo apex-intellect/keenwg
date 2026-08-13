@@ -21,6 +21,7 @@ import ru.anisimov.keenwg.data.companion.CompanionException
 import ru.anisimov.keenwg.data.companion.DeviceScope
 import ru.anisimov.keenwg.data.companion.PairingOffer
 import ru.anisimov.keenwg.data.store.ActiveRouterProfile
+import ru.anisimov.keenwg.R
 
 data class DeviceItem(
     val id: String,
@@ -48,12 +49,12 @@ data class DevicesUiState(
     val access: CapabilityAccess = CapabilityAccess.NONE,
     val companionVersion: String = "",
     val pinSuffix: String = "",
-    val apiState: String = "Не проверен",
+    val apiStateResource: Int = R.string.devices_api_not_checked,
     val devices: List<DeviceItem> = emptyList(),
     val offer: VisiblePairingOffer? = null,
     val revokeConfirmation: RevokeConfirmation? = null,
-    val error: String? = null,
-    val message: String? = null,
+    val errorResource: Int? = null,
+    val messageResource: Int? = null,
 )
 
 class DevicesViewModel(
@@ -78,10 +79,10 @@ class DevicesViewModel(
         val selected = activeProfileFlow.first()
         active = selected
         if (selected == null || selected.profile.companionUrl.isBlank() || selected.secrets.companionToken.isBlank()) {
-            _state.value = DevicesUiState(error = "Защищённый доступ не настроен")
+            _state.value = DevicesUiState(errorResource = R.string.devices_error_not_configured)
             return@launch
         }
-        _state.value = _state.value.copy(loading = true, error = null, message = null)
+        _state.value = _state.value.copy(loading = true, errorResource = null, messageResource = null)
         try {
             val snapshot = withContext(dispatcher) {
                 val health = companion.health(selected.profile)
@@ -98,7 +99,7 @@ class DevicesViewModel(
                 access = snapshot.second,
                 companionVersion = snapshot.first.version,
                 pinSuffix = selected.profile.certificatePin.takeLast(10),
-                apiState = "Доступен",
+                apiStateResource = R.string.devices_api_available,
                 devices = snapshot.third.map { device ->
                     DeviceItem(
                         id = device.id,
@@ -109,17 +110,21 @@ class DevicesViewModel(
                         current = device.id == selected.secrets.companionDeviceId,
                     )
                 },
-                error = null,
+                errorResource = null,
             )
         } catch (failure: Exception) {
-            _state.value = _state.value.copy(loading = false, apiState = "Ошибка", error = safeMessage(failure))
+            _state.value = _state.value.copy(
+                loading = false,
+                apiStateResource = R.string.devices_api_error,
+                errorResource = safeMessageResource(failure),
+            )
         }
     }
 
     fun createViewerOffer(): Job = viewModelScope.launch {
         val selected = active ?: activeProfileFlow.first()
         if (selected == null || _state.value.access != CapabilityAccess.WRITE || _state.value.busy) return@launch
-        _state.value = _state.value.copy(busy = true, error = null, message = null)
+        _state.value = _state.value.copy(busy = true, errorResource = null, messageResource = null)
         try {
             val offer = withContext(dispatcher) {
                 companion.createOffer(selected.profile, selected.secrets.companionToken, DeviceScope.VIEWER)
@@ -133,43 +138,43 @@ class DevicesViewModel(
             )
         } catch (failure: Exception) {
             rawOffer = null
-            _state.value = _state.value.copy(busy = false, error = safeMessage(failure))
+            _state.value = _state.value.copy(busy = false, errorResource = safeMessageResource(failure))
         }
     }
 
-    fun dismissOffer(): Job = revokeVisibleOffer("Приглашение отозвано")
+    fun dismissOffer(): Job = revokeVisibleOffer(R.string.devices_message_offer_revoked)
 
     fun expireOfferIfNeeded(): Job {
         val offer = _state.value.offer
         if (offer == null || now().isBefore(offer.expiresAt)) return viewModelScope.launch { }
-        return revokeVisibleOffer("Срок приглашения истёк")
+        return revokeVisibleOffer(R.string.devices_message_offer_expired)
     }
 
-    private fun revokeVisibleOffer(message: String): Job = viewModelScope.launch {
+    private fun revokeVisibleOffer(messageResource: Int): Job = viewModelScope.launch {
         val selected = active ?: return@launch
         val offer = rawOffer ?: return@launch
         if (_state.value.busy) return@launch
-        _state.value = _state.value.copy(busy = true, error = null)
+        _state.value = _state.value.copy(busy = true, errorResource = null)
         try {
             withContext(dispatcher) { companion.revokeOffer(selected.profile, selected.secrets.companionToken, offer.offerId) }
             rawOffer = null
-            _state.value = _state.value.copy(busy = false, offer = null, message = message)
+            _state.value = _state.value.copy(busy = false, offer = null, messageResource = messageResource)
         } catch (failure: CompanionException) {
             if (failure.code == CompanionErrorCode.NOT_FOUND) {
                 rawOffer = null
-                _state.value = _state.value.copy(busy = false, offer = null, message = message)
+                _state.value = _state.value.copy(busy = false, offer = null, messageResource = messageResource)
             } else {
-                _state.value = _state.value.copy(busy = false, error = safeMessage(failure))
+                _state.value = _state.value.copy(busy = false, errorResource = safeMessageResource(failure))
             }
         } catch (failure: Exception) {
-            _state.value = _state.value.copy(busy = false, error = safeMessage(failure))
+            _state.value = _state.value.copy(busy = false, errorResource = safeMessageResource(failure))
         }
     }
 
     fun requestRevoke(deviceId: String) {
         if (_state.value.access != CapabilityAccess.WRITE || _state.value.busy) return
         val device = _state.value.devices.firstOrNull { it.id == deviceId } ?: return
-        _state.value = _state.value.copy(revokeConfirmation = RevokeConfirmation(device, finalWarning = false), error = null)
+        _state.value = _state.value.copy(revokeConfirmation = RevokeConfirmation(device, finalWarning = false), errorResource = null)
     }
 
     fun cancelRevoke() {
@@ -183,7 +188,7 @@ class DevicesViewModel(
             return@launch
         }
         val selected = active ?: return@launch
-        _state.value = _state.value.copy(busy = true, error = null)
+        _state.value = _state.value.copy(busy = true, errorResource = null)
         try {
             withContext(dispatcher) {
                 companion.revokeDevice(selected.profile, selected.secrets.companionToken, confirmation.device.id)
@@ -193,26 +198,26 @@ class DevicesViewModel(
                 busy = false,
                 revokeConfirmation = null,
                 devices = _state.value.devices.filterNot { it.id == confirmation.device.id },
-                message = "Доступ устройства отозван",
+                messageResource = R.string.devices_message_access_revoked,
             )
         } catch (failure: CompanionException) {
-            val error = if (failure.code == CompanionErrorCode.CONFLICT) {
-                "Нельзя отозвать последнего владельца"
-            } else safeMessage(failure)
-            _state.value = _state.value.copy(busy = false, revokeConfirmation = null, error = error)
+            val errorResource = if (failure.code == CompanionErrorCode.CONFLICT) {
+                R.string.devices_error_last_owner
+            } else safeMessageResource(failure)
+            _state.value = _state.value.copy(busy = false, revokeConfirmation = null, errorResource = errorResource)
         } catch (failure: Exception) {
-            _state.value = _state.value.copy(busy = false, revokeConfirmation = null, error = safeMessage(failure))
+            _state.value = _state.value.copy(busy = false, revokeConfirmation = null, errorResource = safeMessageResource(failure))
         }
     }
 
-    private fun safeMessage(failure: Exception): String = when (failure) {
+    private fun safeMessageResource(failure: Exception): Int = when (failure) {
         is CompanionException -> when (failure.code) {
-            CompanionErrorCode.UNAUTHORIZED -> "Доступ этого телефона отозван"
-            CompanionErrorCode.FORBIDDEN -> "Недостаточно прав владельца"
-            CompanionErrorCode.UNAVAILABLE -> "Защищённый доступ недоступен"
-            CompanionErrorCode.CONFLICT -> "Операция конфликтует с текущим состоянием"
-            else -> "Не удалось выполнить операцию"
+            CompanionErrorCode.UNAUTHORIZED -> R.string.devices_error_phone_revoked
+            CompanionErrorCode.FORBIDDEN -> R.string.devices_error_owner_permission
+            CompanionErrorCode.UNAVAILABLE -> R.string.devices_error_unavailable
+            CompanionErrorCode.CONFLICT -> R.string.devices_error_conflict
+            else -> R.string.devices_error_generic
         }
-        else -> "Не удалось выполнить операцию"
+        else -> R.string.devices_error_generic
     }
 }

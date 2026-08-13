@@ -31,10 +31,16 @@ class SettingsPresentationTest {
                 reviewedEndpoint = current.endpoint,
                 endpointCandidate = null,
             ),
+            DiscoveryPreviewLabels(
+                interfaceLabel = "Interface",
+                publicKeyLabel = "Public key",
+                endpointLabel = "Endpoint",
+                notSetLabel = "Not set",
+            ),
         )
 
-        assertFalse(rows.single { it.label == "Интерфейс" }.changed)
-        assertTrue(rows.single { it.label == "Публичный ключ" }.changed)
+        assertFalse(rows.single { it.label == "Interface" }.changed)
+        assertTrue(rows.single { it.label == "Public key" }.changed)
         assertFalse(rows.single { it.label == "Endpoint" }.changed)
         assertEquals(current.endpoint, rows.single { it.label == "Endpoint" }.value)
     }

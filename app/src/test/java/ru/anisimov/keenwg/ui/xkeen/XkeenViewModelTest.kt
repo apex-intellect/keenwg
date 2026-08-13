@@ -133,7 +133,7 @@ class XkeenViewModelTest {
 
         assertEquals(7L, viewModel.state.value.status?.stateVersion)
         assertEquals(7L, viewModel.state.value.staleStatus?.stateVersion)
-        assertTrue(viewModel.state.value.message != null)
+        assertTrue(viewModel.state.value.messageResource != null)
     }
 
     @Test fun `diagnostics run only on explicit action and map by node id`() = runTest(dispatcher) {

@@ -28,20 +28,6 @@ class CapabilityRegistry {
             ),
         )
 
-        val collectorReady = profile.collectorUrl.isNotBlank() &&
-            secrets.collectorToken.isNotBlank() &&
-            ServerSettingsValidator.validateCollectorUrl(profile.collectorUrl) == null
-        merged.putIfAbsent(
-            "history.wireguard",
-            direct(
-                id = "history.wireguard",
-                access = CapabilityAccess.READ,
-                transport = "collector",
-                available = collectorReady,
-                unavailableReason = "collector_not_configured",
-            ),
-        )
-
         return CapabilityDocument(
             stateVersion = companion?.stateVersion ?: 0u,
             capabilities = merged.values.sortedBy { it.id },
