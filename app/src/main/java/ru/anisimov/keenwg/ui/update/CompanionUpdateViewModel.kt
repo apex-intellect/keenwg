@@ -11,7 +11,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.anisimov.keenwg.data.ServiceLocator
+import ru.anisimov.keenwg.data.companion.CompanionClient
+import ru.anisimov.keenwg.data.companion.CompanionErrorCode
+import ru.anisimov.keenwg.data.companion.CompanionException
 import ru.anisimov.keenwg.data.companion.requireCompanionEndpoint
+import ru.anisimov.keenwg.data.companion.requireCompanionTarget
 import ru.anisimov.keenwg.data.installer.VerifiedCompanionAsset
 import ru.anisimov.keenwg.data.store.ActiveRouterProfile
 import ru.anisimov.keenwg.data.update.CompanionUpdateError
@@ -23,18 +27,23 @@ data class CompanionUpdateUiState(
     val phase: UpdatePhase = UpdatePhase.LOADING,
     val currentVersion: String? = null,
     val targetVersion: String? = null,
+    val checks: List<CompanionStatusCheck> = CompanionCheckId.entries.map {
+        CompanionStatusCheck(it, CompanionCheckState.CHECKING)
+    },
 )
 
 class CompanionUpdateViewModel(
     private val activeProfile: Flow<ActiveRouterProfile?>,
     private val gateway: CompanionUpdateGateway,
     private val loadAsset: () -> VerifiedCompanionAsset,
+    private val companion: CompanionClient,
     private val delayMillis: suspend (Long) -> Unit = { delay(it) },
 ) : ViewModel() {
     constructor() : this(
         ServiceLocator.routerProfileStore.activeProfile,
         ServiceLocator.companionUpdateGateway,
         ServiceLocator.companionAssetVerifier::load,
+        ServiceLocator.companionClient,
     )
 
     private val _state = MutableStateFlow(CompanionUpdateUiState())
@@ -45,34 +54,124 @@ class CompanionUpdateViewModel(
 
     fun check(): Job = startOperation {
         _state.value = CompanionUpdateUiState(UpdatePhase.LOADING)
-        val endpoint = activeProfile.first()?.let { runCatching { it.requireCompanionEndpoint() }.getOrNull() }
-        if (endpoint == null) {
-            _state.value = CompanionUpdateUiState(UpdatePhase.ERROR)
+        val bundledVersion = loadBundledVersion() ?: return@startOperation
+        val active = activeProfile.first()
+        if (active == null || runCatching { active.profile.requireCompanionTarget() }.isFailure) {
+            publish(
+                CompanionStatusFacts(
+                    endpointConfigured = false,
+                    serviceReachable = null,
+                    storageReady = null,
+                    authorizationValid = null,
+                    apiCompatible = null,
+                    installedVersion = null,
+                    bundledVersion = bundledVersion,
+                ),
+                updaterSupported = null,
+            )
             return@startOperation
         }
-        val bundledVersion = loadBundledVersion() ?: return@startOperation
-        val status = try {
-            gateway.status(endpoint)
-        } catch (failure: CompanionUpdateException) {
-            _state.value = CompanionUpdateUiState(
-                if (failure.code == CompanionUpdateError.UNSUPPORTED) UpdatePhase.NEEDS_PASSWORD else UpdatePhase.ERROR,
-                targetVersion = bundledVersion,
+        _state.value = CompanionUpdateUiState(
+            phase = UpdatePhase.LOADING,
+            targetVersion = bundledVersion,
+            checks = loadingChecks(),
+        )
+        val health = try {
+            companion.health(active.profile)
+        } catch (failure: CompanionException) {
+            val incompatible = failure.code == CompanionErrorCode.UNSUPPORTED_SCHEMA ||
+                failure.code == CompanionErrorCode.PROTOCOL
+            publish(
+                CompanionStatusFacts(
+                    endpointConfigured = true,
+                    serviceReachable = if (incompatible) true else false,
+                    storageReady = null,
+                    authorizationValid = null,
+                    apiCompatible = if (incompatible) false else null,
+                    installedVersion = null,
+                    bundledVersion = bundledVersion,
+                ),
+                updaterSupported = null,
+                phaseOverride = if (incompatible) UpdatePhase.INCOMPATIBLE else UpdatePhase.UNREACHABLE,
             )
             return@startOperation
         } catch (_: Exception) {
-            _state.value = CompanionUpdateUiState(UpdatePhase.ERROR, targetVersion = bundledVersion)
+            publish(unreachableFacts(bundledVersion), updaterSupported = null, phaseOverride = UpdatePhase.UNREACHABLE)
             return@startOperation
         }
-        if (!status.supported) {
-            _state.value = CompanionUpdateUiState(UpdatePhase.NEEDS_PASSWORD, status.currentVersion, bundledVersion)
+
+        val baseFacts = CompanionStatusFacts(
+            endpointConfigured = true,
+            serviceReachable = true,
+            storageReady = health.storage == "ok",
+            authorizationValid = null,
+            apiCompatible = null,
+            installedVersion = health.version,
+            bundledVersion = bundledVersion,
+        )
+        val endpoint = runCatching { active.requireCompanionEndpoint() }.getOrNull()
+        if (endpoint == null) {
+            publish(baseFacts.copy(authorizationValid = false), updaterSupported = null)
             return@startOperation
         }
-        val phase = if (compareUpdateVersions(bundledVersion, status.currentVersion) > 0) {
-            UpdatePhase.AVAILABLE
-        } else {
-            UpdatePhase.UP_TO_DATE
+        val authorizedFacts = try {
+            companion.capabilities(active.profile, endpoint.deviceToken)
+            baseFacts.copy(authorizationValid = true, apiCompatible = true)
+        } catch (failure: CompanionException) {
+            when (failure.code) {
+                CompanionErrorCode.UNAUTHORIZED,
+                CompanionErrorCode.FORBIDDEN,
+                -> publish(baseFacts.copy(authorizationValid = false), updaterSupported = null)
+
+                CompanionErrorCode.UNSUPPORTED_SCHEMA,
+                CompanionErrorCode.PROTOCOL,
+                -> publish(
+                    baseFacts.copy(authorizationValid = true, apiCompatible = false),
+                    updaterSupported = null,
+                )
+
+                else -> publish(
+                    baseFacts,
+                    updaterSupported = null,
+                    phaseOverride = UpdatePhase.CHECK_FAILED,
+                )
+            }
+            return@startOperation
+        } catch (_: Exception) {
+            publish(baseFacts, updaterSupported = null, phaseOverride = UpdatePhase.CHECK_FAILED)
+            return@startOperation
         }
-        _state.value = CompanionUpdateUiState(phase, status.currentVersion, bundledVersion)
+
+        val status = try {
+            gateway.status(endpoint)
+        } catch (failure: CompanionUpdateException) {
+            val needsPairing = failure.code == CompanionUpdateError.UNAUTHORIZED ||
+                failure.code == CompanionUpdateError.FORBIDDEN
+            publish(
+                if (needsPairing) authorizedFacts.copy(authorizationValid = false) else authorizedFacts,
+                updaterSupported = if (failure.code == CompanionUpdateError.UNSUPPORTED) false else null,
+                phaseOverride = when {
+                    needsPairing -> UpdatePhase.PAIRING_REQUIRED
+                    failure.code == CompanionUpdateError.UNSUPPORTED -> UpdatePhase.NEEDS_PASSWORD
+                    else -> UpdatePhase.CHECK_FAILED
+                },
+                updateNeedsAttention = !needsPairing,
+            )
+            return@startOperation
+        } catch (_: Exception) {
+            publish(
+                authorizedFacts,
+                updaterSupported = null,
+                phaseOverride = UpdatePhase.CHECK_FAILED,
+                updateNeedsAttention = true,
+            )
+            return@startOperation
+        }
+        publish(
+            authorizedFacts.copy(installedVersion = status.currentVersion),
+            updaterSupported = status.supported,
+            updateNeedsAttention = !status.supported,
+        )
     }
 
     fun install(): Job = startOperation {
@@ -131,7 +230,13 @@ class CompanionUpdateViewModel(
                     return
                 }
                 status.currentVersion == expected && status.result == "installed" -> {
-                    _state.value = _state.value.copy(phase = UpdatePhase.SUCCESS, currentVersion = expected)
+                    _state.value = _state.value.copy(
+                        phase = UpdatePhase.SUCCESS,
+                        currentVersion = expected,
+                        checks = _state.value.checks.map {
+                            if (it.id == CompanionCheckId.UPDATE) it.copy(state = CompanionCheckState.OK) else it
+                        },
+                    )
                     return
                 }
                 else -> _state.value = _state.value.copy(phase = UpdatePhase.INSTALLING, currentVersion = status.currentVersion)
@@ -149,6 +254,48 @@ class CompanionUpdateViewModel(
             return null
         }
         return try { asset.manifest.version } finally { asset.bytes.fill(0) }
+    }
+
+    private fun publish(
+        facts: CompanionStatusFacts,
+        updaterSupported: Boolean?,
+        phaseOverride: UpdatePhase? = null,
+        updateNeedsAttention: Boolean = false,
+    ) {
+        val checks = companionStatusChecks(facts).map {
+            if (updateNeedsAttention && it.id == CompanionCheckId.UPDATE) {
+                it.copy(state = CompanionCheckState.ATTENTION)
+            } else {
+                it
+            }
+        }
+        _state.value = CompanionUpdateUiState(
+            phase = phaseOverride ?: companionUpdatePhase(facts, updaterSupported),
+            currentVersion = facts.installedVersion,
+            targetVersion = facts.bundledVersion,
+            checks = checks,
+        )
+    }
+
+    private fun unreachableFacts(bundledVersion: String) = CompanionStatusFacts(
+        endpointConfigured = true,
+        serviceReachable = false,
+        storageReady = null,
+        authorizationValid = null,
+        apiCompatible = null,
+        installedVersion = null,
+        bundledVersion = bundledVersion,
+    )
+
+    private fun loadingChecks(): List<CompanionStatusCheck> = CompanionCheckId.entries.map {
+        CompanionStatusCheck(
+            id = it,
+            state = if (it == CompanionCheckId.CONFIGURATION) {
+                CompanionCheckState.OK
+            } else {
+                CompanionCheckState.CHECKING
+            },
+        )
     }
 
     private fun startOperation(block: suspend () -> Unit): Job {

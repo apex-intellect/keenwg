@@ -96,9 +96,72 @@ class AddPeerViewModelTest {
         assertFalse(gateway.policy?.historyEnabled ?: true)
     }
 
-    private fun viewModel(gateway: AddPeerGateway) = AddPeerViewModel(
+    @Test fun `missing public endpoint stops before the creation review`() = runTest(dispatcher) {
+        val settings = FakeSettingsGateway(ServerSettings(subnetBase = "10.8.0.", endpoint = ""))
+        val vm = viewModel(
+            gateway = FakeGateway(),
+            settingsGateway = settings,
+        )
+        vm.onNameChange("phone")
+        vm.onIpChange("10.8.0.9")
+        vm.prepare()
+        advanceUntilIdle()
+
+        vm.review()
+        advanceUntilIdle()
+
+        assertEquals(AddPeerStage.FORM, vm.state.value.stage)
+        assertTrue(vm.state.value.endpointDialogVisible)
+        assertEquals(0, settings.saveCalls)
+    }
+
+    @Test fun `valid public endpoint is saved once before creation reaches the gateway`() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        val settings = FakeSettingsGateway(ServerSettings(subnetBase = "10.8.0.", endpoint = ""))
+        val vm = viewModel(gateway, settings)
+        vm.onNameChange("phone")
+        vm.onIpChange("10.8.0.9")
+        vm.prepare()
+        advanceUntilIdle()
+        vm.review()
+
+        vm.onEndpointChange("home.example.test:51820")
+        vm.saveEndpointAndContinue()
+        advanceUntilIdle()
+        vm.create()
+        advanceUntilIdle()
+
+        assertEquals(1, settings.saveCalls)
+        assertEquals("home.example.test:51820", settings.value.endpoint)
+        assertEquals("home.example.test:51820", gateway.addedEndpoint)
+        assertEquals(AddPeerStage.SUCCESS, vm.state.value.stage)
+    }
+
+    @Test fun `invalid public endpoint stays in the focused editor without saving`() = runTest(dispatcher) {
+        val settings = FakeSettingsGateway(ServerSettings(subnetBase = "10.8.0.", endpoint = ""))
+        val vm = viewModel(FakeGateway(), settings)
+        vm.onNameChange("phone")
+        vm.prepare()
+        advanceUntilIdle()
+        vm.review()
+        vm.onEndpointChange("https://home.example.test/path")
+
+        vm.saveEndpointAndContinue()
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.endpointDialogVisible)
+        assertEquals(R.string.add_error_endpoint_invalid, vm.state.value.endpointErrorResource)
+        assertEquals(0, settings.saveCalls)
+    }
+
+    private fun viewModel(
+        gateway: AddPeerGateway,
+        settingsGateway: AddPeerSettingsGateway = FakeSettingsGateway(
+            ServerSettings(subnetBase = "10.8.0.", endpoint = "vpn.example.test:51820"),
+        ),
+    ) = AddPeerViewModel(
         gateway = gateway,
-        settingsGateway = AddPeerSettingsGateway { ServerSettings(subnetBase = "10.8.0.") },
+        settingsGateway = settingsGateway,
     )
 
     private class FakeGateway(
@@ -106,6 +169,7 @@ class AddPeerViewModelTest {
         private val addError: Throwable? = null,
     ) : AddPeerGateway {
         var addedName: String? = null
+        var addedEndpoint: String? = null
         var policy: AccessPolicy? = null
 
         override suspend fun list(settings: ServerSettings) = peers
@@ -113,8 +177,20 @@ class AddPeerViewModelTest {
         override suspend fun add(settings: ServerSettings, name: String, ip: String?, policy: AccessPolicy): AddResult {
             addError?.let { throw it }
             addedName = name
+            addedEndpoint = settings.endpoint
             this.policy = policy
             return AddResult(peer(ip ?: "10.8.0.2", name), "[Interface]\nPrivateKey = verified")
+        }
+    }
+
+    private class FakeSettingsGateway(var value: ServerSettings) : AddPeerSettingsGateway {
+        var saveCalls = 0
+
+        override suspend fun settings() = value
+
+        override suspend fun saveEndpoint(endpoint: String) {
+            saveCalls++
+            value = value.copy(endpoint = endpoint)
         }
     }
 

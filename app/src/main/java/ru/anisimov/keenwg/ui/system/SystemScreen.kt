@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Router
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,6 +62,7 @@ import ru.anisimov.keenwg.ui.overview.OverviewState
 fun SystemScreen(
     state: OverviewState,
     onSetup: () -> Unit,
+    onCompanion: () -> Unit,
     onTrustedDevices: () -> Unit,
     onDiagnostics: () -> Unit,
     onBackup: () -> Unit,
@@ -96,6 +98,7 @@ fun SystemScreen(
                         onClick = {
                             when (row.action) {
                                 SystemAction.CONNECTION -> onSetup()
+                                SystemAction.COMPANION -> onCompanion()
                                 SystemAction.DEVICES -> onTrustedDevices()
                                 SystemAction.DIAGNOSTICS -> onDiagnostics()
                                 SystemAction.BACKUP -> onBackup()
@@ -228,6 +231,11 @@ private fun rowContent(action: SystemAction, currentLanguage: AppLanguage): Trip
         Icons.Default.Router,
         stringResource(R.string.system_connection_title),
         stringResource(R.string.system_connection_body),
+    )
+    SystemAction.COMPANION -> Triple(
+        Icons.Default.SystemUpdate,
+        stringResource(R.string.system_companion_title),
+        stringResource(R.string.system_companion_body),
     )
     SystemAction.DEVICES -> Triple(
         Icons.Default.Devices,

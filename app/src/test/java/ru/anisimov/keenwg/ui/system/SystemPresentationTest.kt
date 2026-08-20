@@ -35,6 +35,7 @@ class SystemPresentationTest {
         assertEquals(
             listOf(
                 SystemAction.CONNECTION,
+                SystemAction.COMPANION,
                 SystemAction.DEVICES,
                 SystemAction.DIAGNOSTICS,
                 SystemAction.BACKUP,
@@ -57,6 +58,7 @@ class SystemPresentationTest {
 
         assertEquals(SystemConnectionStatus.SETUP_REQUIRED, model.connectionStatus)
         assertTrue(model.rows.single { it.action == SystemAction.CONNECTION }.enabled)
+        assertTrue(model.rows.single { it.action == SystemAction.COMPANION }.enabled)
         assertFalse(model.rows.single { it.action == SystemAction.DIAGNOSTICS }.enabled)
         assertFalse(model.rows.single { it.action == SystemAction.BACKUP }.enabled)
         assertTrue(model.rows.single { it.action == SystemAction.ABOUT }.enabled)

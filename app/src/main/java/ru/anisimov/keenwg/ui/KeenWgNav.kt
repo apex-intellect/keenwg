@@ -136,6 +136,7 @@ fun KeenWgNav() {
                     SystemScreen(
                         state = overviewState,
                         onSetup = { nav.navigate(RouterConnectionRoute) },
+                        onCompanion = { nav.navigate(UpdateRoute) },
                         onTrustedDevices = { nav.navigate(DevicesRoute) },
                         onDiagnostics = { nav.navigate(SupportRoute) },
                         onBackup = { nav.navigate(BackupRoute) },
@@ -163,6 +164,7 @@ fun KeenWgNav() {
                     CompanionUpdateScreen(
                         onBack = { nav.popBackStack() },
                         onCredentialUpgrade = { nav.navigate(SetupRoute) },
+                        onDiagnostics = { nav.navigate(SupportRoute) },
                     )
                 }
                 composable<AdvancedSettingsRoute> {

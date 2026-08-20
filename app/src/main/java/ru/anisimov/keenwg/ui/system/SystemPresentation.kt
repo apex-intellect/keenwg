@@ -13,6 +13,7 @@ enum class SystemConnectionStatus {
 
 enum class SystemAction {
     CONNECTION,
+    COMPANION,
     DEVICES,
     DIAGNOSTICS,
     BACKUP,
@@ -50,6 +51,7 @@ fun systemPresentation(state: OverviewState): SystemPresentation {
         availableModuleCount = capabilities.count { it.available },
         rows = buildList {
             add(SystemRow(SystemAction.CONNECTION, enabled = true))
+            add(SystemRow(SystemAction.COMPANION, enabled = true))
             if (capabilities.any { it.id == "system.devices" && it.available }) {
                 add(SystemRow(SystemAction.DEVICES, enabled = true))
             }

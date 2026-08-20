@@ -5,6 +5,11 @@ import org.junit.Test
 
 class CompanionUpdatePresentationTest {
     @Test fun `every update phase has one plain language primary action`() {
+        assertEquals(UpdateAction.CREDENTIAL_UPGRADE, updatePresentation(UpdatePhase.NOT_CONFIGURED).action)
+        assertEquals(UpdateAction.RETRY, updatePresentation(UpdatePhase.UNREACHABLE).action)
+        assertEquals(UpdateAction.CREDENTIAL_UPGRADE, updatePresentation(UpdatePhase.PAIRING_REQUIRED).action)
+        assertEquals(UpdateAction.CREDENTIAL_UPGRADE, updatePresentation(UpdatePhase.INCOMPATIBLE).action)
+        assertEquals(UpdateAction.RETRY, updatePresentation(UpdatePhase.CHECK_FAILED).action)
         assertEquals(UpdateAction.UPDATE, updatePresentation(UpdatePhase.AVAILABLE).action)
         assertEquals(UpdateAction.NONE, updatePresentation(UpdatePhase.VERIFYING).action)
         assertEquals(UpdateAction.NONE, updatePresentation(UpdatePhase.UPLOADING).action)

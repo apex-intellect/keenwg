@@ -43,7 +43,7 @@ object ServerSettingsValidator {
     fun isCanonicalKey(value: String): Boolean =
         value.length == 44 && runCatching { Key.fromBase64(value).toBase64() == value }.getOrDefault(false)
 
-    private fun isEndpoint(value: String): Boolean {
+    fun isEndpoint(value: String): Boolean {
         if (value.isBlank()) return false
         val match = Regex("^(?:\\[([^]]+)\\]|([^:]+)):(\\d{1,5})$").matchEntire(value) ?: return false
         val host = match.groupValues[1].ifBlank { match.groupValues[2] }
