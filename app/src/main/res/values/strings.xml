@@ -800,14 +800,6 @@
     <string name="add_error_no_free_ip">No free address is available in the WireGuard subnet</string>
     <string name="add_error_prepare_failed">Could not prepare a free WireGuard address</string>
     <string name="add_error_create_failed">Could not create WireGuard access</string>
-    <string name="add_endpoint_title">Address for the new device</string>
-    <string name="add_endpoint_detail">A new device needs your home router’s public WireGuard address. Copy the server address from any working WireGuard connection. KeenWG will save it for this router.</string>
-    <string name="add_endpoint_label">Router address and port</string>
-    <string name="add_endpoint_example">For example: home.example.com:51820</string>
-    <string name="add_endpoint_save">Save and continue</string>
-    <string name="add_endpoint_cancel">Cancel</string>
-    <string name="add_error_endpoint_invalid">Enter a hostname or IP address followed by the WireGuard port</string>
-    <string name="add_error_endpoint_save_failed">Could not save the address on this phone</string>
     <string name="support_generate_failed">Could not generate a safe diagnostic report</string>
     <string name="settings_message_saved">Settings checked and saved</string>
     <string name="settings_message_review_discovered">Review the router values before saving</string>
@@ -909,4 +901,5 @@
     <string name="route_warning_quic">QUIC (UDP/443) may use another route</string>
     <string name="route_warning_selector">Could not confirm the selected server</string>
     <string name="route_warning_other">Part of the route could not be confirmed</string>
+    <string name="add_error_endpoint_auto_unavailable">The router address could not be determined automatically. Check the router connection and try again.</string>
 </resources>

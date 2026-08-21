@@ -3,6 +3,8 @@ package ru.anisimov.keenwg.ui.add
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,6 +12,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.anisimov.keenwg.data.AddResult
 import ru.anisimov.keenwg.data.ServiceLocator
+import ru.anisimov.keenwg.data.discovery.RouterDiscovery
+import ru.anisimov.keenwg.data.rci.RciClient
 import ru.anisimov.keenwg.domain.IpAllocator
 import ru.anisimov.keenwg.domain.ServerSettingsValidator
 import ru.anisimov.keenwg.domain.model.Peer
@@ -26,6 +30,7 @@ interface AddPeerGateway {
 
 interface AddPeerSettingsGateway {
     suspend fun settings(): ServerSettings
+    suspend fun discoverEndpoint(settings: ServerSettings): String?
     suspend fun saveEndpoint(endpoint: String)
 }
 
@@ -51,16 +56,17 @@ data class AddPeerUiState(
     val historyEnabled: Boolean = true,
     val reviewedPolicy: AccessPolicy? = null,
     val endpoint: String? = null,
-    val endpointDraft: String = "",
-    val endpointDialogVisible: Boolean = false,
-    val endpointSaving: Boolean = false,
-    val endpointErrorResource: Int? = null,
 )
 
 class AddPeerViewModel @JvmOverloads constructor(
     private val gateway: AddPeerGateway = serviceAddPeerGateway(),
     private val settingsGateway: AddPeerSettingsGateway = object : AddPeerSettingsGateway {
+        private val rci = RciClient()
+
         override suspend fun settings() = ServiceLocator.settingsStore.settings.first()
+
+        override suspend fun discoverEndpoint(settings: ServerSettings): String? =
+            RouterDiscovery.discover(rci.get(settings, "show/interface"), settings).endpointCandidate
 
         override suspend fun saveEndpoint(endpoint: String) {
             val current = settings()
@@ -113,11 +119,8 @@ class AddPeerViewModel @JvmOverloads constructor(
             if (submitted.endpoint != null && !ServerSettingsValidator.isEndpoint(submitted.endpoint)) {
                 _state.value = submitted.copy(
                     stage = AddPeerStage.FORM,
-                    reviewedPolicy = policy,
-                    errorResource = null,
-                    endpointDraft = submitted.endpoint,
-                    endpointDialogVisible = true,
-                    endpointErrorResource = null,
+                    reviewedPolicy = null,
+                    errorResource = R.string.add_error_endpoint_auto_unavailable,
                 )
             } else {
                 _state.value = submitted.copy(stage = AddPeerStage.REVIEW, reviewedPolicy = policy, errorResource = null)
@@ -131,58 +134,28 @@ class AddPeerViewModel @JvmOverloads constructor(
         if (!_state.value.busy) _state.value = _state.value.copy(stage = AddPeerStage.FORM, reviewedPolicy = null)
     }
 
-    fun onEndpointChange(value: String) {
-        if (_state.value.endpointSaving) return
-        _state.value = _state.value.copy(endpointDraft = value, endpointErrorResource = null)
-    }
-
-    fun cancelEndpointDialog() {
-        if (_state.value.endpointSaving) return
-        _state.value = _state.value.copy(
-            endpointDialogVisible = false,
-            endpointErrorResource = null,
-            reviewedPolicy = null,
-        )
-    }
-
-    fun saveEndpointAndContinue(): Job = viewModelScope.launch {
-        val submitted = _state.value
-        if (!submitted.endpointDialogVisible || submitted.endpointSaving) return@launch
-        val candidate = submitted.endpointDraft.trim()
-        if (!ServerSettingsValidator.isEndpoint(candidate)) {
-            _state.value = submitted.copy(endpointErrorResource = R.string.add_error_endpoint_invalid)
-            return@launch
-        }
-        _state.value = submitted.copy(endpointSaving = true, endpointErrorResource = null)
-        runCatching { settingsGateway.saveEndpoint(candidate) }
-            .onSuccess {
-                _state.value = _state.value.copy(
-                    endpoint = candidate,
-                    endpointDraft = candidate,
-                    endpointDialogVisible = false,
-                    endpointSaving = false,
-                    endpointErrorResource = null,
-                    stage = if (_state.value.reviewedPolicy != null) AddPeerStage.REVIEW else AddPeerStage.FORM,
-                )
-            }
-            .onFailure {
-                _state.value = _state.value.copy(
-                    endpointSaving = false,
-                    endpointErrorResource = R.string.add_error_endpoint_save_failed,
-                )
-            }
-    }
-
     fun prepare(): Job = viewModelScope.launch {
         if (_state.value.preparing || _state.value.busy || _state.value.result != null) return@launch
         _state.value = _state.value.copy(preparing = true, stage = AddPeerStage.PREPARING, errorResource = null)
         runCatching {
-            val settings = settingsGateway.settings()
+            val initialSettings = settingsGateway.settings()
+            val (settings, peers) = coroutineScope {
+                val discovery = if (ServerSettingsValidator.isEndpoint(initialSettings.endpoint)) null else async {
+                    runCatching { settingsGateway.discoverEndpoint(initialSettings) }.getOrNull()
+                }
+                val loadedPeers = gateway.list(initialSettings)
+                val candidate = discovery?.await()?.takeIf(ServerSettingsValidator::isEndpoint)
+                val effective = if (candidate != null && runCatching { settingsGateway.saveEndpoint(candidate) }.isSuccess) {
+                    initialSettings.copy(endpoint = candidate)
+                } else {
+                    initialSettings
+                }
+                effective to loadedPeers
+            }
             _state.value = _state.value.copy(
                 endpoint = settings.endpoint,
-                endpointDraft = settings.endpoint,
             )
-            val taken = gateway.list(settings).mapNotNull(Peer::ip).toSet()
+            val taken = peers.mapNotNull(Peer::ip).toSet()
             IpAllocator.nextFreeIp(settings.subnetBase, taken)
                 ?: throw NoFreeWireGuardAddress()
         }.onSuccess { suggested ->

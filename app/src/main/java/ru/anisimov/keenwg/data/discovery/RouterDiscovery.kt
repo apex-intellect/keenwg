@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import ru.anisimov.keenwg.domain.ServerSettingsValidator
@@ -35,10 +36,12 @@ object RouterDiscovery {
             val obj = element as? JsonObject ?: return@mapNotNull null
             val type = obj["type"]?.jsonPrimitive?.contentOrNull
             if (!type.equals("Wireguard", ignoreCase = true)) return@mapNotNull null
+            val wireguard = obj["wireguard"] as? JsonObject
             InterfaceInfo(
                 id = obj["id"]?.jsonPrimitive?.contentOrNull ?: fallbackId,
                 address = obj["address"]?.jsonPrimitive?.contentOrNull,
-                publicKey = obj["wireguard"]?.jsonObject?.get("public-key")?.jsonPrimitive?.contentOrNull.orEmpty(),
+                publicKey = wireguard?.get("public-key")?.jsonPrimitive?.contentOrNull.orEmpty(),
+                listenPort = wireguard?.get("listen-port")?.jsonPrimitive?.intOrNull?.takeIf { it in 1..65535 },
             )
         }
         val selected = interfaces.firstOrNull { it.id == current.interfaceId }
@@ -46,17 +49,22 @@ object RouterDiscovery {
             ?: error("WireGuard-интерфейс не найден")
         require(ServerSettingsValidator.isCanonicalKey(selected.publicKey)) { "У роутера нет корректного публичного ключа WireGuard" }
 
-        val endpointCandidate = if (current.endpoint.isBlank()) {
+        val endpointCandidate = if (current.endpoint.isBlank() && selected.listenPort != null) {
             root.values.mapNotNull { element ->
                 val obj = element as? JsonObject ?: return@mapNotNull null
                 if (obj["defaultgw"]?.jsonPrimitive?.booleanOrNull != true) return@mapNotNull null
                 obj["address"]?.jsonPrimitive?.contentOrNull
             }.firstOrNull(ServerSettingsValidator::isPublicWanCandidate)
-                ?.let { "$it:51820" }
+                ?.let { "$it:${selected.listenPort}" }
         } else null
 
         return DiscoveryPreview(selected.id, selected.publicKey, current.endpoint, endpointCandidate)
     }
 
-    private data class InterfaceInfo(val id: String, val address: String?, val publicKey: String)
+    private data class InterfaceInfo(
+        val id: String,
+        val address: String?,
+        val publicKey: String,
+        val listenPort: Int?,
+    )
 }

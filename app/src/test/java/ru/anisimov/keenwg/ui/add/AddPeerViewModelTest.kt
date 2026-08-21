@@ -96,8 +96,11 @@ class AddPeerViewModelTest {
         assertFalse(gateway.policy?.historyEnabled ?: true)
     }
 
-    @Test fun `missing public endpoint stops before the creation review`() = runTest(dispatcher) {
-        val settings = FakeSettingsGateway(ServerSettings(subnetBase = "10.8.0.", endpoint = ""))
+    @Test fun `missing public endpoint is discovered and saved without asking the user`() = runTest(dispatcher) {
+        val settings = FakeSettingsGateway(
+            ServerSettings(subnetBase = "10.8.0.", endpoint = ""),
+            discoveredEndpoint = "8.8.4.4:54321",
+        )
         val vm = viewModel(
             gateway = FakeGateway(),
             settingsGateway = settings,
@@ -110,47 +113,41 @@ class AddPeerViewModelTest {
         vm.review()
         advanceUntilIdle()
 
-        assertEquals(AddPeerStage.FORM, vm.state.value.stage)
-        assertTrue(vm.state.value.endpointDialogVisible)
-        assertEquals(0, settings.saveCalls)
+        assertEquals(AddPeerStage.REVIEW, vm.state.value.stage)
+        assertEquals("8.8.4.4:54321", settings.value.endpoint)
+        assertEquals(1, settings.discoveryCalls)
+        assertEquals(1, settings.saveCalls)
     }
 
-    @Test fun `valid public endpoint is saved once before creation reaches the gateway`() = runTest(dispatcher) {
-        val gateway = FakeGateway()
-        val settings = FakeSettingsGateway(ServerSettings(subnetBase = "10.8.0.", endpoint = ""))
-        val vm = viewModel(gateway, settings)
+    @Test fun `existing public endpoint is preserved without discovery`() = runTest(dispatcher) {
+        val settings = FakeSettingsGateway(
+            ServerSettings(subnetBase = "10.8.0.", endpoint = "vpn.example.test:51820"),
+            discoveredEndpoint = "8.8.4.4:54321",
+        )
+        val vm = viewModel(FakeGateway(), settings)
         vm.onNameChange("phone")
         vm.onIpChange("10.8.0.9")
         vm.prepare()
         advanceUntilIdle()
         vm.review()
 
-        vm.onEndpointChange("home.example.test:51820")
-        vm.saveEndpointAndContinue()
-        advanceUntilIdle()
-        vm.create()
-        advanceUntilIdle()
-
-        assertEquals(1, settings.saveCalls)
-        assertEquals("home.example.test:51820", settings.value.endpoint)
-        assertEquals("home.example.test:51820", gateway.addedEndpoint)
-        assertEquals(AddPeerStage.SUCCESS, vm.state.value.stage)
+        assertEquals(AddPeerStage.REVIEW, vm.state.value.stage)
+        assertEquals("vpn.example.test:51820", settings.value.endpoint)
+        assertEquals(0, settings.discoveryCalls)
+        assertEquals(0, settings.saveCalls)
     }
 
-    @Test fun `invalid public endpoint stays in the focused editor without saving`() = runTest(dispatcher) {
-        val settings = FakeSettingsGateway(ServerSettings(subnetBase = "10.8.0.", endpoint = ""))
+    @Test fun `unavailable public endpoint does not open a technical editor`() = runTest(dispatcher) {
+        val settings = FakeSettingsGateway(ServerSettings(subnetBase = "10.8.0.", endpoint = ""), discoveredEndpoint = null)
         val vm = viewModel(FakeGateway(), settings)
         vm.onNameChange("phone")
         vm.prepare()
         advanceUntilIdle()
         vm.review()
-        vm.onEndpointChange("https://home.example.test/path")
 
-        vm.saveEndpointAndContinue()
-        advanceUntilIdle()
-
-        assertTrue(vm.state.value.endpointDialogVisible)
-        assertEquals(R.string.add_error_endpoint_invalid, vm.state.value.endpointErrorResource)
+        assertEquals(AddPeerStage.FORM, vm.state.value.stage)
+        assertEquals(R.string.add_error_endpoint_auto_unavailable, vm.state.value.errorResource)
+        assertEquals(1, settings.discoveryCalls)
         assertEquals(0, settings.saveCalls)
     }
 
@@ -183,10 +180,19 @@ class AddPeerViewModelTest {
         }
     }
 
-    private class FakeSettingsGateway(var value: ServerSettings) : AddPeerSettingsGateway {
+    private class FakeSettingsGateway(
+        var value: ServerSettings,
+        private val discoveredEndpoint: String? = null,
+    ) : AddPeerSettingsGateway {
+        var discoveryCalls = 0
         var saveCalls = 0
 
         override suspend fun settings() = value
+
+        override suspend fun discoverEndpoint(settings: ServerSettings): String? {
+            discoveryCalls++
+            return discoveredEndpoint
+        }
 
         override suspend fun saveEndpoint(endpoint: String) {
             saveCalls++

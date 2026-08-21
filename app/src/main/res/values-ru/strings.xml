@@ -802,14 +802,6 @@
     <string name="add_error_no_free_ip">В подсети WireGuard нет свободного адреса</string>
     <string name="add_error_prepare_failed">Не удалось подготовить свободный адрес WireGuard</string>
     <string name="add_error_create_failed">Не удалось создать доступ WireGuard</string>
-    <string name="add_endpoint_title">Адрес для нового устройства</string>
-    <string name="add_endpoint_detail">Новому устройству нужен внешний адрес домашнего WireGuard. Скопируйте адрес сервера из любого работающего подключения WireGuard. KeenWG сохранит его для этого роутера.</string>
-    <string name="add_endpoint_label">Адрес роутера и порт</string>
-    <string name="add_endpoint_example">Например: home.example.com:51820</string>
-    <string name="add_endpoint_save">Сохранить и продолжить</string>
-    <string name="add_endpoint_cancel">Отмена</string>
-    <string name="add_error_endpoint_invalid">Укажите имя или IP-адрес и порт WireGuard</string>
-    <string name="add_error_endpoint_save_failed">Не удалось сохранить адрес на телефоне</string>
     <string name="support_generate_failed">Не удалось сформировать безопасный диагностический отчёт</string>
     <string name="settings_message_saved">Настройки проверены и сохранены</string>
     <string name="settings_message_review_discovered">Проверьте найденные параметры перед сохранением</string>
@@ -911,4 +903,5 @@
     <string name="route_warning_quic">QUIC (UDP/443) может идти другим путём</string>
     <string name="route_warning_selector">Не удалось подтвердить выбранный сервер</string>
     <string name="route_warning_other">Часть маршрута не удалось подтвердить</string>
+    <string name="add_error_endpoint_auto_unavailable">Не удалось определить адрес роутера автоматически. Проверьте подключение к роутеру и повторите попытку.</string>
 </resources>

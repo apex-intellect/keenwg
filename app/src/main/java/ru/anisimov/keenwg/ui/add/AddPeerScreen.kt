@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -190,51 +189,6 @@ fun AddPeerScreen(
         }
     }
 
-    if (state.endpointDialogVisible) {
-        AlertDialog(
-            onDismissRequest = vm::cancelEndpointDialog,
-            title = { Text(stringResource(R.string.add_endpoint_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        stringResource(R.string.add_endpoint_detail),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    OutlinedTextField(
-                        value = state.endpointDraft,
-                        onValueChange = vm::onEndpointChange,
-                        label = { Text(stringResource(R.string.add_endpoint_label)) },
-                        supportingText = {
-                            Text(
-                                state.endpointErrorResource?.let { stringResource(it) }
-                                    ?: stringResource(R.string.add_endpoint_example),
-                            )
-                        },
-                        isError = state.endpointErrorResource != null,
-                        enabled = !state.endpointSaving,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { vm.saveEndpointAndContinue() },
-                    enabled = !state.endpointSaving && state.endpointDraft.isNotBlank(),
-                ) {
-                    if (state.endpointSaving) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    }
-                    Text(stringResource(R.string.add_endpoint_save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = vm::cancelEndpointDialog, enabled = !state.endpointSaving) {
-                    Text(stringResource(R.string.add_endpoint_cancel))
-                }
-            },
-        )
-    }
 }
 
 @Composable
