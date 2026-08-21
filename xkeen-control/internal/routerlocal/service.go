@@ -58,6 +58,16 @@ type WireGuardDocument struct {
 	Interfaces    []WireGuardInterface `json:"interfaces"`
 }
 
+type WireGuardEndpoint struct {
+	InterfaceID string `json:"interface_id"`
+	Endpoint    string `json:"endpoint"`
+}
+
+type WireGuardEndpointsDocument struct {
+	SchemaVersion int                 `json:"schema_version"`
+	Endpoints     []WireGuardEndpoint `json:"endpoints"`
+}
+
 type ReservationReviewRequest struct {
 	StateVersion string  `json:"state_version"`
 	MAC          string  `json:"mac"`
@@ -257,6 +267,18 @@ func (s *Service) SnapshotWireGuard(ctx context.Context) (WireGuardDocument, err
 		interfaces = append(interfaces, value)
 	}
 	return WireGuardDocument{SchemaVersion: 1, StateVersion: wireGuardStateVersion(interfaces), Interfaces: interfaces}, nil
+}
+
+func (s *Service) WireGuardEndpoints(ctx context.Context) (WireGuardEndpointsDocument, error) {
+	interfaces, err := s.runner.Run(ctx, QueryInterfaces())
+	if err != nil {
+		return WireGuardEndpointsDocument{}, err
+	}
+	endpoints, err := ParseWireGuardEndpoints(interfaces)
+	if err != nil {
+		return WireGuardEndpointsDocument{}, err
+	}
+	return WireGuardEndpointsDocument{SchemaVersion: 1, Endpoints: endpoints}, nil
 }
 
 // ReadWireGuard serves a very short-lived, verified inventory and serializes

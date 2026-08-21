@@ -65,6 +65,31 @@ class CompanionPeerRepositoryTest {
         assertEquals(keys.publicKey, result.peer.publicKey)
     }
 
+    @Test fun blankStoredEndpointIsResolvedByCompanionBeforeCreate() = runTest {
+        val keys = WgKeys.generate()
+        val serverKey = WgKeys.generate().publicKey
+        val client = FakeWireGuard(serverKey, endpointCandidate = "198.51.100.24:51820")
+        val repository = CompanionPeerRepository(
+            client,
+            MemoryConfStore(),
+            MemoryLineageStore(),
+            KeyGenerator { keys },
+            MemoryPolicyStore(),
+        )
+
+        val result = repository.add(
+            activeProfile(),
+            settings().copy(endpoint = ""),
+            "phone",
+            "10.8.0.2",
+            null,
+        )
+
+        assertEquals(1, client.endpointRequests)
+        assertTrue(result.conf.contains("Endpoint = 198.51.100.24:51820"))
+        assertEquals("create", client.reviewed?.action)
+    }
+
     @Test fun rolledBackCreateRemovesStagedPrivateConfiguration() = runTest {
         val keys = WgKeys.generate()
         val configs = MemoryConfStore()
@@ -136,8 +161,10 @@ class CompanionPeerRepositoryTest {
         private val includeUnrelatedInterface: Boolean = false,
         private val terminalStatus: String = "committed",
         private val applyFailure: Exception? = null,
+        private val endpointCandidate: String = "vpn.example.com:51820",
     ) : CompanionWireGuardGateway {
         var reviewed: CompanionPeerMutation? = null
+        var endpointRequests = 0
         private var document = CompanionWireGuardDocument(
             1,
             "wg-v1",
@@ -149,6 +176,10 @@ class CompanionPeerRepositoryTest {
             },
         )
         override suspend fun load(endpoint: CompanionEndpoint) = document
+        override suspend fun endpointCandidate(endpoint: CompanionEndpoint, interfaceId: String): String {
+            endpointRequests++
+            return endpointCandidate
+        }
         override suspend fun review(endpoint: CompanionEndpoint, request: CompanionPeerMutation): CompanionPeerPlan {
             reviewed = request
             return CompanionPeerPlan(1, "plan-1", request = request)

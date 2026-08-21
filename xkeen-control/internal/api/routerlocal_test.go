@@ -35,6 +35,7 @@ func TestSecureRouterLocalRoutesKeepTrustedPhonesSeparateAndEnforceScopes(t *tes
 		{"reservation apply as viewer", http.MethodPost, "/v1/network/devices/mac-1234/reservation/apply", viewer.Token, `{"schema_version":1,"state_version":"home-v1","reserved_ip":"192.168.1.20","plan_id":"plan-1","idempotency_key":"11111111-1111-4111-8111-111111111111"}`, http.StatusForbidden},
 		{"reservation apply as operator", http.MethodPost, "/v1/network/devices/mac-1234/reservation/apply", operator.Token, `{"schema_version":1,"state_version":"home-v1","reserved_ip":"192.168.1.20","plan_id":"plan-1","idempotency_key":"11111111-1111-4111-8111-111111111111"}`, http.StatusOK},
 		{"wireguard as viewer", http.MethodGet, "/v1/access/wireguard", viewer.Token, "", http.StatusOK},
+		{"wireguard endpoint as viewer", http.MethodGet, "/v1/access/wireguard/endpoints", viewer.Token, "", http.StatusOK},
 		{"peer review as viewer", http.MethodPost, "/v1/access/wireguard/peers/review", viewer.Token, `{"schema_version":1,"state_version":"wg-v1","interface_id":"Wireguard0","action":"revoke","public_key":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="}`, http.StatusOK},
 		{"peer apply as operator", http.MethodPost, "/v1/access/wireguard/peers/apply", operator.Token, `{"schema_version":1,"state_version":"wg-v1","interface_id":"Wireguard0","action":"revoke","public_key":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","plan_id":"peer-plan","idempotency_key":"22222222-2222-4222-8222-222222222222"}`, http.StatusOK},
 		{"unknown field", http.MethodPost, "/v1/access/wireguard/peers/review", owner.Token, `{"schema_version":1,"state_version":"wg-v1","interface_id":"Wireguard0","action":"revoke","public_key":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","password":"leak"}`, http.StatusBadRequest},
@@ -55,7 +56,7 @@ func TestSecureRouterLocalRoutesKeepTrustedPhonesSeparateAndEnforceScopes(t *tes
 			}
 		})
 	}
-	if local.homeReads == 0 || local.wireGuardReadCalls != 1 || local.reservationApplies != 1 || local.peerApplies != 1 {
+	if local.homeReads == 0 || local.wireGuardReadCalls != 1 || local.endpointReads != 1 || local.reservationApplies != 1 || local.peerApplies != 1 {
 		t.Fatalf("unexpected calls: %+v", local)
 	}
 }
@@ -100,6 +101,7 @@ type routerLocalStub struct {
 	homeReads          int
 	wireGuardReads     int
 	wireGuardReadCalls int
+	endpointReads      int
 	reservationApplies int
 	peerApplies        int
 }
@@ -121,6 +123,10 @@ func (s *routerLocalStub) RecoverWireGuard(ctx context.Context) (routerlocal.Wir
 func (s *routerLocalStub) ReadWireGuard(context.Context) (routerlocal.WireGuardDocument, error) {
 	s.wireGuardReadCalls++
 	return s.wireGuard, nil
+}
+func (s *routerLocalStub) WireGuardEndpoints(context.Context) (routerlocal.WireGuardEndpointsDocument, error) {
+	s.endpointReads++
+	return routerlocal.WireGuardEndpointsDocument{SchemaVersion: 1, Endpoints: []routerlocal.WireGuardEndpoint{{InterfaceID: "Wireguard0", Endpoint: "198.51.100.24:51820"}}}, nil
 }
 func (s *routerLocalStub) ReviewReservation(_ context.Context, request routerlocal.ReservationReviewRequest) (routerlocal.ReservationPlan, error) {
 	return routerlocal.ReservationPlan{SchemaVersion: 1, PlanID: "plan-1", ExpiresAt: time.Unix(1_900_000_000, 0), StateVersion: request.StateVersion, MAC: request.MAC, AfterIP: pointerText(request.ReservedIP)}, nil

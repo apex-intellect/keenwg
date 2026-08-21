@@ -130,7 +130,11 @@ fun KeenWgNav() {
                     )
                 }
                 composable<AddPeerRoute> {
-                    AddPeerScreen(onBack = { nav.popBackStack() }, onDone = { nav.popBackStack() })
+                    AddPeerScreen(
+                        onBack = { nav.popBackStack() },
+                        onDone = { nav.popBackStack() },
+                        onUpdateCompanion = { nav.navigate(UpdateRoute) },
+                    )
                 }
                 composable<SystemRoute> {
                     SystemScreen(
