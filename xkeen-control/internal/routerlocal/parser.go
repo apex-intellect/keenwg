@@ -224,8 +224,87 @@ type wireGuardInterfaceXML struct {
 }
 
 type wireGuardRuntimeXML struct {
-	PublicKey string             `xml:"public-key"`
-	Peers     []wireGuardPeerXML `xml:"peer"`
+	PublicKey  string             `xml:"public-key"`
+	ListenPort int                `xml:"listen-port"`
+	Peers      []wireGuardPeerXML `xml:"peer"`
+}
+
+type interfacesResponse struct {
+	XMLName    xml.Name              `xml:"response"`
+	Interfaces []interfaceSummaryXML `xml:"interface"`
+}
+
+type interfaceSummaryXML struct {
+	ID        string              `xml:"id"`
+	Address   string              `xml:"address"`
+	Connected string              `xml:"connected"`
+	Global    string              `xml:"global"`
+	DefaultGW string              `xml:"defaultgw"`
+	WireGuard wireGuardRuntimeXML `xml:"wireguard"`
+}
+
+func ParseWireGuardEndpoints(data []byte) ([]WireGuardEndpoint, error) {
+	var document interfacesResponse
+	if err := decodeResponse(data, &document); err != nil {
+		return nil, err
+	}
+	if len(document.Interfaces) > maxItems {
+		return nil, ErrTooManyItems
+	}
+	publicAddress := ""
+	for _, value := range document.Interfaces {
+		connected, err := boolishOptional(value.Connected)
+		if err != nil {
+			return nil, ErrUnsupportedSchema
+		}
+		global, err := boolishOptional(value.Global)
+		if err != nil {
+			return nil, ErrUnsupportedSchema
+		}
+		defaultGW, err := boolishOptional(value.DefaultGW)
+		if err != nil {
+			return nil, ErrUnsupportedSchema
+		}
+		if !connected || !global || !defaultGW {
+			continue
+		}
+		address, err := optionalIPv4(value.Address)
+		if err != nil {
+			return nil, ErrUnsupportedSchema
+		}
+		parsed, err := netip.ParseAddr(address)
+		if err == nil && isPublicIPv4(parsed) && publicAddress == "" {
+			publicAddress = address
+		}
+	}
+	if publicAddress == "" {
+		return []WireGuardEndpoint{}, nil
+	}
+	result := make([]WireGuardEndpoint, 0)
+	seen := make(map[string]struct{})
+	for _, value := range document.Interfaces {
+		if value.WireGuard.ListenPort == 0 {
+			continue
+		}
+		if !interfacePattern.MatchString(value.ID) || value.WireGuard.ListenPort < 1 || value.WireGuard.ListenPort > 65535 {
+			return nil, ErrUnsupportedSchema
+		}
+		if _, exists := seen[value.ID]; exists {
+			return nil, ErrDuplicateIdentity
+		}
+		seen[value.ID] = struct{}{}
+		result = append(result, WireGuardEndpoint{
+			InterfaceID: value.ID,
+			Endpoint:    net.JoinHostPort(publicAddress, strconv.Itoa(value.WireGuard.ListenPort)),
+		})
+	}
+	return result, nil
+}
+
+func isPublicIPv4(address netip.Addr) bool {
+	return address.Is4() && address.IsGlobalUnicast() && !address.IsPrivate() &&
+		!address.IsLoopback() && !address.IsLinkLocalUnicast() && !address.IsMulticast() &&
+		!address.IsUnspecified()
 }
 
 type wireGuardPeerXML struct {

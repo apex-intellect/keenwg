@@ -802,6 +802,8 @@
     <string name="add_error_no_free_ip">В подсети WireGuard нет свободного адреса</string>
     <string name="add_error_prepare_failed">Не удалось подготовить свободный адрес WireGuard</string>
     <string name="add_error_create_failed">Не удалось создать доступ WireGuard</string>
+    <string name="add_error_companion_update_required">Чтобы создать доступ, обновите компонент KeenWG на роутере.</string>
+    <string name="add_update_companion">Обновить компонент на роутере</string>
     <string name="support_generate_failed">Не удалось сформировать безопасный диагностический отчёт</string>
     <string name="settings_message_saved">Настройки проверены и сохранены</string>
     <string name="settings_message_review_discovered">Проверьте найденные параметры перед сохранением</string>
@@ -903,5 +905,4 @@
     <string name="route_warning_quic">QUIC (UDP/443) может идти другим путём</string>
     <string name="route_warning_selector">Не удалось подтвердить выбранный сервер</string>
     <string name="route_warning_other">Часть маршрута не удалось подтвердить</string>
-    <string name="add_error_endpoint_auto_unavailable">Не удалось определить адрес роутера автоматически. Проверьте подключение к роутеру и повторите попытку.</string>
 </resources>

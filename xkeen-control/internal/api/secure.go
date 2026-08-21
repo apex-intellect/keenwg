@@ -136,6 +136,11 @@ func (s *SecureServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			s.handleWireGuard(w, request)
 		}
+	case r.URL.Path == "/v1/access/wireguard/endpoints" && s.routerLocal != nil:
+		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)
+		if ok {
+			s.handleWireGuardEndpoint(w, request)
+		}
 	case r.URL.Path == "/v1/access/wireguard/history/query" && s.wireGuardHistory != nil:
 		request, _, ok := s.authenticate(w, r, auth.ScopeViewer)
 		if ok {

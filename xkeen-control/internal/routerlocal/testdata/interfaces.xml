@@ -1,0 +1,16 @@
+<response>
+  <interface name="ISP">
+    <id>GigabitEthernet1</id>
+    <address>198.51.100.24</address>
+    <connected>yes</connected>
+    <global>yes</global>
+    <defaultgw>yes</defaultgw>
+  </interface>
+  <interface name="Wireguard0">
+    <id>Wireguard0</id>
+    <address>10.8.0.1</address>
+    <wireguard>
+      <listen-port>51820</listen-port>
+    </wireguard>
+  </interface>
+</response>

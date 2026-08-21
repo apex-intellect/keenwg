@@ -60,6 +60,7 @@ import ru.anisimov.keenwg.ui.util.shareConf
 fun AddPeerScreen(
     onBack: () -> Unit,
     onDone: () -> Unit,
+    onUpdateCompanion: () -> Unit,
     vm: AddPeerViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -111,21 +112,30 @@ fun AddPeerScreen(
                         isError = true,
                     )
                 }
-                Button(
-                    onClick = { if (state.stage == AddPeerStage.REVIEW) vm.create() else vm.review() },
-                    enabled = !state.busy && !state.preparing && state.name.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) {
-                    if (state.busy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                        Text(stringResource(R.string.ui_addpeerscreen_0bfd2694df))
-                    } else {
-                        Icon(Icons.Default.Key, contentDescription = null)
-                        Text(stringResource(if (state.stage == AddPeerStage.REVIEW) R.string.access_apply else R.string.access_review))
+                if (state.companionUpdateRequired) {
+                    Button(
+                        onClick = onUpdateCompanion,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                    ) {
+                        Text(stringResource(R.string.add_update_companion))
+                    }
+                } else {
+                    Button(
+                        onClick = { if (state.stage == AddPeerStage.REVIEW) vm.create() else vm.review() },
+                        enabled = !state.busy && !state.preparing && state.name.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                    ) {
+                        if (state.busy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                            Text(stringResource(R.string.ui_addpeerscreen_0bfd2694df))
+                        } else {
+                            Icon(Icons.Default.Key, contentDescription = null)
+                            Text(stringResource(if (state.stage == AddPeerStage.REVIEW) R.string.access_apply else R.string.access_review))
+                        }
                     }
                 }
                 if (state.stage == AddPeerStage.REVIEW && !state.busy) {

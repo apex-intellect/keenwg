@@ -60,6 +60,40 @@ class CompanionWireGuardClientTest {
         server.close()
     }
 
+    @Test fun endpointCandidateUsesDedicatedBackwardCompatibleRoute() = runTest {
+        val server = TestCompanionServer(
+            MockResponse().setBody("""{"schema_version":1,"endpoints":[{"interface_id":"Wireguard0","endpoint":"198.51.100.24:51820"}]}"""),
+        )
+
+        val endpoint = CompanionWireGuardClient().endpointCandidate(server.endpoint(), "Wireguard0")
+
+        assertEquals("198.51.100.24:51820", endpoint)
+        assertEquals("/v1/access/wireguard/endpoints", server.takeRequest().path)
+        server.close()
+    }
+
+    @Test fun missingEndpointRouteIdentifiesAnOldCompanion() = runTest {
+        val server = TestCompanionServer(
+            MockResponse().setResponseCode(404).setBody("""{"error":{"code":"not_found"}}"""),
+        )
+
+        val failure = failure { CompanionWireGuardClient().endpointCandidate(server.endpoint(), "Wireguard0") }
+
+        assertEquals(XkeenErrorCode.NOT_FOUND, failure.code)
+        server.close()
+    }
+
+    @Test fun currentCompanionWithoutAPublicEndpointIsNotReportedAsOutdated() = runTest {
+        val server = TestCompanionServer(
+            MockResponse().setBody("""{"schema_version":1,"endpoints":[]}"""),
+        )
+
+        val failure = failure { CompanionWireGuardClient().endpointCandidate(server.endpoint(), "Wireguard0") }
+
+        assertEquals(XkeenErrorCode.INVALID_SETTINGS, failure.code)
+        server.close()
+    }
+
     @Test fun duplicatePeerIdentitiesAndAuthorizationFailuresAreSanitized() = runTest {
         val duplicate = documentJson().replace("]}]}", "," + peerJson(true) + "]}]}")
         val server = TestCompanionServer(

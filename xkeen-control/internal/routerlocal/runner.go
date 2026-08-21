@@ -34,6 +34,7 @@ type Command struct {
 
 func QueryHotspot() Command       { return Command{value: "show ip hotspot"} }
 func QueryLeases() Command        { return Command{value: "show ip dhcp bindings"} }
+func QueryInterfaces() Command    { return Command{value: "show interface"} }
 func QueryRunningConfig() Command { return Command{value: "show running-config"} }
 func SaveConfiguration() Command  { return Command{value: "system configuration save"} }
 

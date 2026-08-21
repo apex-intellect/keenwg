@@ -15,6 +15,7 @@ type RouterLocalService interface {
 	SnapshotWireGuard(context.Context) (routerlocal.WireGuardDocument, error)
 	ReadWireGuard(context.Context) (routerlocal.WireGuardDocument, error)
 	RecoverWireGuard(context.Context) (routerlocal.WireGuardDocument, error)
+	WireGuardEndpoints(context.Context) (routerlocal.WireGuardEndpointsDocument, error)
 	ReviewReservation(context.Context, routerlocal.ReservationReviewRequest) (routerlocal.ReservationPlan, error)
 	ApplyReservation(context.Context, routerlocal.ReservationApplyRequest) (routerlocal.MutationResult, error)
 	ReviewPeer(context.Context, routerlocal.PeerReviewRequest) (routerlocal.PeerPlan, error)
@@ -117,6 +118,23 @@ func (s *SecureServer) handleWireGuard(w http.ResponseWriter, r *http.Request) {
 		if document.Interfaces[index].Peers == nil {
 			document.Interfaces[index].Peers = []routerlocal.WireGuardPeer{}
 		}
+	}
+	writeJSON(w, http.StatusOK, document)
+}
+
+func (s *SecureServer) handleWireGuardEndpoint(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w, http.MethodGet)
+		return
+	}
+	if r.URL.RawQuery != "" {
+		writeError(w, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	document, err := s.routerLocal.WireGuardEndpoints(r.Context())
+	if err != nil {
+		writeRouterLocalError(w, err)
+		return
 	}
 	writeJSON(w, http.StatusOK, document)
 }

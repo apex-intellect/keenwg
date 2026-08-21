@@ -13,6 +13,7 @@ Companion объединяет XKeen/VLESS, каталог подключени�
 - bounded strict JSON/VLESS parsers;
 - fixed allowlisted `ndmq` commands with bounded time and output;
 - reviewed, versioned and idempotent DHCP/WireGuard mutations with read-back and rollback;
+- WireGuard public endpoints are read through a separate authenticated resource, keeping the strict inventory schema backward compatible;
 - WireGuard private keys are generated on Android and never cross the Companion API;
 - transactional Xray test, restart, read-back и rollback;
 - subscription URL, UUID, Reality keys, SNI и raw Xray config не возвращаются клиенту;

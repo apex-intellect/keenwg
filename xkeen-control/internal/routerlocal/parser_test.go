@@ -61,6 +61,24 @@ func TestParseWireGuardInterfaceLiveShape(t *testing.T) {
 	}
 }
 
+func TestParseWireGuardEndpointFromLiveInterfaceShape(t *testing.T) {
+	endpoints, err := ParseWireGuardEndpoints(fixture(t, "interfaces.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(endpoints) != 1 || endpoints[0].InterfaceID != "Wireguard0" || endpoints[0].Endpoint != "198.51.100.24:51820" {
+		t.Fatalf("endpoints = %+v", endpoints)
+	}
+}
+
+func TestParseWireGuardEndpointRejectsPrivateDefaultGateway(t *testing.T) {
+	value := []byte(`<response><interface><id>ISP</id><address>192.168.1.2</address><global>yes</global><defaultgw>yes</defaultgw></interface><interface><id>Wireguard0</id><wireguard><listen-port>51820</listen-port></wireguard></interface></response>`)
+	endpoints, err := ParseWireGuardEndpoints(value)
+	if err != nil || len(endpoints) != 0 {
+		t.Fatalf("endpoints = %+v, error = %v", endpoints, err)
+	}
+}
+
 func TestParsersRejectMalformedDuplicateAndUnboundedInput(t *testing.T) {
 	validHome := `<response><host><mac>02:00:00:00:00:01</mac><ip>192.168.1.2</ip><active>yes</active></host></response>`
 	tests := []struct {

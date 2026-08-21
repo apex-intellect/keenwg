@@ -21,6 +21,8 @@ import ru.anisimov.keenwg.domain.model.HandshakeStatus
 import ru.anisimov.keenwg.domain.model.Peer
 import ru.anisimov.keenwg.domain.model.ServerSettings
 import ru.anisimov.keenwg.domain.model.AccessPolicy
+import ru.anisimov.keenwg.data.xkeen.XkeenErrorCode
+import ru.anisimov.keenwg.data.xkeen.XkeenException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddPeerViewModelTest {
@@ -96,11 +98,8 @@ class AddPeerViewModelTest {
         assertFalse(gateway.policy?.historyEnabled ?: true)
     }
 
-    @Test fun `missing public endpoint is discovered and saved without asking the user`() = runTest(dispatcher) {
-        val settings = FakeSettingsGateway(
-            ServerSettings(subnetBase = "10.8.0.", endpoint = ""),
-            discoveredEndpoint = "8.8.4.4:54321",
-        )
+    @Test fun `blank public endpoint does not block review because repository resolves it`() = runTest(dispatcher) {
+        val settings = FakeSettingsGateway(ServerSettings(subnetBase = "10.8.0.", endpoint = ""))
         val vm = viewModel(
             gateway = FakeGateway(),
             settingsGateway = settings,
@@ -114,41 +113,20 @@ class AddPeerViewModelTest {
         advanceUntilIdle()
 
         assertEquals(AddPeerStage.REVIEW, vm.state.value.stage)
-        assertEquals("8.8.4.4:54321", settings.value.endpoint)
-        assertEquals(1, settings.discoveryCalls)
-        assertEquals(1, settings.saveCalls)
+        assertEquals("", settings.value.endpoint)
     }
 
-    @Test fun `existing public endpoint is preserved without discovery`() = runTest(dispatcher) {
-        val settings = FakeSettingsGateway(
-            ServerSettings(subnetBase = "10.8.0.", endpoint = "vpn.example.test:51820"),
-            discoveredEndpoint = "8.8.4.4:54321",
-        )
-        val vm = viewModel(FakeGateway(), settings)
+    @Test fun `old companion offers a direct component update instead of a blind retry`() = runTest(dispatcher) {
+        val vm = viewModel(FakeGateway(addError = XkeenException(XkeenErrorCode.NOT_FOUND, "missing route")))
         vm.onNameChange("phone")
         vm.onIpChange("10.8.0.9")
-        vm.prepare()
-        advanceUntilIdle()
         vm.review()
-
-        assertEquals(AddPeerStage.REVIEW, vm.state.value.stage)
-        assertEquals("vpn.example.test:51820", settings.value.endpoint)
-        assertEquals(0, settings.discoveryCalls)
-        assertEquals(0, settings.saveCalls)
-    }
-
-    @Test fun `unavailable public endpoint does not open a technical editor`() = runTest(dispatcher) {
-        val settings = FakeSettingsGateway(ServerSettings(subnetBase = "10.8.0.", endpoint = ""), discoveredEndpoint = null)
-        val vm = viewModel(FakeGateway(), settings)
-        vm.onNameChange("phone")
-        vm.prepare()
+        vm.create()
         advanceUntilIdle()
-        vm.review()
 
         assertEquals(AddPeerStage.FORM, vm.state.value.stage)
-        assertEquals(R.string.add_error_endpoint_auto_unavailable, vm.state.value.errorResource)
-        assertEquals(1, settings.discoveryCalls)
-        assertEquals(0, settings.saveCalls)
+        assertEquals(R.string.add_error_companion_update_required, vm.state.value.errorResource)
+        assertTrue(vm.state.value.companionUpdateRequired)
     }
 
     private fun viewModel(
@@ -182,22 +160,8 @@ class AddPeerViewModelTest {
 
     private class FakeSettingsGateway(
         var value: ServerSettings,
-        private val discoveredEndpoint: String? = null,
     ) : AddPeerSettingsGateway {
-        var discoveryCalls = 0
-        var saveCalls = 0
-
         override suspend fun settings() = value
-
-        override suspend fun discoverEndpoint(settings: ServerSettings): String? {
-            discoveryCalls++
-            return discoveredEndpoint
-        }
-
-        override suspend fun saveEndpoint(endpoint: String) {
-            saveCalls++
-            value = value.copy(endpoint = endpoint)
-        }
     }
 
     private companion object {

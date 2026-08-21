@@ -15,6 +15,7 @@ import ru.anisimov.keenwg.data.companion.CompanionResponseTooLargeException
 import ru.anisimov.keenwg.data.companion.CompanionTransportException
 import ru.anisimov.keenwg.data.xkeen.XkeenErrorCode
 import ru.anisimov.keenwg.data.xkeen.XkeenException
+import ru.anisimov.keenwg.domain.ServerSettingsValidator
 
 @Serializable
 data class CompanionWireGuardPeer(
@@ -44,6 +45,18 @@ data class CompanionWireGuardDocument(
     @SerialName("schema_version") val schemaVersion: Int,
     @SerialName("state_version") val stateVersion: String,
     val interfaces: List<CompanionWireGuardInterface>,
+)
+
+@Serializable
+data class CompanionWireGuardEndpoint(
+    @SerialName("interface_id") val interfaceId: String,
+    val endpoint: String,
+)
+
+@Serializable
+data class CompanionWireGuardEndpointsDocument(
+    @SerialName("schema_version") val schemaVersion: Int,
+    val endpoints: List<CompanionWireGuardEndpoint>,
 )
 
 @Serializable
@@ -79,6 +92,7 @@ data class CompanionWireGuardMutationResult(
 
 interface CompanionWireGuardGateway {
     suspend fun load(endpoint: CompanionEndpoint): CompanionWireGuardDocument
+    suspend fun endpointCandidate(endpoint: CompanionEndpoint, interfaceId: String): String
     suspend fun review(endpoint: CompanionEndpoint, request: CompanionPeerMutation): CompanionPeerPlan
     suspend fun apply(endpoint: CompanionEndpoint, request: CompanionPeerMutation, planId: String): CompanionWireGuardMutationResult
 }
@@ -108,6 +122,19 @@ class CompanionWireGuardClient(
 
     private fun loadOnce(endpoint: CompanionEndpoint): CompanionWireGuardDocument =
         execute(endpoint, "/v1/access/wireguard", "GET", null) { decodeDocument(it) }
+
+    override suspend fun endpointCandidate(endpoint: CompanionEndpoint, interfaceId: String): String = withContext(Dispatchers.IO) {
+        if (!INTERFACE_ID.matches(interfaceId)) schemaFailure()
+        execute(endpoint, "/v1/access/wireguard/endpoints", "GET", null, XkeenErrorCode.NOT_FOUND) { text ->
+            val document = decode<CompanionWireGuardEndpointsDocument>(text)
+            if (document.schemaVersion != 1 || document.endpoints.size > 64 ||
+                document.endpoints.map { it.interfaceId }.toSet().size != document.endpoints.size ||
+                document.endpoints.any { !INTERFACE_ID.matches(it.interfaceId) || !ServerSettingsValidator.isEndpoint(it.endpoint) }
+            ) schemaFailure()
+            document.endpoints.singleOrNull { it.interfaceId == interfaceId }?.endpoint
+                ?: throw XkeenException(XkeenErrorCode.INVALID_SETTINGS, "The router has no public WireGuard endpoint")
+        }
+    }
 
     override suspend fun review(endpoint: CompanionEndpoint, request: CompanionPeerMutation): CompanionPeerPlan = withContext(Dispatchers.IO) {
         requireValidMutation(request)
@@ -198,9 +225,16 @@ class CompanionWireGuardClient(
         return canonicalIpv4(address) && prefix.toInt() in 0..32
     }
 
-    private fun <T> execute(endpoint: CompanionEndpoint, path: String, method: String, body: String?, decoder: (String) -> T): T = try {
+    private fun <T> execute(
+        endpoint: CompanionEndpoint,
+        path: String,
+        method: String,
+        body: String?,
+        notFoundCode: XkeenErrorCode? = null,
+        decoder: (String) -> T,
+    ): T = try {
         val response = transport.execute(endpoint, path, method, body, MAX_BYTES)
-        if (response.status !in 200..299) httpFailure(response.status)
+        if (response.status !in 200..299) httpFailure(response.status, notFoundCode)
         decoder(response.body)
     } catch (known: XkeenException) {
         throw known
@@ -218,9 +252,10 @@ class CompanionWireGuardClient(
         schemaFailure()
     }
 
-    private fun httpFailure(status: Int): Nothing = throw XkeenException(
+    private fun httpFailure(status: Int, notFoundCode: XkeenErrorCode?): Nothing = throw XkeenException(
         when (status) {
             401, 403 -> XkeenErrorCode.UNAUTHORIZED
+            404 -> notFoundCode ?: XkeenErrorCode.COMPANION_UNAVAILABLE
             409 -> XkeenErrorCode.STALE_STATE
             413 -> XkeenErrorCode.UNSUPPORTED_SCHEMA
             504 -> XkeenErrorCode.TIMEOUT

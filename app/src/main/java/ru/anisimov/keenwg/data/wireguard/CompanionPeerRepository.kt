@@ -15,6 +15,7 @@ import ru.anisimov.keenwg.data.AddResult
 import ru.anisimov.keenwg.data.KeyGenerator
 import ru.anisimov.keenwg.data.RouterMutationError
 import ru.anisimov.keenwg.data.companion.requireCompanionEndpoint
+import ru.anisimov.keenwg.data.companion.CompanionEndpoint
 import ru.anisimov.keenwg.data.crypto.ConfBuilder
 import ru.anisimov.keenwg.data.crypto.WgKeyPair
 import ru.anisimov.keenwg.data.crypto.WgKeys
@@ -27,6 +28,7 @@ import ru.anisimov.keenwg.data.store.LineageStore
 import ru.anisimov.keenwg.data.xkeen.XkeenErrorCode
 import ru.anisimov.keenwg.data.xkeen.XkeenException
 import ru.anisimov.keenwg.domain.IpAllocator
+import ru.anisimov.keenwg.domain.ServerSettingsValidator
 import ru.anisimov.keenwg.domain.PeerInputException
 import ru.anisimov.keenwg.domain.PeerInputValidator
 import ru.anisimov.keenwg.domain.ValidationIssue
@@ -83,7 +85,8 @@ class CompanionPeerRepository(
         val effectivePolicy = policy ?: AccessPolicy(dnsServers = listOf(settings.dns))
         AccessPolicyValidator.requireValid(effectivePolicy, clock.nowEpochSeconds())
         val keys = verifiedKeyPair(iface, settings)
-        val conf = verifiedConf(keys, assigned, iface, settings, effectivePolicy)
+        val publicEndpoint = resolveEndpoint(endpoint, iface, settings)
+        val conf = verifiedConf(keys, assigned, iface, settings, effectivePolicy, publicEndpoint)
         confStore.put(keys.publicKey, conf)
         val mutation = CompanionPeerMutation(
             stateVersion = document.stateVersion,
@@ -120,7 +123,8 @@ class CompanionPeerRepository(
             val assigned = old.allowedIp ?: throw IllegalArgumentException("Access has no assigned address")
             val policy = accessPolicyStore.get(publicKey) ?: AccessPolicy(dnsServers = listOf(settings.dns))
             val keys = verifiedKeyPair(iface, settings)
-            val conf = verifiedConf(keys, assigned, iface, settings, policy)
+            val publicEndpoint = resolveEndpoint(endpoint, iface, settings)
+            val conf = verifiedConf(keys, assigned, iface, settings, policy, publicEndpoint)
             confStore.put(keys.publicKey, conf)
             val mutation = CompanionPeerMutation(
                 stateVersion = document.stateVersion,
@@ -262,23 +266,29 @@ class CompanionPeerRepository(
         iface: CompanionWireGuardInterface,
         settings: ServerSettings,
         policy: AccessPolicy,
+        publicEndpoint: String,
     ): String {
         val serverPublicKey = iface.publicKey ?: throw IllegalStateException("Router WireGuard public key is unavailable")
-        val endpoint = settings.endpoint.takeIf(String::isNotBlank)
-            ?: throw IllegalStateException("Set the router's public WireGuard endpoint to create or rotate access")
         val conf = ConfBuilder.build(
             keys.privateKey,
             "$ip/32",
             policy.dnsServers.ifEmpty { listOf(settings.dns) },
             iface.mtu ?: settings.mtu,
             serverPublicKey,
-            endpoint,
+            publicEndpoint,
             settings.keepalive,
             policy.allowedNetworks,
         )
         Config.parse(BufferedReader(StringReader(conf)))
         return conf
     }
+
+    private suspend fun resolveEndpoint(
+        companionEndpoint: CompanionEndpoint,
+        iface: CompanionWireGuardInterface,
+        settings: ServerSettings,
+    ): String = settings.endpoint.takeIf(ServerSettingsValidator::isEndpoint)
+        ?: client.endpointCandidate(companionEndpoint, iface.id)
 
     private fun subnetBase(iface: CompanionWireGuardInterface, settings: ServerSettings): String {
         val address = iface.addresses.firstOrNull()?.substringBefore('/') ?: return settings.subnetBase
