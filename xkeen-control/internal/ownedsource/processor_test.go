@@ -12,6 +12,7 @@ import (
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/diagnostics"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
+	"github.com/apex-intellect/keenwg/xkeen-control/internal/subscription"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/transaction"
 )
 
@@ -35,6 +36,28 @@ func TestPrepareProjectsDistinctNodesWithoutSecrets(t *testing.T) {
 	prepared.Clear()
 	if !allZero(prepared.Payload) {
 		t.Fatal("prepared private payload was not erased")
+	}
+}
+
+func TestPrepareCarriesPublicSubscriptionMetadata(t *testing.T) {
+	title := "Community VPN"
+	upload, download, total, expires := int64(10), int64(20), int64(100), int64(1850601905)
+	processor := NewProcessor(&fakeFetcher{
+		body: []byte(ownedLink("11111111-2222-4333-8444-555555555555", "NL 1")),
+		metadata: subscription.Metadata{
+			ProfileTitle: title,
+			UploadBytes:  &upload, DownloadBytes: &download, TotalBytes: &total, ExpiresAt: &expires,
+		},
+	}, &fakeDiagnostics{}, &fakeController{version: 7}, &fakeEngine{}, nil)
+
+	prepared, err := processor.Prepare(context.Background(), "source-one", catalog.SourceSubscription, []byte("https://provider.example/private"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer prepared.Clear()
+	if prepared.Subscription == nil || prepared.Subscription.ProfileTitle != title ||
+		prepared.Subscription.DownloadBytes == nil || *prepared.Subscription.DownloadBytes != download {
+		t.Fatalf("subscription=%+v", prepared.Subscription)
 	}
 }
 
@@ -99,12 +122,13 @@ func TestPrepareAcceptsBase64SubscriptionAndDNSFailureNeverActivates(t *testing.
 }
 
 type fakeFetcher struct {
-	body []byte
-	err  error
+	body     []byte
+	metadata subscription.Metadata
+	err      error
 }
 
-func (f *fakeFetcher) Fetch(context.Context, string, int64) ([]byte, error) {
-	return append([]byte(nil), f.body...), f.err
+func (f *fakeFetcher) FetchWithMetadata(context.Context, string, int64) (subscription.Download, error) {
+	return subscription.Download{Body: append([]byte(nil), f.body...), Metadata: f.metadata}, f.err
 }
 
 type fakeDiagnostics struct{ report diagnostics.Report }

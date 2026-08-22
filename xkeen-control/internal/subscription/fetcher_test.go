@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +10,50 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestFetcherPreservesHappSubscriptionMetadata(t *testing.T) {
+	title := base64.StdEncoding.EncodeToString([]byte("ScufVPN 🐵"))
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("profile-title", "base64:"+title)
+		w.Header().Set("subscription-userinfo", "upload=1024; download=2048; total=10737418240; expire=1850601905")
+		_, _ = w.Write([]byte("subscription-body"))
+	}))
+	defer server.Close()
+
+	download, err := (&Fetcher{Client: server.Client()}).FetchWithMetadata(context.Background(), server.URL, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(download.Body) != "subscription-body" || download.Metadata.ProfileTitle != "ScufVPN 🐵" {
+		t.Fatalf("download=%+v", download)
+	}
+	if download.Metadata.UploadBytes == nil || *download.Metadata.UploadBytes != 1024 ||
+		download.Metadata.DownloadBytes == nil || *download.Metadata.DownloadBytes != 2048 ||
+		download.Metadata.TotalBytes == nil || *download.Metadata.TotalBytes != 10737418240 ||
+		download.Metadata.ExpiresAt == nil || *download.Metadata.ExpiresAt != 1850601905 {
+		t.Fatalf("metadata=%+v", download.Metadata)
+	}
+}
+
+func TestFetcherReadsBodyMetadataAndIgnoresMalformedValues(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintln(w, "#profile-title: Body VPN")
+		_, _ = fmt.Fprintln(w, "#subscription-userinfo: upload=nope; download=42; total=-1; expire=0")
+		_, _ = fmt.Fprintln(w, "vless://11111111-2222-4333-8444-555555555555@vpn.example:443?type=tcp")
+	}))
+	defer server.Close()
+
+	download, err := (&Fetcher{Client: server.Client()}).FetchWithMetadata(context.Background(), server.URL, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if download.Metadata.ProfileTitle != "Body VPN" || download.Metadata.DownloadBytes == nil || *download.Metadata.DownloadBytes != 42 {
+		t.Fatalf("metadata=%+v", download.Metadata)
+	}
+	if download.Metadata.UploadBytes != nil || download.Metadata.TotalBytes != nil || download.Metadata.ExpiresAt != nil {
+		t.Fatalf("malformed metadata must be ignored: %+v", download.Metadata)
+	}
+}
 
 func TestFetcherBoundsBodyAndBlocksHTTPSDowngrade(t *testing.T) {
 	t.Run("downgrade", func(t *testing.T) {

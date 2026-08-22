@@ -38,7 +38,7 @@ func Parse(payload []byte, maxNodes int) (Result, error) {
 	if err != nil {
 		return result, ErrInvalidSubscription
 	}
-	lines := nonEmptyLines(decoded)
+	lines := subscriptionNodeLines(nonEmptyLines(decoded))
 	if len(lines) > maxNodes {
 		return result, ErrTooManyNodes
 	}
@@ -61,6 +61,18 @@ func Parse(payload []byte, maxNodes int) (Result, error) {
 		return result, ErrNoSupportedNodes
 	}
 	return result, nil
+}
+
+func subscriptionNodeLines(lines []string) []string {
+	result := make([]string, 0, len(lines))
+	for _, line := range lines {
+		lower := strings.ToLower(line)
+		if strings.HasPrefix(lower, "#profile-title:") || strings.HasPrefix(lower, "#subscription-userinfo:") {
+			continue
+		}
+		result = append(result, line)
+	}
+	return result
 }
 
 func decodeRawOrBase64(payload []byte) ([]byte, error) {

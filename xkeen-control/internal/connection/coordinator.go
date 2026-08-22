@@ -30,7 +30,7 @@ type Store interface {
 	LookupResult(context.Context, string, string) (catalog.RecordedResult, bool, error)
 	SourceSecret(context.Context, string) ([]byte, map[string]string, error)
 	SourceProjection(context.Context, string) ([]byte, error)
-	ReplaceOwnedProjection(context.Context, uint64, string, string, string, []catalog.Node, []byte, catalog.RecordedResult) (catalog.Document, error)
+	ReplaceOwnedProjection(context.Context, uint64, string, string, string, []catalog.Node, []byte, *catalog.SubscriptionInfo, catalog.RecordedResult) (catalog.Document, error)
 	CommitOwnedActivation(context.Context, uint64, string, string, string, catalog.RecordedResult) (catalog.Document, error)
 }
 
@@ -124,7 +124,7 @@ func (c *Coordinator) RefreshSource(ctx context.Context, reviewed uint64, key, s
 		}
 		defer prepared.Clear()
 		recorded := catalog.RecordedResult{Kind: "refresh", Result: adapter.ResultCommitted, ObservedUnix: c.now().Unix()}
-		updated, err := c.store.ReplaceOwnedProjection(ctx, reviewed, key, digest, sourceID, prepared.Nodes, prepared.Payload, recorded)
+		updated, err := c.store.ReplaceOwnedProjection(ctx, reviewed, key, digest, sourceID, prepared.Nodes, prepared.Payload, prepared.Subscription, recorded)
 		if err != nil {
 			return c.persistFailure(ctx, reviewed, key, digest, err)
 		}

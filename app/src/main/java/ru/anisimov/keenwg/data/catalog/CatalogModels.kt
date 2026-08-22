@@ -27,6 +27,16 @@ data class CatalogSource(
     val warnings: List<String>,
     val foreign: Boolean,
     @SerialName("adapter_state_version") val adapterStateVersion: ULong = 0u,
+    @SerialName("subscription_info") val subscriptionInfo: CatalogSubscriptionInfo? = null,
+)
+
+@Serializable
+data class CatalogSubscriptionInfo(
+    @SerialName("profile_title") val profileTitle: String = "",
+    @SerialName("upload_bytes") val uploadBytes: Long? = null,
+    @SerialName("download_bytes") val downloadBytes: Long? = null,
+    @SerialName("total_bytes") val totalBytes: Long? = null,
+    @SerialName("expires_at") val expiresAt: Long? = null,
 )
 
 @Serializable

@@ -229,9 +229,13 @@ func TestOwnedProjectionPersistsPrivatePayloadAtomicallyAndErasesInput(t *testin
 	payload := []byte("vless://private-native-node@vpn.example:443")
 	result := RecordedResult{Kind: "refresh", Result: "committed", ObservedUnix: 100}
 
-	updated, err := store.ReplaceOwnedProjection(context.Background(), document.StateVersion, "refresh-owned-0001", requestDigest("owned"), sourceID, []Node{node}, payload, result)
+	metadata := &SubscriptionInfo{ProfileTitle: "Community VPN"}
+	updated, err := store.ReplaceOwnedProjection(context.Background(), document.StateVersion, "refresh-owned-0001", requestDigest("owned"), sourceID, []Node{node}, payload, metadata, result)
 	if err != nil || len(updated.Nodes) != 1 || updated.Sources[0].Status != SourceReady {
 		t.Fatalf("updated=%+v err=%v", updated, err)
+	}
+	if updated.Sources[0].Subscription == nil || updated.Sources[0].Subscription.ProfileTitle != "Community VPN" {
+		t.Fatalf("subscription metadata was not persisted: %+v", updated.Sources[0].Subscription)
 	}
 	if !bytes.Equal(payload, make([]byte, len(payload))) {
 		t.Fatal("private payload was not erased")
@@ -249,7 +253,7 @@ func TestOwnedProjectionPersistsPrivatePayloadAtomicallyAndErasesInput(t *testin
 	replacement := node
 	replacement.ID = "owned-new"
 	replacementPayload := []byte("vless://replacement-private@vpn.example:443")
-	if _, err := store.ReplaceOwnedProjection(context.Background(), updated.StateVersion, "refresh-owned-0004", requestDigest("replacement"), sourceID, []Node{replacement}, replacementPayload, result); !errors.Is(err, ErrStorage) {
+	if _, err := store.ReplaceOwnedProjection(context.Background(), updated.StateVersion, "refresh-owned-0004", requestDigest("replacement"), sourceID, []Node{replacement}, replacementPayload, nil, result); !errors.Is(err, ErrStorage) {
 		t.Fatalf("replace error=%v", err)
 	}
 	after, _ := store.Snapshot(context.Background())
@@ -272,7 +276,7 @@ func TestOwnedActivationMarksOnlyXKeenAndCatalogNodes(t *testing.T) {
 	}
 	sourceID := document.Sources[1].ID
 	owned := Node{ID: "owned-active", SourceID: sourceID, GroupID: "primary", DisplayName: "Owned", Protocol: ProtocolVLESS, Host: "owned.example", Port: 443, Testable: true, Activatable: true, Warnings: []string{}}
-	document, err = store.ReplaceOwnedProjection(context.Background(), document.StateVersion, "refresh-owned-0002", requestDigest("refresh"), sourceID, []Node{owned}, []byte("payload"), RecordedResult{Kind: "refresh", Result: "committed"})
+	document, err = store.ReplaceOwnedProjection(context.Background(), document.StateVersion, "refresh-owned-0002", requestDigest("refresh"), sourceID, []Node{owned}, []byte("payload"), nil, RecordedResult{Kind: "refresh", Result: "committed"})
 	if err != nil {
 		t.Fatal(err)
 	}

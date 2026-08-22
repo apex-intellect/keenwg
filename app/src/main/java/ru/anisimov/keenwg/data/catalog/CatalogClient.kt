@@ -118,6 +118,7 @@ class CatalogClient(
         val base = validatedBaseUrl(profile)
         val url = base.resolve(path) ?: throw CatalogException(CatalogErrorCode.INVALID_SETTINGS)
         val request = Request.Builder().url(url).header("Accept", "application/json")
+            .header("KeenWG-Catalog-Features", "subscription-metadata-v1")
             .header("Cache-Control", "no-store").header("Authorization", "Bearer $token")
             .method(method, body?.toRequestBody(JSON_MEDIA_TYPE)).build()
         val response = try {

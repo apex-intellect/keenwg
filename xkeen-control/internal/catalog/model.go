@@ -54,17 +54,26 @@ type Group struct {
 }
 
 type Source struct {
-	ID                  string       `json:"id"`
-	GroupID             string       `json:"group_id"`
-	Kind                SourceKind   `json:"kind"`
-	Label               string       `json:"label"`
-	AdapterID           string       `json:"adapter_id"`
-	Status              SourceStatus `json:"status"`
-	NodeCount           int          `json:"node_count"`
-	LastRefresh         *time.Time   `json:"last_refresh,omitempty"`
-	Warnings            []string     `json:"warnings"`
-	Foreign             bool         `json:"foreign"`
-	AdapterStateVersion uint64       `json:"adapter_state_version,omitempty"`
+	ID                  string            `json:"id"`
+	GroupID             string            `json:"group_id"`
+	Kind                SourceKind        `json:"kind"`
+	Label               string            `json:"label"`
+	AdapterID           string            `json:"adapter_id"`
+	Status              SourceStatus      `json:"status"`
+	NodeCount           int               `json:"node_count"`
+	LastRefresh         *time.Time        `json:"last_refresh,omitempty"`
+	Warnings            []string          `json:"warnings"`
+	Foreign             bool              `json:"foreign"`
+	AdapterStateVersion uint64            `json:"adapter_state_version,omitempty"`
+	Subscription        *SubscriptionInfo `json:"subscription_info,omitempty"`
+}
+
+type SubscriptionInfo struct {
+	ProfileTitle  string `json:"profile_title,omitempty"`
+	UploadBytes   *int64 `json:"upload_bytes,omitempty"`
+	DownloadBytes *int64 `json:"download_bytes,omitempty"`
+	TotalBytes    *int64 `json:"total_bytes,omitempty"`
+	ExpiresAt     *int64 `json:"expires_at,omitempty"`
 }
 
 type Node struct {
@@ -118,7 +127,8 @@ func (d Document) Validate() error {
 	sources := make(map[string]struct{}, len(d.Sources))
 	for _, source := range d.Sources {
 		if !opaqueID.MatchString(source.ID) || !opaqueID.MatchString(source.GroupID) || !opaqueID.MatchString(source.AdapterID) ||
-			!validLabel(source.Label) || !validSourceKind(source.Kind) || !validSourceStatus(source.Status) || source.NodeCount < 0 {
+			!validLabel(source.Label) || !validSourceKind(source.Kind) || !validSourceStatus(source.Status) || source.NodeCount < 0 ||
+			!validSubscriptionInfo(source.Subscription) {
 			return errors.New("invalid catalog source")
 		}
 		if _, exists := groups[source.GroupID]; !exists {
@@ -157,6 +167,24 @@ func (d Document) Validate() error {
 		}
 	}
 	return nil
+}
+
+func validSubscriptionInfo(value *SubscriptionInfo) bool {
+	if value == nil {
+		return true
+	}
+	if value.ProfileTitle != "" && !validLabel(value.ProfileTitle) {
+		return false
+	}
+	for _, field := range []*int64{value.UploadBytes, value.DownloadBytes, value.TotalBytes, value.ExpiresAt} {
+		if field != nil && *field < 0 {
+			return false
+		}
+	}
+	if value.ExpiresAt != nil && *value.ExpiresAt > 253402300799 {
+		return false
+	}
+	return true
 }
 
 func validLabel(value string) bool {

@@ -111,7 +111,7 @@ class ConnectionsViewModel(
     fun saveImport(label: String, groupId: String): Job = viewModelScope.launch {
         val pending = _state.value.pendingImport ?: return@launch
         val catalog = _state.value.catalog ?: return@launch
-        if (label.isBlank() || catalog.groups.none { it.id == groupId }) {
+        if (catalog.groups.none { it.id == groupId }) {
             _state.value = _state.value.copy(messageResource = R.string.connections_message_choose_group_and_name)
             return@launch
         }
@@ -122,12 +122,20 @@ class ConnectionsViewModel(
         }
         val active = activeProfile.first() ?: return@launch
         try {
+            val previousSourceIds = catalog.sources.mapTo(mutableSetOf()) { it.id }
+            val safeLabel = label.trim().takeUnless {
+                it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true)
+            }.orEmpty().ifBlank { pending.preview.host }
             val operation = gateway.saveSource(
                 active.profile, active.secrets.companionToken, catalog.stateVersion, keyFactory(),
-                CatalogSourceDraft(groupId, pending.preview.sourceKind, label.trim(), "catalog"), source,
+                CatalogSourceDraft(groupId, pending.preview.sourceKind, safeLabel, "catalog"), source,
             )
             applyOperation(operation)
             _state.value = _state.value.copy(pendingImport = null)
+            operation.catalog?.sources
+                ?.firstOrNull { it.id !in previousSourceIds }
+                ?.id
+                ?.let { refreshSourceNow(it, announceSuccess = false) }
         } catch (_: Exception) {
             _state.value = _state.value.copy(pendingImport = null, messageResource = R.string.connections_message_save_source_failed)
         } finally {
@@ -148,6 +156,36 @@ class ConnectionsViewModel(
             return viewModelScope.launch { }
         }
         return viewModelScope.launch { refreshSourceNow(sourceId) }
+    }
+
+    fun deleteSource(sourceId: String): Job = viewModelScope.launch {
+        val current = _state.value
+        val catalog = current.catalog ?: return@launch
+        val source = catalog.sources.firstOrNull { it.id == sourceId } ?: return@launch
+        if (source.foreign || source.adapterId != "catalog" || sourceId in current.busySources) return@launch
+        val active = activeProfile.first() ?: return@launch
+        _state.value = current.copy(
+            busySources = current.busySources + sourceId,
+            sourceActions = current.sourceActions + (sourceId to SourceActionState.DELETING),
+            messageResource = null,
+            notice = null,
+        )
+        try {
+            applyOperation(gateway.deleteSource(
+                active.profile,
+                active.secrets.companionToken,
+                catalog.stateVersion,
+                keyFactory(),
+                sourceId,
+            ))
+        } catch (_: Exception) {
+            reconcile(R.string.connections_message_delete_source_failed, ConnectionNotice.ActionFailed)
+        } finally {
+            _state.value = _state.value.copy(
+                busySources = _state.value.busySources - sourceId,
+                sourceActions = _state.value.sourceActions - sourceId,
+            )
+        }
     }
 
     fun dismissSubscriptionEditor() {
@@ -252,14 +290,15 @@ class ConnectionsViewModel(
         _state.value = _state.value.copy(pendingActivation = null, busyNodes = _state.value.busyNodes - target.id)
     }
 
-    private suspend fun refreshSourceNow(sourceId: String) {
-        mutateSourceNow(sourceId) { profile, token, version ->
+    private suspend fun refreshSourceNow(sourceId: String, announceSuccess: Boolean = true) {
+        mutateSourceNow(sourceId, announceSuccess) { profile, token, version ->
             gateway.refreshSource(profile.profile, token, version, keyFactory(), sourceId)
         }
     }
 
     private suspend fun mutateSourceNow(
         sourceId: String,
+        announceSuccess: Boolean,
         call: suspend (ActiveRouterProfile, String, ULong) -> CatalogOperation,
     ) {
         val current = _state.value
@@ -291,7 +330,9 @@ class ConnectionsViewModel(
                 ?.nodeCount
                 ?: catalog.sources.firstOrNull { it.id == sourceId }?.nodeCount
                 ?: 0
-            applyOperation(operation, connectionOperationNotice(operation.result, operation.error, serverCount))
+            val notice = connectionOperationNotice(operation.result, operation.error, serverCount)
+                .takeIf { announceSuccess || it !is ConnectionNotice.SubscriptionUpdated }
+            applyOperation(operation, notice)
         } catch (_: Exception) {
             reconcile(R.string.connections_message_refresh_failed, ConnectionNotice.ActionFailed)
         } finally {

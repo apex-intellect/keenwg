@@ -4,13 +4,18 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/adapter"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/catalog"
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/connection"
 )
 
-const maxCatalogMutationBody int64 = 1 << 20
+const (
+	maxCatalogMutationBody             int64 = 1 << 20
+	catalogFeaturesHeader                    = "KeenWG-Catalog-Features"
+	catalogFeatureSubscriptionMetadata       = "subscription-metadata-v1"
+)
 
 type CatalogStore interface {
 	Snapshot(context.Context) (catalog.Document, error)
@@ -46,10 +51,10 @@ func (s *SecureServer) handleCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 	document, err := s.catalog.Snapshot(r.Context())
 	if err != nil {
-		writeCatalogResult(w, http.StatusServiceUnavailable, "uncertain", nil, "catalog_unavailable")
+		writeCatalogResult(w, http.StatusServiceUnavailable, "uncertain", nil, "catalog_unavailable", "")
 		return
 	}
-	writeJSON(w, http.StatusOK, document)
+	writeJSON(w, http.StatusOK, catalogForFeatures(document, r.Header.Get(catalogFeaturesHeader)))
 }
 
 func (s *SecureServer) handleCatalogMutation(w http.ResponseWriter, r *http.Request) {
@@ -104,10 +109,10 @@ func (s *SecureServer) handleConnectionOperation(w http.ResponseWriter, r *http.
 	default:
 		result = s.connections.ActivateNode(r.Context(), request.StateVersion, request.IdempotencyKey, id)
 	}
-	writeConnectionResult(w, result)
+	writeConnectionResult(w, result, r.Header.Get(catalogFeaturesHeader))
 }
 
-func writeConnectionResult(w http.ResponseWriter, result connection.Result) {
+func writeConnectionResult(w http.ResponseWriter, result connection.Result, features string) {
 	status := http.StatusOK
 	if result.Result == adapter.ResultRejected {
 		status = http.StatusConflict
@@ -122,7 +127,8 @@ func writeConnectionResult(w http.ResponseWriter, result connection.Result) {
 	}
 	var document *catalog.Document
 	if result.Catalog.SchemaVersion != 0 {
-		document = &result.Catalog
+		projected := catalogForFeatures(result.Catalog, features)
+		document = &projected
 	}
 	writeJSON(w, status, catalogOperationEnvelope{
 		SchemaVersion: 1, Result: result.Result, Catalog: document, Test: result.Test, Error: result.ErrorCode,
@@ -142,7 +148,7 @@ func (s *SecureServer) handleCreateCatalogGroup(w http.ResponseWriter, r *http.R
 		return
 	}
 	document, err := s.catalog.CreateGroup(r.Context(), request.StateVersion, request.IdempotencyKey, request.Label)
-	writeCatalogMutation(w, document, err)
+	writeCatalogMutation(w, document, err, r.Header.Get(catalogFeaturesHeader))
 }
 
 func (s *SecureServer) handleCreateCatalogSource(w http.ResponseWriter, r *http.Request) {
@@ -166,7 +172,7 @@ func (s *SecureServer) handleCreateCatalogSource(w http.ResponseWriter, r *http.
 	document, err := s.catalog.CreateSource(r.Context(), request.StateVersion, request.IdempotencyKey, catalog.SourceDraft{
 		GroupID: request.GroupID, Kind: request.Kind, Label: request.Label, AdapterID: request.AdapterID,
 	}, secret)
-	writeCatalogMutation(w, document, err)
+	writeCatalogMutation(w, document, err, r.Header.Get(catalogFeaturesHeader))
 }
 
 func (s *SecureServer) handleDeleteCatalogSource(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +190,7 @@ func (s *SecureServer) handleDeleteCatalogSource(w http.ResponseWriter, r *http.
 		return
 	}
 	document, err := s.catalog.DeleteSource(r.Context(), request.StateVersion, request.IdempotencyKey, sourceID)
-	writeCatalogMutation(w, document, err)
+	writeCatalogMutation(w, document, err, r.Header.Get(catalogFeaturesHeader))
 }
 
 func validCatalogSchema(w http.ResponseWriter, version int) bool {
@@ -195,25 +201,45 @@ func validCatalogSchema(w http.ResponseWriter, version int) bool {
 	return true
 }
 
-func writeCatalogMutation(w http.ResponseWriter, document catalog.Document, err error) {
+func writeCatalogMutation(w http.ResponseWriter, document catalog.Document, err error, features string) {
 	if err == nil {
-		writeCatalogResult(w, http.StatusOK, "committed", &document, "")
+		writeCatalogResult(w, http.StatusOK, "committed", &document, "", features)
 		return
 	}
 	switch {
 	case errors.Is(err, catalog.ErrStaleState):
-		writeCatalogResult(w, http.StatusConflict, "rejected", nil, "stale_state")
+		writeCatalogResult(w, http.StatusConflict, "rejected", nil, "stale_state", features)
 	case errors.Is(err, catalog.ErrOperationConflict):
-		writeCatalogResult(w, http.StatusConflict, "rejected", nil, "idempotency_conflict")
+		writeCatalogResult(w, http.StatusConflict, "rejected", nil, "idempotency_conflict", features)
 	case errors.Is(err, catalog.ErrNotFound):
-		writeCatalogResult(w, http.StatusNotFound, "rejected", nil, "not_found")
+		writeCatalogResult(w, http.StatusNotFound, "rejected", nil, "not_found", features)
 	case errors.Is(err, catalog.ErrInvalid), errors.Is(err, catalog.ErrLimit):
-		writeCatalogResult(w, http.StatusBadRequest, "rejected", nil, "invalid_request")
+		writeCatalogResult(w, http.StatusBadRequest, "rejected", nil, "invalid_request", features)
 	default:
-		writeCatalogResult(w, http.StatusServiceUnavailable, "uncertain", nil, "catalog_unavailable")
+		writeCatalogResult(w, http.StatusServiceUnavailable, "uncertain", nil, "catalog_unavailable", features)
 	}
 }
 
-func writeCatalogResult(w http.ResponseWriter, status int, result string, document *catalog.Document, code string) {
+func writeCatalogResult(w http.ResponseWriter, status int, result string, document *catalog.Document, code, features string) {
+	if document != nil {
+		projected := catalogForFeatures(*document, features)
+		document = &projected
+	}
 	writeJSON(w, status, catalogOperationEnvelope{SchemaVersion: 1, Result: result, Catalog: document, Error: code})
+}
+
+func catalogForFeatures(document catalog.Document, features string) catalog.Document {
+	for _, feature := range strings.FieldsFunc(features, func(character rune) bool {
+		return character == ',' || character == ' ' || character == '\t'
+	}) {
+		if feature == catalogFeatureSubscriptionMetadata {
+			return document
+		}
+	}
+	projected := document
+	projected.Sources = append([]catalog.Source(nil), document.Sources...)
+	for index := range projected.Sources {
+		projected.Sources[index].Subscription = nil
+	}
+	return projected
 }

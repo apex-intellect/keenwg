@@ -27,6 +27,30 @@ internal fun sourceDisplayKind(source: CatalogSource): SourceDisplayKind =
         SourceDisplayKind.CUSTOM
     }
 
+internal fun sourceCanRefresh(source: CatalogSource): Boolean = source.foreign ||
+    (source.adapterId == "catalog" && source.kind in setOf(
+        ru.anisimov.keenwg.data.catalog.CatalogSourceKind.SUBSCRIPTION,
+        ru.anisimov.keenwg.data.catalog.CatalogSourceKind.SHARE_LINK,
+    ))
+
+internal fun sourceDisplayTitle(source: CatalogSource): String? {
+    source.subscriptionInfo?.profileTitle?.let(::safeVisibleSourceLabel)?.let { return it }
+    return safeVisibleSourceLabel(source.label)
+}
+
+private fun safeVisibleSourceLabel(value: String): String? = value.trim().takeIf {
+    it.isNotEmpty() && !it.startsWith("http://", true) && !it.startsWith("https://", true)
+}
+
+internal fun subscriptionUsedBytes(source: CatalogSource): Long? {
+    val info = source.subscriptionInfo ?: return null
+    if (info.uploadBytes == null && info.downloadBytes == null) return null
+    return (info.uploadBytes ?: 0L).let { upload ->
+        val download = info.downloadBytes ?: 0L
+        if (Long.MAX_VALUE - upload < download) Long.MAX_VALUE else upload + download
+    }
+}
+
 internal fun groupDisplayKind(group: CatalogGroup): GroupDisplayKind =
     if (group.id == "primary") GroupDisplayKind.PRIMARY else GroupDisplayKind.CUSTOM
 
@@ -81,7 +105,7 @@ internal fun connectionCards(document: CatalogDocument, groupId: String?): List<
                 title = node.displayName,
                 subtitle = "${node.host}:${node.port} · ${node.protocol.name.lowercase()}",
                 sourceKind = source?.let(::sourceDisplayKind) ?: SourceDisplayKind.CUSTOM,
-                customSourceLabel = source?.label?.takeIf(String::isNotBlank) ?: "VPN",
+                customSourceLabel = source?.let(::sourceDisplayTitle) ?: "VPN",
                 active = node.active,
                 testable = node.testable,
                 activatable = node.activatable,

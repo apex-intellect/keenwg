@@ -28,7 +28,7 @@ var (
 )
 
 type Fetcher interface {
-	Fetch(context.Context, string, int64) ([]byte, error)
+	FetchWithMetadata(context.Context, string, int64) (subscription.Download, error)
 }
 
 type DiagnosticChecker interface {
@@ -45,8 +45,9 @@ type Engine interface {
 }
 
 type Prepared struct {
-	Nodes   []catalog.Node
-	Payload []byte
+	Nodes        []catalog.Node
+	Payload      []byte
+	Subscription *catalog.SubscriptionInfo
 }
 
 func (p *Prepared) Clear() {
@@ -76,13 +77,18 @@ func (p *Processor) Prepare(ctx context.Context, sourceID string, kind catalog.S
 		return Prepared{}, ErrSourceUnavailable
 	}
 	var payload []byte
+	var subscriptionInfo *catalog.SubscriptionInfo
 	var err error
 	switch kind {
 	case catalog.SourceSubscription:
 		if p.fetcher == nil {
 			return Prepared{}, ErrSourceUnavailable
 		}
-		payload, err = p.fetcher.Fetch(ctx, string(raw), maxOwnedSourceBytes)
+		download, fetchErr := p.fetcher.FetchWithMetadata(ctx, string(raw), maxOwnedSourceBytes)
+		payload, err = download.Body, fetchErr
+		if fetchErr == nil {
+			subscriptionInfo = projectSubscriptionInfo(download.Metadata)
+		}
 	case catalog.SourceShareLink:
 		payload = append([]byte(nil), raw...)
 	default:
@@ -101,7 +107,18 @@ func (p *Processor) Prepare(ctx context.Context, sourceID string, kind catalog.S
 	for index := range native {
 		nodes[index] = projectNode(sourceID, native[index])
 	}
-	return Prepared{Nodes: nodes, Payload: payload}, nil
+	return Prepared{Nodes: nodes, Payload: payload, Subscription: subscriptionInfo}, nil
+}
+
+func projectSubscriptionInfo(metadata subscription.Metadata) *catalog.SubscriptionInfo {
+	if metadata.ProfileTitle == "" && metadata.UploadBytes == nil && metadata.DownloadBytes == nil && metadata.TotalBytes == nil && metadata.ExpiresAt == nil {
+		return nil
+	}
+	return &catalog.SubscriptionInfo{
+		ProfileTitle: metadata.ProfileTitle,
+		UploadBytes:  metadata.UploadBytes, DownloadBytes: metadata.DownloadBytes,
+		TotalBytes: metadata.TotalBytes, ExpiresAt: metadata.ExpiresAt,
+	}
 }
 
 func (p *Processor) Test(ctx context.Context, sourceID, nodeID string, payload []byte) adapter.TestResult {

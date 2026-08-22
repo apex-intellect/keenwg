@@ -29,6 +29,7 @@ class CatalogClientTest {
         fixture.server.takeRequest().also {
             assertEquals("/v1/connections/catalog", it.path)
             assertEquals("Bearer viewer-token", it.getHeader("Authorization"))
+            assertEquals("subscription-metadata-v1", it.getHeader("KeenWG-Catalog-Features"))
         }
         fixture.server.takeRequest().also {
             assertEquals("POST", it.method)
@@ -75,6 +76,20 @@ class CatalogClientTest {
         }
         assertEquals(CatalogErrorCode.UNSUPPORTED_SCHEMA, failure.code)
         assertFalse(failure.message.orEmpty().contains("must-not-escape"))
+        fixture.close()
+    }
+
+    @Test fun `snapshot decodes public subscription metadata without exposing its link`() = runTest {
+        val source = """{"id":"owned-source","group_id":"primary","kind":"subscription","label":"provider.example","adapter_id":"catalog","status":"ready","node_count":0,"warnings":[],"foreign":false,"subscription_info":{"profile_title":"ScufVPN","upload_bytes":10,"download_bytes":20,"total_bytes":100,"expires_at":1850601905}}"""
+        val body = catalogJson(2u).replace("\"sources\":[]", "\"sources\":[$source]")
+        val fixture = tlsServer(MockResponse().setBody(body))
+
+        val snapshot = CatalogClient().snapshot(fixture.profile, "viewer-token")
+
+        val info = snapshot.sources.single().subscriptionInfo
+        assertEquals("ScufVPN", info?.profileTitle)
+        assertEquals(20L, info?.downloadBytes)
+        assertFalse(body.contains("private-token"))
         fixture.close()
     }
 

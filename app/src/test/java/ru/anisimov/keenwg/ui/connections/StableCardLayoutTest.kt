@@ -26,7 +26,8 @@ class StableCardLayoutTest {
         val connections = source("connections/ConnectionsScreen.kt")
 
         assertTrue(connections.contains("ConnectionToolbar"))
-        assertTrue(connections.contains("SubscriptionSourceActions"))
+        assertTrue(connections.contains("SubscriptionSources"))
+        assertTrue(connections.contains("heightIn(min = 72.dp)"))
         assertFalse(connections.contains("item { Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()"))
     }
 
