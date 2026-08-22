@@ -93,6 +93,17 @@
     </plurals>
     <string name="connections_source_xkeen">XKeen subscription</string>
     <string name="connections_source_xkeen_node">From XKeen subscription</string>
+    <string name="connections_source_generic">VPN subscription</string>
+    <string name="connections_source_actions">Subscription actions</string>
+    <string name="connections_source_delete">Delete</string>
+    <string name="connections_source_delete_title">Delete subscription?</string>
+    <string name="connections_source_delete_detail">“%1$s” and its servers will be removed from the router.</string>
+    <string name="connections_subscription_traffic">%1$s of %2$s</string>
+    <string name="connections_subscription_traffic_unlimited">%1$s / ∞</string>
+    <string name="connections_subscription_traffic_used">Used %1$s</string>
+    <string name="connections_subscription_expires">until %1$s</string>
+    <string name="connections_import_name_optional">Name (optional)</string>
+    <string name="connections_import_name_helper">If the provider supplies a name, KeenWG will use it after downloading.</string>
     <string name="connections_group_primary">Main</string>
     <string name="connections_subscription_helper">Download current countries and servers from your link. Your active VPN server will not change.</string>
     <string name="connections_subscription_stale">A fresh list is needed</string>
@@ -781,7 +792,8 @@
     <string name="xkeen_message_operation_failed">Could not complete the XKeen action</string>
     <string name="xkeen_message_diagnostics_failed">Could not check server availability</string>
     <string name="connections_message_import_unrecognized">Could not recognize this connection source</string>
-    <string name="connections_message_choose_group_and_name">Choose a group and enter a name</string>
+    <string name="connections_message_choose_group_and_name">Choose a group</string>
+    <string name="connections_message_delete_source_failed">Could not delete the subscription. Try again.</string>
     <string name="connections_message_import_expired">The import draft expired. Add the source again.</string>
     <string name="connections_message_save_source_failed">Could not save the connection source</string>
     <string name="connections_message_test_failed">Could not check this server</string>

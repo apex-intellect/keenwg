@@ -309,6 +309,7 @@ func (s *Store) ReplaceOwnedProjection(
 	key, digest, sourceID string,
 	nodes []Node,
 	payload []byte,
+	subscription *SubscriptionInfo,
 	result RecordedResult,
 ) (Document, error) {
 	defer secretZero(payload)
@@ -351,6 +352,7 @@ func (s *Store) ReplaceOwnedProjection(
 		next.Nodes = append(filterNodes(next.Nodes, sourceID), projected...)
 		next.Sources[index].NodeCount = len(projected)
 		next.Sources[index].Status = SourceReady
+		next.Sources[index].Subscription = cloneSubscriptionInfo(subscription)
 		refreshed := s.now().UTC()
 		next.Sources[index].LastRefresh = &refreshed
 		return nil
@@ -735,8 +737,33 @@ func cloneSources(values []Source) []Source {
 			copyValue := *result[index].LastRefresh
 			result[index].LastRefresh = &copyValue
 		}
+		result[index].Subscription = cloneSubscriptionInfo(result[index].Subscription)
 	}
 	return result
+}
+
+func cloneSubscriptionInfo(value *SubscriptionInfo) *SubscriptionInfo {
+	if value == nil {
+		return nil
+	}
+	result := *value
+	if value.UploadBytes != nil {
+		copyValue := *value.UploadBytes
+		result.UploadBytes = &copyValue
+	}
+	if value.DownloadBytes != nil {
+		copyValue := *value.DownloadBytes
+		result.DownloadBytes = &copyValue
+	}
+	if value.TotalBytes != nil {
+		copyValue := *value.TotalBytes
+		result.TotalBytes = &copyValue
+	}
+	if value.ExpiresAt != nil {
+		copyValue := *value.ExpiresAt
+		result.ExpiresAt = &copyValue
+	}
+	return &result
 }
 
 func cloneNodes(values []Node) []Node {

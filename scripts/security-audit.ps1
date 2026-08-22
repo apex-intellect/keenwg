@@ -34,7 +34,7 @@ function Quote-Sh([string]$Value) {
 }
 
 $goVersion = (& wsl.exe -e $LinuxGoExecutable version).Trim()
-if ($goVersion -notmatch '^go version go1\.26\.5\s') { throw "Go 1.26.5 is required after GO-2026-5856; found: $goVersion" }
+if ($goVersion -notmatch '^go version go1\.26\.7\s') { throw "Go 1.26.7 is required for the Go 1.26.6 security fixes and the Go 1.26.7 net/http fixes; found: $goVersion" }
 $quotedGo = Quote-Sh $LinuxGoExecutable
 $wslCompanion = Wsl-Path $module
 foreach ($goModule in @(

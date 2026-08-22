@@ -4,7 +4,7 @@ KeenWG Collector is a read-only Entware daemon for aarch64 Keenetic/NetCraze rou
 
 ## Build and install
 
-Install the official Go 1.26.5 SDK without modifying the system installation, set `KEENWG_GO_ROOT` to it, and run from `collector`:
+Install the official Go 1.26.7 SDK without modifying the system installation, set `KEENWG_GO_ROOT` to it, and run from `collector`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build.ps1

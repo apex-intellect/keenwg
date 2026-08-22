@@ -15,7 +15,8 @@ KeenWG — локальная Android-панель для Keenetic и Netcraze. 
 
 - создание, включение, ротация и отзыв WireGuard-доступов;
 - несколько профилей роутеров с секретами в Android Keystore;
-- добавление VLESS-ссылок и URL подписок прямо в приложение;
+- добавление VLESS-ссылок и URL подписок прямо в приложение с немедленной загрузкой списка;
+- название, срок действия и расход трафика из совместимых с HAPP метаданных [`profile-title` и `subscription-userinfo`](https://github.com/HappDev/happ_su/blob/main/dev-docs/app-management.md);
 - ручное обновление подписки, проверка узла и подтверждённый выбор страны;
 - доменные правила, GeoSite, IP/CIDR-исключения и объяснение выбранного маршрута;
 - статические DHCP-адреса для устройств Keenetic;
@@ -87,7 +88,7 @@ Linux/macOS:
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-Companion и Collector требуют Go 1.26.5:
+Companion и Collector требуют Go 1.26.7:
 
 ```bash
 (cd xkeen-control && go test ./... && go vet ./...)

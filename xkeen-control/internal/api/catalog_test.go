@@ -56,6 +56,24 @@ func TestCatalogRoutesEnforceScopesAndNeverReturnSourceSecret(t *testing.T) {
 	assertNoSensitiveJSONKeys(t, getRecorder.Body.Bytes())
 }
 
+func TestSubscriptionMetadataRequiresExplicitCatalogFeature(t *testing.T) {
+	document := catalog.Document{
+		SchemaVersion: 1,
+		Sources: []catalog.Source{{
+			ID: "owned-source", Subscription: &catalog.SubscriptionInfo{ProfileTitle: "Community VPN"},
+		}},
+	}
+
+	legacy := catalogForFeatures(document, "")
+	if legacy.Sources[0].Subscription != nil {
+		t.Fatalf("legacy response exposed a new field: %+v", legacy.Sources[0])
+	}
+	current := catalogForFeatures(document, catalogFeatureSubscriptionMetadata)
+	if current.Sources[0].Subscription == nil || current.Sources[0].Subscription.ProfileTitle != "Community VPN" {
+		t.Fatalf("feature response lost metadata: %+v", current.Sources[0])
+	}
+}
+
 func TestCatalogMutationIsStrictReplaySafeAndRejectsStaleState(t *testing.T) {
 	legacy, _, _ := newTestServer(t)
 	devices := newSecureDeviceStore(t)

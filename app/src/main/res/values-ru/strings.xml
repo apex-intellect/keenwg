@@ -95,6 +95,17 @@
     </plurals>
     <string name="connections_source_xkeen">Подписка XKeen</string>
     <string name="connections_source_xkeen_node">Из подписки XKeen</string>
+    <string name="connections_source_generic">VPN-подписка</string>
+    <string name="connections_source_actions">Действия с подпиской</string>
+    <string name="connections_source_delete">Удалить</string>
+    <string name="connections_source_delete_title">Удалить подписку?</string>
+    <string name="connections_source_delete_detail">Список «%1$s» и его серверы будут удалены с роутера.</string>
+    <string name="connections_subscription_traffic">%1$s из %2$s</string>
+    <string name="connections_subscription_traffic_unlimited">%1$s / ∞</string>
+    <string name="connections_subscription_traffic_used">Использовано %1$s</string>
+    <string name="connections_subscription_expires">до %1$s</string>
+    <string name="connections_import_name_optional">Название (необязательно)</string>
+    <string name="connections_import_name_helper">Если провайдер передаёт название, KeenWG подставит его после загрузки.</string>
     <string name="connections_group_primary">Основные</string>
     <string name="connections_subscription_helper">Загрузить страны и серверы по вашей ссылке. Текущий VPN-сервер не изменится.</string>
     <string name="connections_subscription_stale">Нужно загрузить свежий список</string>
@@ -783,7 +794,8 @@
     <string name="xkeen_message_operation_failed">Не удалось выполнить действие XKeen</string>
     <string name="xkeen_message_diagnostics_failed">Не удалось проверить доступность серверов</string>
     <string name="connections_message_import_unrecognized">Не удалось распознать источник подключения</string>
-    <string name="connections_message_choose_group_and_name">Выберите группу и укажите название</string>
+    <string name="connections_message_choose_group_and_name">Выберите группу</string>
+    <string name="connections_message_delete_source_failed">Не удалось удалить подписку. Повторите попытку.</string>
     <string name="connections_message_import_expired">Черновик импорта устарел. Добавьте источник ещё раз.</string>
     <string name="connections_message_save_source_failed">Не удалось сохранить источник подключения</string>
     <string name="connections_message_test_failed">Не удалось проверить этот сервер</string>

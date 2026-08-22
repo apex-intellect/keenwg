@@ -48,6 +48,14 @@ func TestParseAcceptsRawAndUnpaddedBase64(t *testing.T) {
 	}
 }
 
+func TestParseIgnoresStandardSubscriptionMetadataLines(t *testing.T) {
+	payload := []byte("#profile-title: ScufVPN\n#subscription-userinfo: upload=1; download=2; total=0; expire=1850601905\n" + nl1URI)
+	got, err := Parse(payload, 1)
+	if err != nil || len(got.Nodes) != 1 || len(got.Rejected) != 0 {
+		t.Fatalf("got=%+v err=%v", got, err)
+	}
+}
+
 func TestParseAcceptsCanonicalXrayUUIDOutsideRFCVariantRange(t *testing.T) {
 	payload := strings.Replace(nl1URI, "11111111-1111-4111-8111-111111111111", "aaaaaaaa-aaaa-2aaa-eaaa-aaaaaaaaaaaa", 1)
 	got, err := Parse([]byte(payload), 1)

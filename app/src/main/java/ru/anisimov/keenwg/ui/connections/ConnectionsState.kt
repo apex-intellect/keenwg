@@ -15,7 +15,7 @@ data class TestedNode(
     val receivedAtMillis: Long,
 )
 
-enum class SourceActionState { CHECKING_CONFIGURATION, REFRESHING, SAVING_LINK }
+enum class SourceActionState { CHECKING_CONFIGURATION, REFRESHING, SAVING_LINK, DELETING }
 
 enum class SubscriptionLinkError { INVALID_LINK, PERMISSION_DENIED, UNAVAILABLE, UNSUPPORTED }
 

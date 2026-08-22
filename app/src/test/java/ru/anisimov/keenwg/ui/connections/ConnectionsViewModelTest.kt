@@ -152,7 +152,7 @@ class ConnectionsViewModelTest {
         assertEquals(listOf("Нидерланды 1", "Нидерланды 2"), cards.map { it.title })
     }
 
-    @Test fun `import requires sanitized preview and save never activates`() = runTest(dispatcher) {
+    @Test fun `import saves safely and immediately loads the new source without activating`() = runTest(dispatcher) {
         val gateway = FakeCatalogGateway()
         val drafts = FakeImportDrafts()
         val vm = ConnectionsViewModel(
@@ -168,19 +168,17 @@ class ConnectionsViewModelTest {
         assertFalse(vm.state.value.pendingImport!!.duplicateWarning)
         assertFalse(vm.state.value.pendingImport.toString().contains("11111111-2222-4333-8444-555555555555"))
         assertEquals(true, secret.all { it == 0.toByte() })
-        vm.saveImport("Личный VPN", "primary")
+        vm.saveImport("", "primary")
         advanceUntilIdle()
 
         assertEquals(1, gateway.saveCalls)
+        assertEquals("server.example", gateway.lastSavedDraft?.label)
+        assertEquals(1, gateway.refreshCalls)
         assertEquals(0, gateway.activateCalls)
         assertNull(vm.state.value.pendingImport)
-        assertEquals(SourceStatus.STALE, vm.state.value.catalog!!.sources.last().status)
-
-        vm.refreshSource("owned-source")
-        advanceUntilIdle()
         assertEquals(SourceStatus.READY, vm.state.value.catalog!!.sources.last().status)
         assertEquals("owned-node", vm.state.value.catalog!!.nodes.last().id)
-        assertEquals(ConnectionNotice.SubscriptionUpdated(1), vm.state.value.notice)
+        assertNull(vm.state.value.notice)
     }
 
     @Test fun `preview warns when normalized endpoint already exists`() = runTest(dispatcher) {
@@ -208,6 +206,24 @@ class ConnectionsViewModelTest {
         assertNull(vm.state.value.pendingImport)
         assertEquals(0, gateway.saveCalls)
     }
+
+    @Test fun `failed automatic subscription load keeps a retryable source`() = runTest(dispatcher) {
+        val gateway = FakeCatalogGateway().apply { refreshError = "subscription_download_failed" }
+        val vm = ConnectionsViewModel(
+            flowOf(activeProfile()), gateway, FakeImportDrafts(),
+            nowMillis = { 1_000 }, keyFactory = { "operation-key-0001" },
+        )
+        advanceUntilIdle()
+        vm.previewImport("https://provider.example/private-subscription".toByteArray(), ImportOrigin.CLIPBOARD)
+
+        vm.saveImport("", "primary")
+        advanceUntilIdle()
+
+        val source = vm.state.value.catalog!!.sources.last()
+        assertEquals(SourceStatus.STALE, source.status)
+        assertEquals(ConnectionNotice.SubscriptionDownloadFailed, vm.state.value.notice)
+        assertTrue(sourceCanRefresh(source))
+    }
 }
 
 private class FakeCatalogGateway : CatalogGateway {
@@ -216,6 +232,7 @@ private class FakeCatalogGateway : CatalogGateway {
     var refreshCalls = 0
     var activateCalls = 0
     var saveCalls = 0
+    var lastSavedDraft: CatalogSourceDraft? = null
     var refreshError: String? = null
     private var catalog = document()
     override suspend fun snapshot(profile: RouterProfile, token: String): CatalogDocument {
@@ -223,6 +240,7 @@ private class FakeCatalogGateway : CatalogGateway {
         snapshotFailure?.let { throw it }
         return catalog
     }
+
     override suspend fun refreshSource(profile: RouterProfile, token: String, stateVersion: ULong, key: String, sourceId: String): CatalogOperation {
         refreshCalls++
         refreshError?.let { return CatalogOperation(1, "rejected", catalog, error = it) }
@@ -242,13 +260,24 @@ private class FakeCatalogGateway : CatalogGateway {
     override suspend fun createGroup(profile: RouterProfile, token: String, stateVersion: ULong, key: String, label: String) = error("unused")
     override suspend fun saveSource(profile: RouterProfile, token: String, stateVersion: ULong, key: String, draft: CatalogSourceDraft, source: ByteArray): CatalogOperation {
         saveCalls++
+        lastSavedDraft = draft
         catalog = catalog.copy(
             stateVersion = catalog.stateVersion + 1u,
-            sources = catalog.sources + CatalogSource("owned-source", draft.groupId, CatalogSourceKind.SHARE_LINK, draft.label, "catalog", SourceStatus.STALE, 0, warnings = emptyList(), foreign = false),
+            sources = catalog.sources + CatalogSource("owned-source", draft.groupId, when (draft.kind) {
+                ru.anisimov.keenwg.data.catalog.SourceKind.SUBSCRIPTION -> CatalogSourceKind.SUBSCRIPTION
+                else -> CatalogSourceKind.SHARE_LINK
+            }, draft.label, "catalog", SourceStatus.STALE, 0, warnings = emptyList(), foreign = false),
         )
         return CatalogOperation(1, "committed", catalog)
     }
-    override suspend fun deleteSource(profile: RouterProfile, token: String, stateVersion: ULong, key: String, sourceId: String) = error("unused")
+    override suspend fun deleteSource(profile: RouterProfile, token: String, stateVersion: ULong, key: String, sourceId: String): CatalogOperation {
+        catalog = catalog.copy(
+            stateVersion = catalog.stateVersion + 1u,
+            sources = catalog.sources.filterNot { it.id == sourceId },
+            nodes = catalog.nodes.filterNot { it.sourceId == sourceId },
+        )
+        return CatalogOperation(1, "committed", catalog)
+    }
 }
 
 private class FakeSourceConfigurationGateway(configured: Boolean) : SourceConfigurationGateway {

@@ -10,6 +10,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.view.WindowManager
+import android.text.format.Formatter
+import java.text.DateFormat
+import java.util.Date
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +36,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AlertDialog
@@ -41,12 +46,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
@@ -68,6 +78,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.ui.components.StatusNotice
 import ru.anisimov.keenwg.data.catalog.CatalogErrorCode
 import ru.anisimov.keenwg.data.catalog.CatalogGroup
+import ru.anisimov.keenwg.data.catalog.CatalogSource
 import ru.anisimov.keenwg.data.catalog.CatalogNodeTest
 import ru.anisimov.keenwg.data.catalog.ImportOrigin
 
@@ -157,14 +168,20 @@ fun ConnectionsScreen(
         val groups = state.catalog?.groups.orEmpty()
         val selectedGroup = importGroup.takeIf { id -> groups.any { it.id == id } } ?: groups.firstOrNull()?.id.orEmpty()
         AlertDialog(
-            onDismissRequest = { showImport = false; viewModel.cancelImport() },
+            onDismissRequest = { showImport = false; importLabel = ""; viewModel.cancelImport() },
             title = { Text(stringResource(R.string.ui_connectionsscreen_b22b73eee2)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("${pending.preview.protocol?.name ?: stringResource(R.string.connection_subscription)} · ${pending.preview.host}:${pending.preview.port}")
                     Text("${pending.preview.transport} · ${pending.preview.security}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (pending.duplicateWarning) Text(stringResource(R.string.ui_connectionsscreen_e707467eef), color = MaterialTheme.colorScheme.secondary)
-                    OutlinedTextField(importLabel, { importLabel = it }, label = { Text(stringResource(R.string.ui_connectionsscreen_0918b4ba92)) }, singleLine = true)
+                    OutlinedTextField(
+                        importLabel,
+                        { importLabel = it },
+                        label = { Text(stringResource(R.string.connections_import_name_optional)) },
+                        supportingText = { Text(stringResource(R.string.connections_import_name_helper)) },
+                        singleLine = true,
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         groups.forEach { group ->
                             FilterChip(
@@ -184,8 +201,8 @@ fun ConnectionsScreen(
                     }
                 }
             },
-            confirmButton = { Button(onClick = { viewModel.saveImport(importLabel, selectedGroup); showImport = false }) { Text(stringResource(R.string.ui_connectionsscreen_b4d30cae52)) } },
-            dismissButton = { TextButton(onClick = { showImport = false; viewModel.cancelImport() }) { Text(stringResource(R.string.ui_connectionsscreen_8fbe9b75cb)) } },
+            confirmButton = { Button(onClick = { viewModel.saveImport(importLabel, selectedGroup); importLabel = ""; showImport = false }) { Text(stringResource(R.string.ui_connectionsscreen_b4d30cae52)) } },
+            dismissButton = { TextButton(onClick = { showImport = false; importLabel = ""; viewModel.cancelImport() }) { Text(stringResource(R.string.ui_connectionsscreen_8fbe9b75cb)) } },
         )
     }
     state.pendingActivation?.let { node ->
@@ -244,79 +261,14 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
                 onAdd = onAdd,
             )
         }
-        items(catalog.sources, key = { "source-${it.id}" }) { source ->
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            ) {
-                val sourceKind = sourceDisplayKind(source)
-                val action = state.sourceActions[source.id]
-                val mode = subscriptionSourceMode(source, state.sourceConfiguration[source.id], action)
-                Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            if (sourceKind == SourceDisplayKind.XKEEN_SUBSCRIPTION) {
-                                stringResource(R.string.connections_source_xkeen)
-                            } else {
-                                source.label
-                            },
-                            modifier = Modifier.weight(1f),
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            pluralStringResource(R.plurals.connections_server_count, source.nodeCount, source.nodeCount),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    when (mode) {
-                        SubscriptionSourceMode.NEEDS_LINK -> {
-                            Text(
-                                stringResource(R.string.connections_subscription_missing),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.secondary,
-                            )
-                            Text(
-                                stringResource(R.string.connections_subscription_missing_detail),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Button(
-                                onClick = { viewModel.editSubscriptionLink(source.id) },
-                                shape = RoundedCornerShape(18.dp),
-                            ) { Text(stringResource(R.string.connections_subscription_add_link)) }
-                        }
-                        SubscriptionSourceMode.CHECKING -> {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.connections_subscription_checking))
-                            }
-                        }
-                        SubscriptionSourceMode.READY -> {
-                            if (source.status.name == "STALE") {
-                                Text(
-                                    stringResource(R.string.connections_subscription_stale),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.secondary,
-                                )
-                            }
-                            if (source.foreign) {
-                                SubscriptionSourceActions(
-                                    busy = source.id in state.busySources,
-                                    canEditLink = source.id == XKEEN_SUBSCRIPTION_SOURCE_ID &&
-                                        state.sourceConfiguration[source.id] != null,
-                                    onRefresh = { viewModel.refreshSource(source.id) },
-                                    onEditLink = { viewModel.editSubscriptionLink(source.id) },
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+        item(key = "subscription-sources") {
+            SubscriptionSources(
+                sources = catalog.sources,
+                state = state,
+                onRefresh = viewModel::refreshSource,
+                onEditLink = viewModel::editSubscriptionLink,
+                onDelete = viewModel::deleteSource,
+            )
         }
         item {
             Text(
@@ -433,35 +385,141 @@ private fun ConnectionToolbar(
 }
 
 @Composable
-private fun SubscriptionSourceActions(
-    busy: Boolean,
-    canEditLink: Boolean,
-    onRefresh: () -> Unit,
-    onEditLink: () -> Unit,
+private fun SubscriptionSources(
+    sources: List<CatalogSource>,
+    state: ConnectionsUiState,
+    onRefresh: (String) -> Unit,
+    onEditLink: (String) -> Unit,
+    onDelete: (String) -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = onRefresh, enabled = !busy) {
-            if (busy) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-            } else {
-                Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
-            }
-            Spacer(Modifier.width(6.dp))
-            Text(
-                stringResource(
-                    if (busy) R.string.connections_subscription_refreshing
-                    else R.string.connections_subscription_refresh,
-                ),
-            )
-        }
-        if (canEditLink) {
-            TextButton(onClick = onEditLink, enabled = !busy) {
-                Icon(Icons.Default.Link, null, Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.connections_subscription_change_link))
+    var menuSourceId by remember { mutableStateOf<String?>(null) }
+    var deleteCandidate by remember { mutableStateOf<CatalogSource?>(null) }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column {
+            sources.forEachIndexed { index, source ->
+                val action = state.sourceActions[source.id]
+                val mode = subscriptionSourceMode(source, state.sourceConfiguration[source.id], action)
+                val busy = source.id in state.busySources
+                val canEditLink = source.id == XKEEN_SUBSCRIPTION_SOURCE_ID &&
+                    state.sourceConfiguration[source.id] != null
+                val canDelete = !source.foreign && source.adapterId == "catalog"
+                Row(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(start = 16.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            sourceDisplayTitle(source) ?: stringResource(R.string.connections_source_generic),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            subscriptionSourceSubtitle(source, mode),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (source.status.name == "STALE" || source.status.name == "ERROR") {
+                                MaterialTheme.colorScheme.secondary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    when {
+                        busy -> CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp), strokeWidth = 2.dp)
+                        mode == SubscriptionSourceMode.NEEDS_LINK -> IconButton(onClick = { onEditLink(source.id) }) {
+                            Icon(Icons.Default.Link, stringResource(R.string.connections_subscription_add_link))
+                        }
+                        sourceCanRefresh(source) -> IconButton(onClick = { onRefresh(source.id) }) {
+                            Icon(Icons.Default.Refresh, stringResource(R.string.connections_subscription_refresh))
+                        }
+                    }
+                    if (canEditLink || canDelete) {
+                        Box {
+                            IconButton(onClick = { menuSourceId = source.id }) {
+                                Icon(Icons.Default.MoreVert, stringResource(R.string.connections_source_actions))
+                            }
+                            DropdownMenu(
+                                expanded = menuSourceId == source.id,
+                                onDismissRequest = { menuSourceId = null },
+                            ) {
+                                if (canEditLink) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.connections_subscription_change_link)) },
+                                        leadingIcon = { Icon(Icons.Default.Link, null) },
+                                        onClick = { menuSourceId = null; onEditLink(source.id) },
+                                    )
+                                }
+                                if (canDelete) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.connections_source_delete)) },
+                                        leadingIcon = { Icon(Icons.Default.DeleteOutline, null) },
+                                        onClick = { menuSourceId = null; deleteCandidate = source },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                if (index != sources.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             }
         }
     }
+    deleteCandidate?.let { source ->
+        AlertDialog(
+            onDismissRequest = { deleteCandidate = null },
+            title = { Text(stringResource(R.string.connections_source_delete_title)) },
+            text = { Text(stringResource(R.string.connections_source_delete_detail, sourceDisplayTitle(source) ?: stringResource(R.string.connections_source_generic))) },
+            confirmButton = {
+                TextButton(onClick = { deleteCandidate = null; onDelete(source.id) }) {
+                    Text(stringResource(R.string.connections_source_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteCandidate = null }) { Text(stringResource(R.string.ui_connectionsscreen_8fbe9b75cb)) }
+            },
+        )
+    }
+}
+
+@Composable
+private fun subscriptionSourceSubtitle(source: CatalogSource, mode: SubscriptionSourceMode): String {
+    if (mode == SubscriptionSourceMode.CHECKING) return stringResource(R.string.connections_subscription_checking)
+    if (mode == SubscriptionSourceMode.NEEDS_LINK) return stringResource(R.string.connections_subscription_missing)
+    if (source.status.name == "STALE" || source.status.name == "ERROR") {
+        return stringResource(R.string.connections_subscription_stale)
+    }
+    val context = LocalContext.current
+    val parts = mutableListOf(
+        pluralStringResource(R.plurals.connections_server_count, source.nodeCount, source.nodeCount),
+    )
+    val used = subscriptionUsedBytes(source)
+    val total = source.subscriptionInfo?.totalBytes
+    if (used != null) {
+        val usedText = Formatter.formatShortFileSize(context, used)
+        parts += when {
+            total != null && total > 0 -> stringResource(
+                R.string.connections_subscription_traffic,
+                usedText,
+                Formatter.formatShortFileSize(context, total),
+            )
+            total == 0L -> stringResource(R.string.connections_subscription_traffic_unlimited, usedText)
+            else -> stringResource(R.string.connections_subscription_traffic_used, usedText)
+        }
+    }
+    source.subscriptionInfo?.expiresAt?.takeIf { it > 0 }?.let { expiresAt ->
+        parts += stringResource(
+            R.string.connections_subscription_expires,
+            DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(expiresAt * 1000)),
+        )
+    }
+    return parts.joinToString(" · ")
 }
 
 @Composable

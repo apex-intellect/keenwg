@@ -44,7 +44,7 @@ Assert-CleanCollector
 
 $candidates = @()
 if ($GoRoot) { $candidates += (Join-Path $GoRoot "bin\go.exe") }
-$candidates += (Join-Path $env:TEMP "keenwg-go1.26.5\sdk-complete\go\bin\go.exe")
+$candidates += (Join-Path $env:TEMP "keenwg-go1.26.7\sdk-complete\go\bin\go.exe")
 $installed = Get-Command go.exe -ErrorAction SilentlyContinue
 if ($installed) { $candidates += $installed.Source }
 $go = $null
@@ -55,7 +55,7 @@ foreach ($candidate in $candidates | Select-Object -Unique) {
     }
 }
 if (-not $go) {
-    throw "Go 1.26.5 was not found. Set KEENWG_GO_ROOT to an official verified Go 1.26.5 SDK directory."
+    throw "Go 1.26.7 was not found. Set KEENWG_GO_ROOT to an official verified Go 1.26.7 SDK directory."
 }
 
 $tar = "C:\Program Files\Git\usr\bin\tar.exe"
