@@ -21,8 +21,8 @@ android {
         applicationId = "ru.anisimov.keenwg"
         minSdk = 26
         targetSdk = 35
-        versionCode = 33
-        versionName = "2.2.9"
+        versionCode = 34
+        versionName = "2.2.10"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += listOf("en", "ru")
         buildConfigField("String", "OFFICIAL_SIGNER_SHA256", "\"$officialSignerSha256\"")

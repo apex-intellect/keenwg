@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26.7'
+          go-version: '1.26.11'
           cache-dependency-path: |
             xkeen-control/go.sum
             collector/go.sum
@@ -39,6 +39,24 @@ jobs:
       - name: APK certificate parser tests
         shell: pwsh
         run: ./scripts/verify-signing-parser_test.ps1
+      - name: Stage verified baseline Companion for Android checks
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $baseline = Get-Content app/src/main/assets/companion/manifest.json -Raw | ConvertFrom-Json
+          $version = [string]$baseline.version
+          if ($version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid baseline version' }
+          $directory = Join-Path $env:RUNNER_TEMP 'keenwg-verify-baseline'
+          New-Item -ItemType Directory -Path $directory | Out-Null
+          gh release download "v$version" --dir $directory --pattern "keenwg-companion-arm64-$version.tar.gz" --pattern "keenwg-companion-arm64-$version.update.json"
+          $archive = Join-Path $directory "keenwg-companion-arm64-$version.tar.gz"
+          $manifest = Join-Path $directory "keenwg-companion-arm64-$version.update.json"
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne [string]$baseline.sha256) { throw 'Baseline archive hash mismatch' }
+          go -C xkeen-control run ./cmd/keenwg-sign-update -verify -manifest $manifest -archive $archive -public-key internal/selfupdate/trusted-public-key.txt
+          ./scripts/stage-companion-asset.ps1 -Archive $archive -SignedManifest $manifest
       - name: Android tests and lint
         run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:verifyFileProviderPolicy :app:verifyLocaleResources :app:verifyUiResources :app:assembleDebug --console=plain --no-daemon
   dependency-review:

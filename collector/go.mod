@@ -1,6 +1,6 @@
 module github.com/apex-intellect/keenwg/collector
 
-go 1.26.7
+go 1.26.11
 
 require modernc.org/sqlite v1.54.0
 
