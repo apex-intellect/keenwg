@@ -142,14 +142,29 @@ func parseLine(line string) (model.Node, string) {
 	security := strings.ToLower(q.Get("security"))
 	flow := strings.ToLower(q.Get("flow"))
 	fingerprint := strings.ToLower(q.Get("fp"))
-	if transport != "tcp" {
+	if transport != "tcp" && transport != "grpc" {
 		return model.Node{}, "unsupported_transport"
 	}
 	if security != "reality" {
 		return model.Node{}, "unsupported_security"
 	}
-	if flow != "xtls-rprx-vision" {
+	if !model.ValidTransportFlow(transport, flow) {
 		return model.Node{}, "unsupported_flow"
+	}
+	var grpcServiceName, grpcAuthority string
+	var grpcMultiMode bool
+	if transport == "grpc" {
+		grpcServiceName, grpcAuthority = q.Get("serviceName"), q.Get("authority")
+		if !model.ValidGRPCOptions(grpcServiceName, grpcAuthority) {
+			return model.Node{}, "invalid_grpc_options"
+		}
+		switch strings.ToLower(q.Get("mode")) {
+		case "", "gun":
+		case "multi":
+			grpcMultiMode = true
+		default:
+			return model.Node{}, "unsupported_grpc_mode"
+		}
 	}
 	publicKey := q.Get("pbk")
 	shortID := q.Get("sid")
@@ -196,22 +211,25 @@ func parseLine(line string) (model.Node, string) {
 	}).String()
 	country, flag := countryFromDisplayName(displayName)
 	return model.Node{
-		CanonicalURI: canonical,
-		DisplayName:  displayName,
-		Country:      country,
-		Flag:         flag,
-		Host:         host,
-		Port:         port,
-		UUID:         uuid,
-		PublicKey:    publicKey,
-		ShortID:      strings.ToLower(shortID),
-		SNI:          sni,
-		SpiderX:      spiderX,
-		Fingerprint:  fingerprint,
-		Transport:    transport,
-		Security:     security,
-		Flow:         flow,
-		Warnings:     []string{},
+		CanonicalURI:    canonical,
+		DisplayName:     displayName,
+		Country:         country,
+		Flag:            flag,
+		Host:            host,
+		Port:            port,
+		UUID:            uuid,
+		PublicKey:       publicKey,
+		ShortID:         strings.ToLower(shortID),
+		SNI:             sni,
+		SpiderX:         spiderX,
+		Fingerprint:     fingerprint,
+		Transport:       transport,
+		Security:        security,
+		Flow:            flow,
+		GRPCServiceName: grpcServiceName,
+		GRPCAuthority:   grpcAuthority,
+		GRPCMultiMode:   grpcMultiMode,
+		Warnings:        []string{},
 	}, ""
 }
 

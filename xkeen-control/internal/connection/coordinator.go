@@ -189,7 +189,7 @@ func (c *Coordinator) TestNode(ctx context.Context, reviewed uint64, key, nodeID
 		return c.record(ctx, reviewed, key, digest, Result{Result: adapter.ResultRejected, ErrorCode: "adapter_unavailable", Catalog: document})
 	}
 	if projection.StateVersion != source.AdapterStateVersion || !projectionContainsNode(projection, node.ID) {
-		return c.record(ctx, reviewed, key, digest, Result{Result: adapter.ResultRejected, ErrorCode: "stale_adapter_state", Catalog: document})
+		return c.rejectStaleAdapter(ctx, reviewed, key, digest, projection)
 	}
 	test := c.registry.Test(ctx, node.ID)
 	if test.NodeID != node.ID {
@@ -257,7 +257,7 @@ func (c *Coordinator) ActivateNode(ctx context.Context, reviewed uint64, key, no
 		return c.record(ctx, reviewed, key, digest, Result{Result: adapter.ResultRejected, ErrorCode: "adapter_unavailable", Catalog: document})
 	}
 	if projection.StateVersion != source.AdapterStateVersion || !projectionContainsNode(projection, node.ID) {
-		return c.record(ctx, reviewed, key, digest, Result{Result: adapter.ResultRejected, ErrorCode: "stale_adapter_state", Catalog: document})
+		return c.rejectStaleAdapter(ctx, reviewed, key, digest, projection)
 	}
 	plan, err := c.registry.PlanActivation(ctx, node.ID, projection.StateVersion)
 	if err != nil || plan.NodeID != node.ID || plan.AdapterID != source.AdapterID {
@@ -365,9 +365,39 @@ func (c *Coordinator) record(ctx context.Context, reviewed uint64, key, digest s
 	}
 	document, err := c.store.RecordResult(ctx, reviewed, key, digest, recorded)
 	if err != nil {
-		return resultForStoreError(err)
+		return c.storeFailure(ctx, err)
 	}
 	result.Catalog = document
+	return result
+}
+
+// A stale adapter must still reject the requested action, but return its current
+// projection so the client can review it. Returning the old projection makes
+// every subsequent test or activation fail with the same revision mismatch.
+func (c *Coordinator) rejectStaleAdapter(ctx context.Context, reviewed uint64, key, digest string, projection adapter.Projection) Result {
+	result := Result{Result: adapter.ResultRejected, ErrorCode: "stale_adapter_state"}
+	recorded := catalog.RecordedResult{
+		Kind: "operation", Result: result.Result, ErrorCode: result.ErrorCode, ObservedUnix: c.now().Unix(),
+	}
+	document, err := c.store.ReplaceAdapterProjection(ctx, reviewed, key, digest, projection.AdapterID,
+		projection.Sources, projection.Nodes, recorded)
+	if err != nil {
+		return c.storeFailure(ctx, err)
+	}
+	result.Catalog = document
+	return result
+}
+
+func (c *Coordinator) storeFailure(ctx context.Context, err error) Result {
+	result := resultForStoreError(err)
+	if errors.Is(err, catalog.ErrStaleState) {
+		// RecordResult correctly refuses to write against an obsolete revision.
+		// Include a fresh snapshot anyway: clients may retry using only the
+		// operation response, without an extra GET of the catalog.
+		if document, snapshotErr := c.store.Snapshot(ctx); snapshotErr == nil {
+			result.Catalog = document
+		}
+	}
 	return result
 }
 

@@ -12,6 +12,45 @@ import (
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
 )
 
+func TestGRPCRenderReadBackAndSecretBoundary(t *testing.T) {
+	node := validNode()
+	node.Transport, node.Flow = "grpc", ""
+	node.GRPCServiceName, node.GRPCAuthority, node.GRPCMultiMode = "private-grpc-service", "authority.example.test", true
+	got, err := RenderOutbounds(fixture(t, "outbounds.json"), node, netip.MustParseAddr("203.0.113.44"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		Outbounds []map[string]any `json:"outbounds"`
+	}
+	if err := json.Unmarshal(got, &document); err != nil {
+		t.Fatal(err)
+	}
+	stream := document.Outbounds[0]["streamSettings"].(map[string]any)
+	grpc := stream["grpcSettings"].(map[string]any)
+	if stream["network"] != "grpc" || grpc["serviceName"] != node.GRPCServiceName || grpc["authority"] != node.GRPCAuthority || grpc["multiMode"] != true {
+		t.Fatal("incorrect gRPC settings")
+	}
+	active, err := ParseActiveOutbound(got, "gRPC node", 123)
+	if err != nil || active.Transport != "grpc" || active.Flow != "" {
+		t.Fatalf("read-back failed: %v", err)
+	}
+	for _, public := range []any{active, model.SanitizeNode(node, false)} {
+		body, err := json.Marshal(public)
+		if err != nil || bytes.Contains(body, []byte(node.GRPCServiceName)) || bytes.Contains(body, []byte(node.GRPCAuthority)) {
+			t.Fatal("transport secrets leaked")
+		}
+	}
+	node.Flow = "xtls-rprx-vision"
+	if _, err := RenderOutbounds(got, node, netip.MustParseAddr("203.0.113.44")); !errors.Is(err, ErrInvalidNode) {
+		t.Fatal("Vision accepted with gRPC")
+	}
+	bad := bytes.Replace(got, []byte(`"flow": ""`), []byte(`"flow": "xtls-rprx-vision"`), 1)
+	if _, err := ParseActiveOutbound(bad, "bad", 123); !errors.Is(err, ErrInvalidOutbounds) {
+		t.Fatal("read-back accepted Vision with gRPC")
+	}
+}
+
 func TestRenderOutboundsChangesOnlyManagedOutbound(t *testing.T) {
 	current := fixture(t, "outbounds.json")
 	node := validNode()

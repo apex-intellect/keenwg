@@ -148,7 +148,7 @@ func (s *SecureServer) handleCreateCatalogGroup(w http.ResponseWriter, r *http.R
 		return
 	}
 	document, err := s.catalog.CreateGroup(r.Context(), request.StateVersion, request.IdempotencyKey, request.Label)
-	writeCatalogMutation(w, document, err, r.Header.Get(catalogFeaturesHeader))
+	s.writeCatalogMutation(r.Context(), w, document, err, r.Header.Get(catalogFeaturesHeader))
 }
 
 func (s *SecureServer) handleCreateCatalogSource(w http.ResponseWriter, r *http.Request) {
@@ -172,7 +172,7 @@ func (s *SecureServer) handleCreateCatalogSource(w http.ResponseWriter, r *http.
 	document, err := s.catalog.CreateSource(r.Context(), request.StateVersion, request.IdempotencyKey, catalog.SourceDraft{
 		GroupID: request.GroupID, Kind: request.Kind, Label: request.Label, AdapterID: request.AdapterID,
 	}, secret)
-	writeCatalogMutation(w, document, err, r.Header.Get(catalogFeaturesHeader))
+	s.writeCatalogMutation(r.Context(), w, document, err, r.Header.Get(catalogFeaturesHeader))
 }
 
 func (s *SecureServer) handleDeleteCatalogSource(w http.ResponseWriter, r *http.Request) {
@@ -190,7 +190,7 @@ func (s *SecureServer) handleDeleteCatalogSource(w http.ResponseWriter, r *http.
 		return
 	}
 	document, err := s.catalog.DeleteSource(r.Context(), request.StateVersion, request.IdempotencyKey, sourceID)
-	writeCatalogMutation(w, document, err, r.Header.Get(catalogFeaturesHeader))
+	s.writeCatalogMutation(r.Context(), w, document, err, r.Header.Get(catalogFeaturesHeader))
 }
 
 func validCatalogSchema(w http.ResponseWriter, version int) bool {
@@ -201,14 +201,20 @@ func validCatalogSchema(w http.ResponseWriter, version int) bool {
 	return true
 }
 
-func writeCatalogMutation(w http.ResponseWriter, document catalog.Document, err error, features string) {
+func (s *SecureServer) writeCatalogMutation(ctx context.Context, w http.ResponseWriter, document catalog.Document, err error, features string) {
 	if err == nil {
 		writeCatalogResult(w, http.StatusOK, "committed", &document, "", features)
 		return
 	}
 	switch {
 	case errors.Is(err, catalog.ErrStaleState):
-		writeCatalogResult(w, http.StatusConflict, "rejected", nil, "stale_state", features)
+		// The rejected mutation must not leave the client retrying an obsolete
+		// revision forever. A new review still requires a new request.
+		var current *catalog.Document
+		if snapshot, snapshotErr := s.catalog.Snapshot(ctx); snapshotErr == nil {
+			current = &snapshot
+		}
+		writeCatalogResult(w, http.StatusConflict, "rejected", current, "stale_state", features)
 	case errors.Is(err, catalog.ErrOperationConflict):
 		writeCatalogResult(w, http.StatusConflict, "rejected", nil, "idempotency_conflict", features)
 	case errors.Is(err, catalog.ErrNotFound):

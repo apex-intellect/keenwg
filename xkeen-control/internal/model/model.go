@@ -1,5 +1,7 @@
 package model
 
+import "strings"
+
 type OperationResult string
 
 const (
@@ -16,23 +18,46 @@ const (
 )
 
 type Node struct {
-	ID           string   `json:"id"`
-	CanonicalURI string   `json:"canonical_uri"`
-	DisplayName  string   `json:"display_name"`
-	Country      string   `json:"country,omitempty"`
-	Flag         string   `json:"flag,omitempty"`
-	Host         string   `json:"host"`
-	Port         int      `json:"port"`
-	UUID         string   `json:"uuid"`
-	PublicKey    string   `json:"public_key"`
-	ShortID      string   `json:"short_id"`
-	SNI          string   `json:"sni"`
-	SpiderX      string   `json:"spider_x"`
-	Fingerprint  string   `json:"fingerprint"`
-	Transport    string   `json:"transport"`
-	Security     string   `json:"security"`
-	Flow         string   `json:"flow"`
-	Warnings     []string `json:"warnings,omitempty"`
+	ID              string   `json:"id"`
+	CanonicalURI    string   `json:"canonical_uri"`
+	DisplayName     string   `json:"display_name"`
+	Country         string   `json:"country,omitempty"`
+	Flag            string   `json:"flag,omitempty"`
+	Host            string   `json:"host"`
+	Port            int      `json:"port"`
+	UUID            string   `json:"uuid"`
+	PublicKey       string   `json:"public_key"`
+	ShortID         string   `json:"short_id"`
+	SNI             string   `json:"sni"`
+	SpiderX         string   `json:"spider_x"`
+	Fingerprint     string   `json:"fingerprint"`
+	Transport       string   `json:"transport"`
+	Security        string   `json:"security"`
+	Flow            string   `json:"flow"`
+	GRPCServiceName string   `json:"grpc_service_name,omitempty"`
+	GRPCAuthority   string   `json:"grpc_authority,omitempty"`
+	GRPCMultiMode   bool     `json:"grpc_multi_mode,omitempty"`
+	Warnings        []string `json:"warnings,omitempty"`
+}
+
+// ValidTransportFlow keeps Vision on TCP; gRPC carries ordinary VLESS.
+func ValidTransportFlow(transport, flow string) bool {
+	return transport == "tcp" && flow == "xtls-rprx-vision" || transport == "grpc" && flow == ""
+}
+
+// GRPC parameters are private transport details, never PublicNode fields.
+func ValidGRPCOptions(serviceName, authority string) bool {
+	if len(serviceName) > 256 || len(authority) > 253 || strings.ContainsAny(authority, " /\\@?#") {
+		return false
+	}
+	for _, value := range []string{serviceName, authority} {
+		for _, r := range value {
+			if r < 0x20 || r == 0x7f {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 type PublicNode struct {

@@ -94,8 +94,18 @@ func TestCatalogMutationIsStrictReplaySafeAndRejectsStaleState(t *testing.T) {
 	secure.ServeHTTP(stale, catalogRequest(http.MethodPost, "/v1/connections/groups", operator.Token,
 		`{"schema_version":1,"state_version":1,"idempotency_key":"create-group-0003","label":"Backup"}`))
 	if stale.Code != http.StatusConflict || !bytes.Contains(stale.Body.Bytes(), []byte(`"result":"rejected"`)) ||
-		!bytes.Contains(stale.Body.Bytes(), []byte(`"error":"stale_state"`)) {
+		!bytes.Contains(stale.Body.Bytes(), []byte(`"error":"stale_state"`)) ||
+		!bytes.Contains(stale.Body.Bytes(), []byte(`"state_version":2`)) ||
+		bytes.Contains(stale.Body.Bytes(), []byte(`"label":"Backup"`)) {
 		t.Fatalf("stale status=%d body=%s", stale.Code, stale.Body.Bytes())
+	}
+
+	retry := httptest.NewRecorder()
+	secure.ServeHTTP(retry, catalogRequest(http.MethodPost, "/v1/connections/groups", operator.Token,
+		`{"schema_version":1,"state_version":2,"idempotency_key":"create-group-retry-0003","label":"Backup"}`))
+	if retry.Code != http.StatusOK || !bytes.Contains(retry.Body.Bytes(), []byte(`"state_version":3`)) ||
+		!bytes.Contains(retry.Body.Bytes(), []byte(`"label":"Backup"`)) {
+		t.Fatalf("retry status=%d body=%s", retry.Code, retry.Body.Bytes())
 	}
 
 	unknown := httptest.NewRecorder()

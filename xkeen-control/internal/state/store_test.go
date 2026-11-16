@@ -14,6 +14,21 @@ import (
 	"github.com/apex-intellect/keenwg/xkeen-control/internal/model"
 )
 
+func TestGRPCSubscriptionPersistsOptions(t *testing.T) {
+	dir := t.TempDir()
+	s := New(Paths{Subscription: filepath.Join(dir, "subscription.json")}, nil)
+	node := testNode("grpc.example.test", "vless://synthetic-grpc")
+	node.Transport, node.Flow = "grpc", ""
+	node.GRPCServiceName, node.GRPCAuthority, node.GRPCMultiMode = "service", "grpc.example.test", true
+	if _, err := s.SaveSubscription([]model.Node{node}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.LoadSubscription()
+	if err != nil || len(got.Nodes) != 1 || got.Nodes[0].GRPCServiceName != "service" || got.Nodes[0].GRPCAuthority != "grpc.example.test" || !got.Nodes[0].GRPCMultiMode {
+		t.Fatalf("gRPC state lost: %v", err)
+	}
+}
+
 func TestSaveSubscriptionReusesRandomIDWithoutDerivingSecrets(t *testing.T) {
 	dir := t.TempDir()
 	store := New(Paths{

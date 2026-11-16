@@ -3,9 +3,48 @@ package subscription
 import (
 	"encoding/base64"
 	"errors"
+	"net/url"
 	"strings"
 	"testing"
 )
+
+func TestParseGRPCRealityAlongsideTCPAndRetainPrivateOptions(t *testing.T) {
+	u, _ := url.Parse(nl2URI)
+	q := u.Query()
+	q.Set("type", "grpc")
+	q.Del("flow")
+	q.Set("serviceName", "private/service")
+	q.Set("authority", "grpc.example.test")
+	q.Set("mode", "multi")
+	u.RawQuery = q.Encode()
+	got, err := Parse([]byte(nl1URI+"\n"+u.String()), 10)
+	if err != nil || len(got.Nodes) != 2 || len(got.Rejected) != 0 {
+		t.Fatalf("nodes=%d rejected=%v err=%v", len(got.Nodes), got.Rejected, err)
+	}
+	node := got.Nodes[1]
+	if node.Transport != "grpc" || node.Flow != "" || node.GRPCServiceName != "private/service" || node.GRPCAuthority != "grpc.example.test" || !node.GRPCMultiMode {
+		t.Fatal("gRPC options not preserved")
+	}
+	for field, value := range map[string]string{"flow": "xtls-rprx-vision", "mode": "invalid", "serviceName": "bad\nservice", "authority": "bad\rhost"} {
+		t.Run(field, func(t *testing.T) {
+			bad, _ := url.Parse(u.String())
+			params := bad.Query()
+			params.Set(field, value)
+			bad.RawQuery = params.Encode()
+			if _, err := Parse([]byte(bad.String()), 10); !errors.Is(err, ErrNoSupportedNodes) {
+				t.Fatalf("invalid options accepted: %v", err)
+			}
+		})
+	}
+	q.Del("mode")
+	q.Del("serviceName")
+	q.Del("authority")
+	u.RawQuery = q.Encode()
+	got, err = Parse([]byte(u.String()), 1)
+	if err != nil || len(got.Nodes) != 1 || got.Nodes[0].GRPCMultiMode {
+		t.Fatal("default gRPC options rejected")
+	}
+}
 
 const nl1URI = "vless://11111111-1111-4111-8111-111111111111@nl1.example.test:443?type=tcp&security=reality&pbk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&fp=firefox&sni=intel.example.test&sid=0123456789abcdef&spx=%2F&flow=xtls-rprx-vision#%F0%9F%87%B3%F0%9F%87%B1%20%D0%9D%D0%B8%D0%B4%D0%B5%D1%80%D0%BB%D0%B0%D0%BD%D0%B4%D1%8B%201"
 const nl2URI = "vless://22222222-2222-4222-8222-222222222222@NL2.example.test:8443?security=reality&type=tcp&flow=xtls-rprx-vision&sid=fedcba9876543210&sni=intel.example.test&fp=chrome&pbk=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&spx=%2F#%F0%9F%87%B3%F0%9F%87%B1%20%D0%9D%D0%B8%D0%B4%D0%B5%D1%80%D0%BB%D0%B0%D0%BD%D0%B4%D1%8B%202"

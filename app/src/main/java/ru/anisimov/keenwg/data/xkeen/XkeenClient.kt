@@ -131,7 +131,8 @@ class XkeenClient(
         security: String,
         flow: String,
     ): Boolean = (id.isEmpty() || NODE_ID.matches(id)) && displayName.isNotBlank() && host.isNotBlank() && port in 1..65535 &&
-        fingerprint.isNotBlank() && transport == "tcp" && security == "reality" && flow == "xtls-rprx-vision"
+        fingerprint.isNotBlank() && security == "reality" &&
+        ((transport == "tcp" && flow == "xtls-rprx-vision") || (transport == "grpc" && flow.isEmpty()))
 
     private fun validOperation(operation: XkeenOperation): Boolean {
         if (!OPERATION_KEY.matches(operation.idempotencyKey) || operation.kind.isBlank() || operation.startedAt < 0) return false

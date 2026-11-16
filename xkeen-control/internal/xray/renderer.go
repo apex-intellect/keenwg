@@ -78,6 +78,24 @@ func RenderOutbounds(current []byte, node model.Node, ip netip.Addr) ([]byte, er
 }
 
 func renderedOutbound(node model.Node, ip netip.Addr) map[string]any {
+	stream := map[string]any{
+		"network":  node.Transport,
+		"security": node.Security,
+		"realitySettings": map[string]any{
+			"publicKey":   node.PublicKey,
+			"fingerprint": node.Fingerprint,
+			"serverName":  node.SNI,
+			"shortId":     node.ShortID,
+			"spiderX":     node.SpiderX,
+		},
+	}
+	if node.Transport == "grpc" {
+		stream["grpcSettings"] = map[string]any{
+			"serviceName": node.GRPCServiceName,
+			"authority":   node.GRPCAuthority,
+			"multiMode":   node.GRPCMultiMode,
+		}
+	}
 	return map[string]any{
 		"tag":      "vless-reality",
 		"protocol": "vless",
@@ -93,17 +111,7 @@ func renderedOutbound(node model.Node, ip netip.Addr) map[string]any {
 				}},
 			}},
 		},
-		"streamSettings": map[string]any{
-			"network":  node.Transport,
-			"security": node.Security,
-			"realitySettings": map[string]any{
-				"publicKey":   node.PublicKey,
-				"fingerprint": node.Fingerprint,
-				"serverName":  node.SNI,
-				"shortId":     node.ShortID,
-				"spiderX":     node.SpiderX,
-			},
-		},
+		"streamSettings": stream,
 	}
 }
 
@@ -224,8 +232,9 @@ func ParseActiveOutbound(current []byte, displayName string, confirmedAt int64) 
 			} `json:"vnext"`
 		} `json:"settings"`
 		StreamSettings struct {
-			Network         string `json:"network"`
-			Security        string `json:"security"`
+			Network         string        `json:"network"`
+			Security        string        `json:"security"`
+			GRPCSettings    *grpcSettings `json:"grpcSettings"`
 			RealitySettings struct {
 				PublicKey   string `json:"publicKey"`
 				Fingerprint string `json:"fingerprint"`
@@ -250,8 +259,9 @@ func ParseActiveOutbound(current []byte, displayName string, confirmedAt int64) 
 				} `json:"vnext"`
 			} `json:"settings"`
 			StreamSettings struct {
-				Network         string `json:"network"`
-				Security        string `json:"security"`
+				Network         string        `json:"network"`
+				Security        string        `json:"security"`
+				GRPCSettings    *grpcSettings `json:"grpcSettings"`
 				RealitySettings struct {
 					PublicKey   string `json:"publicKey"`
 					Fingerprint string `json:"fingerprint"`
@@ -277,7 +287,10 @@ func ParseActiveOutbound(current []byte, displayName string, confirmedAt int64) 
 	vnext := managed.Settings.VNext[0]
 	user := vnext.Users[0]
 	address, err := netip.ParseAddr(vnext.Address)
-	if err != nil || !validEndpointIP(address) || vnext.Port < 1 || vnext.Port > 65535 || user.ID == "" || user.Encryption != "none" || user.Flow != "xtls-rprx-vision" || managed.StreamSettings.Network != "tcp" || managed.StreamSettings.Security != "reality" || managed.StreamSettings.RealitySettings.PublicKey == "" || managed.StreamSettings.RealitySettings.ServerName == "" || managed.StreamSettings.RealitySettings.ShortID == "" || managed.StreamSettings.RealitySettings.Fingerprint == "" {
+	if err != nil || !validEndpointIP(address) || vnext.Port < 1 || vnext.Port > 65535 || user.ID == "" || user.Encryption != "none" || !model.ValidTransportFlow(managed.StreamSettings.Network, user.Flow) || managed.StreamSettings.Security != "reality" || managed.StreamSettings.RealitySettings.PublicKey == "" || managed.StreamSettings.RealitySettings.ServerName == "" || managed.StreamSettings.RealitySettings.ShortID == "" || managed.StreamSettings.RealitySettings.Fingerprint == "" {
+		return nil, ErrInvalidOutbounds
+	}
+	if options := managed.StreamSettings.GRPCSettings; managed.StreamSettings.Network == "grpc" && options != nil && !model.ValidGRPCOptions(options.ServiceName, options.Authority) {
 		return nil, ErrInvalidOutbounds
 	}
 	if strings.TrimSpace(displayName) == "" {
@@ -328,7 +341,13 @@ func validEndpointIP(ip netip.Addr) bool {
 }
 
 func isValidNode(node model.Node) bool {
-	return node.Port >= 1 && node.Port <= 65535 && node.UUID != "" && node.PublicKey != "" && node.ShortID != "" && node.SNI != "" && node.SpiderX != "" && node.Fingerprint != "" && node.Transport == "tcp" && node.Security == "reality" && node.Flow == "xtls-rprx-vision"
+	return node.Port >= 1 && node.Port <= 65535 && node.UUID != "" && node.PublicKey != "" && node.ShortID != "" && node.SNI != "" && node.SpiderX != "" && node.Fingerprint != "" && node.Security == "reality" && model.ValidTransportFlow(node.Transport, node.Flow) && (node.Transport != "grpc" || model.ValidGRPCOptions(node.GRPCServiceName, node.GRPCAuthority))
+}
+
+type grpcSettings struct {
+	ServiceName string `json:"serviceName"`
+	Authority   string `json:"authority"`
+	MultiMode   bool   `json:"multiMode"`
 }
 
 func decodeStrictJSON(input []byte, destination any) error {

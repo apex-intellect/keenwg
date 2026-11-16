@@ -50,6 +50,42 @@ class XkeenClientTest {
         server.close()
     }
 
+    @Test fun `mixed TCP and gRPC status accepts empty flow including active gRPC`() = runTest {
+        val grpc = """{
+          "id":"bbccddeeff00112233445566778899aa","display_name":"Netherlands 2",
+          "host":"grpc.example.test","port":443,"fingerprint":"chrome",
+          "transport":"grpc","security":"reality","flow":"","active":true,"warnings":[]
+        }"""
+        val active = grpc.dropLast(1) + """, "resolved_ip":"192.0.2.2","confirmed_at":100,"missing_from_subscription":false}"""
+        val mixed = validStatusJson()
+            .replace("\"active\":null", "\"active\":$active")
+            .replace("}]},\"operation\"", "},$grpc]},\"operation\"")
+        val server = server(MockResponse().setBody(mixed))
+        try {
+            val status = client().status(server.endpoint())
+            assertEquals(listOf("tcp", "grpc"), status.subscription.nodes.map { it.transport })
+            assertEquals("grpc", status.active?.transport)
+            assertEquals("", status.active?.flow)
+            assertEquals("Netherlands 2", status.active?.displayName)
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test fun `invalid transport flow combinations remain rejected`() = runTest {
+        for ((transport, flow) in listOf("grpc" to "xtls-rprx-vision", "tcp" to "", "ws" to "")) {
+            val body = validStatusJson()
+                .replace("\"transport\":\"tcp\"", "\"transport\":\"$transport\"")
+                .replace("\"flow\":\"xtls-rprx-vision\"", "\"flow\":\"$flow\"")
+            val server = server(MockResponse().setBody(body))
+            try {
+                assertEquals(XkeenErrorCode.UNSUPPORTED_SCHEMA, failure { client().status(server.endpoint()) }.code)
+            } finally {
+                server.close()
+            }
+        }
+    }
+
     @Test fun `select encodes one node segment and operation polls same key`() = runTest {
         val server = server(
             MockResponse().setResponseCode(202).setBody(operationJson("running")),

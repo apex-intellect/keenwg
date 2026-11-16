@@ -158,6 +158,78 @@ func TestNodeTestRejectsChangedAdapterRevision(t *testing.T) {
 	if result.Result != adapter.ResultRejected || result.ErrorCode != "stale_adapter_state" || engine.testCalls != 0 {
 		t.Fatalf("result=%+v test calls=%d", result, engine.testCalls)
 	}
+	if result.Catalog.StateVersion <= document.StateVersion || result.Catalog.Sources[0].AdapterStateVersion != 4 {
+		t.Fatalf("stale response did not reconcile the projection: %+v", result)
+	}
+	replay := coordinator.TestNode(context.Background(), document.StateVersion, "test-node-0002", "node-a")
+	if replay.Result != adapter.ResultRejected || replay.ErrorCode != "stale_adapter_state" ||
+		replay.Catalog.StateVersion != result.Catalog.StateVersion || engine.testCalls != 0 {
+		t.Fatalf("replay=%+v test calls=%d", replay, engine.testCalls)
+	}
+	retry := coordinator.TestNode(context.Background(), result.Catalog.StateVersion, "test-node-0002-retry", "node-a")
+	if retry.Result != adapter.ResultCommitted || retry.Test == nil || engine.testCalls != 1 {
+		t.Fatalf("retry=%+v test calls=%d", retry, engine.testCalls)
+	}
+}
+
+func TestActivationRejectsDriftAndReturnsProjectionWithoutActivatingReplacement(t *testing.T) {
+	store := newCoordinatorStore(t)
+	engine := &fakeRegistry{projection: connectionProjection(3, "node-old", false)}
+	coordinator := NewCoordinator(store, engine, nil)
+	if err := coordinator.SyncAdapter(context.Background(), "engine"); err != nil {
+		t.Fatal(err)
+	}
+	document, _ := store.Snapshot(context.Background())
+	engine.projection = connectionProjection(4, "node-new", false)
+
+	result := coordinator.ActivateNode(context.Background(), document.StateVersion, "activate-drift-0001", "node-old")
+	if result.Result != adapter.ResultRejected || result.ErrorCode != "stale_adapter_state" ||
+		engine.activateCalls != 0 || engine.plannedNode != "" || len(result.Catalog.Nodes) != 1 ||
+		result.Catalog.Nodes[0].ID != "node-new" || result.Catalog.Sources[0].AdapterStateVersion != 4 {
+		t.Fatalf("result=%+v activation calls=%d plan=%q", result, engine.activateCalls, engine.plannedNode)
+	}
+	retryOld := coordinator.ActivateNode(context.Background(), result.Catalog.StateVersion, "activate-drift-0002", "node-old")
+	if retryOld.ErrorCode != "node_not_found" || engine.activateCalls != 0 {
+		t.Fatalf("removed node was not rejected: result=%+v calls=%d", retryOld, engine.activateCalls)
+	}
+}
+
+func TestStaleCatalogResponsesIncludeCurrentRevisionAndAllowReviewedRetry(t *testing.T) {
+	for _, operation := range []string{"refresh", "test", "activate"} {
+		t.Run(operation, func(t *testing.T) {
+			store := newCoordinatorStore(t)
+			engine := &fakeRegistry{projection: connectionProjection(3, "node-a", false)}
+			coordinator := NewCoordinator(store, engine, nil)
+			if err := coordinator.SyncAdapter(context.Background(), "engine"); err != nil {
+				t.Fatal(err)
+			}
+			document, _ := store.Snapshot(context.Background())
+			current, err := store.CreateGroup(context.Background(), document.StateVersion, "external-change-0001", "Work")
+			if err != nil {
+				t.Fatal(err)
+			}
+			call := func(reviewed uint64, key string) Result {
+				switch operation {
+				case "refresh":
+					return coordinator.RefreshSource(context.Background(), reviewed, key, "source-engine")
+				case "test":
+					return coordinator.TestNode(context.Background(), reviewed, key, "node-a")
+				default:
+					return coordinator.ActivateNode(context.Background(), reviewed, key, "node-a")
+				}
+			}
+			result := call(document.StateVersion, "stale-operation-0001")
+			if result.Result != adapter.ResultRejected || result.ErrorCode != "stale_state" ||
+				result.Catalog.StateVersion != current.StateVersion || engine.testCalls != 0 || engine.activateCalls != 0 {
+				t.Fatalf("result=%+v current=%d tests=%d activations=%d", result, current.StateVersion, engine.testCalls, engine.activateCalls)
+			}
+			engine.afterActivate = connectionProjection(4, "node-a", true)
+			retry := call(result.Catalog.StateVersion, "stale-operation-retry-0001")
+			if retry.Result != adapter.ResultCommitted {
+				t.Fatalf("reviewed retry=%+v", retry)
+			}
+		})
+	}
 }
 
 func TestActivationUsesExactNodeAndReportsPersistenceFailureAsUncertain(t *testing.T) {
