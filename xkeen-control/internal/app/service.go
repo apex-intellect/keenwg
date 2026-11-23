@@ -210,6 +210,10 @@ func RunCompanion(ctx context.Context, cfg config.Config, version, root string) 
 	if err != nil {
 		return err
 	}
+	if controller.engine != nil {
+		controller.engine.SetExternalBusyProbe(selfUpdater.pending)
+		selfUpdater.mutationGuard = controller.engine.AcquireExclusive
+	}
 	secureOptions := []api.SecureOption{
 		api.WithCatalog(catalogStore),
 		api.WithConnectionCoordinator(coordinator),
@@ -270,6 +274,7 @@ func buildControllerMode(
 	if err != nil {
 		return controllerRuntime{}, err
 	}
+	domainService.SetMutationGuard(engine.AcquireExclusive)
 	handler := api.NewCore(version, engine, store,
 		api.WithExclusions(exclusions.New(cfg.ExcludePath, system)),
 		api.WithDomainPolicy(domainService),
@@ -295,10 +300,9 @@ func hardenedServer(handler http.Handler) *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		// A reviewed WireGuard mutation can require several bounded ndmq calls,
-		// verification, save, and (on failure) rollback. Keep the HTTP budget
-		// above that bounded transaction without weakening request timeouts.
-		WriteTimeout:   45 * time.Second,
+		// Runtime start/stop has a bounded 60-second execution and verification
+		// budget; retain a margin for the response without changing read limits.
+		WriteTimeout:   75 * time.Second,
 		IdleTimeout:    60 * time.Second,
 		MaxHeaderBytes: 8 << 10,
 	}

@@ -1,5 +1,14 @@
 package ru.anisimov.keenwg.ui.xkeen
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
+import ru.anisimov.keenwg.ui.theme.ContinuousShape
+import ru.anisimov.keenwg.ui.theme.KeenRadius
+
 import ru.anisimov.keenwg.R
 
 import androidx.compose.ui.res.stringResource
@@ -22,17 +31,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarOutline
-import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,12 +50,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -57,7 +66,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.data.xkeen.XkeenActiveNode
@@ -136,8 +144,8 @@ private fun RouteContent(
     val status = state.status
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.group, end = KeenSpacing.screen, bottom = KeenScale.dp32),
+        verticalArrangement = Arrangement.spacedBy(KeenScale.dp10),
     ) {
         status?.active?.takeIf { showExceptionalActiveCard(status) }?.let { active ->
             item { ActiveRouteCard(active) }
@@ -169,18 +177,18 @@ private fun RouteContent(
         }
         item {
             val refreshSubscriptionLabel = stringResource(R.string.ui_xkeenscreen_84f94e80b2)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                 Button(
                     onClick = onRefresh,
                     enabled = status != null && !state.busy && !state.blocksMutation,
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = refreshSubscriptionLabel },
                 ) {
                     if (state.busy) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                        Spacer(Modifier.width(10.dp))
+                        CircularProgressIndicator(Modifier.size(KeenSpacing.card), strokeWidth = KeenScale.dp2, color = MaterialTheme.colorScheme.onPrimary)
+                        Spacer(Modifier.width(KeenScale.dp10))
                     } else {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Outlined.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(KeenSpacing.inline))
                     }
                     Text(if (state.busy) stringResource(R.string.ui_xkeenscreen_d2606cebc8) else stringResource(R.string.ui_xkeenscreen_ce7e3fd182))
                 }
@@ -195,11 +203,11 @@ private fun RouteContent(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     if (state.diagnosticsBusy) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(10.dp))
+                        CircularProgressIndicator(Modifier.size(KeenSpacing.card), strokeWidth = KeenScale.dp2)
+                        Spacer(Modifier.width(KeenScale.dp10))
                     } else {
-                        Icon(Icons.Default.Speed, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Outlined.Speed, contentDescription = null)
+                        Spacer(Modifier.width(KeenSpacing.inline))
                     }
                     Text(if (state.diagnosticsBusy) stringResource(R.string.ui_xkeenscreen_90028924db) else stringResource(R.string.ui_xkeenscreen_5579e6b769))
                 }
@@ -209,9 +217,9 @@ private fun RouteContent(
             }
         }
         item {
-            Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(top = KeenSpacing.inline), verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                 Text(stringResource(R.string.ui_xkeenscreen_e307e02b5d), style = MaterialTheme.typography.titleMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                     FilterChip(selected = !state.favoritesOnly, onClick = { onFavoritesOnly(false) }, label = { Text(stringResource(R.string.ui_xkeenscreen_215816bf42)) })
                     FilterChip(selected = state.favoritesOnly, onClick = { onFavoritesOnly(true) }, label = { Text(stringResource(R.string.ui_xkeenscreen_6f9ee3bf33)) })
                 }
@@ -246,9 +254,9 @@ private fun ActiveRouteCard(active: XkeenActiveNode) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
     ) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(KeenSpacing.item), verticalAlignment = Alignment.CenterVertically) {
             RouteRail(active = true)
-            Text(active.flag ?: "◎", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 14.dp))
+            Text(active.flag ?: "◎", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = KeenScale.dp14))
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.ui_xkeenscreen_51d102ff33), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
                 Text(
@@ -265,7 +273,7 @@ private fun ActiveRouteCard(active: XkeenActiveNode) {
                 )
             }
             Icon(
-                Icons.Default.CheckCircle,
+                Icons.Outlined.CheckCircle,
                 stringResource(R.string.xkeen_route_active_description),
                 tint = MaterialTheme.colorScheme.tertiary,
             )
@@ -288,12 +296,12 @@ private fun NodeRouteCard(
     Card(
         onClick = onClick,
         enabled = enabled && !active,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 106.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp106),
         colors = CardDefaults.cardColors(containerColor = cardColor),
     ) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(KeenScale.dp14), verticalAlignment = Alignment.CenterVertically) {
             RouteRail(active)
-            Text(node.flag ?: "◎", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 12.dp))
+            Text(node.flag ?: "◎", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = KeenSpacing.group))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -309,9 +317,9 @@ private fun NodeRouteCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 3.dp),
+                    modifier = Modifier.padding(top = KeenScale.dp3),
                 )
-                Box(Modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.CenterStart) {
+                Box(Modifier.fillMaxWidth().height(KeenSize.icon), contentAlignment = Alignment.CenterStart) {
                     when {
                         diagnostic != null -> Text(
                             diagnosticLabel(diagnostic),
@@ -321,12 +329,12 @@ private fun NodeRouteCard(
                             overflow = TextOverflow.Ellipsis,
                         )
                         hasConfigurationWarning(node) -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.WarningAmber, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(KeenScale.dp15))
                             Text(
                                 stringResource(R.string.xkeen_configuration_warning),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 4.dp),
+                                modifier = Modifier.padding(start = KeenSpacing.tight),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -342,12 +350,12 @@ private fun NodeRouteCard(
             }
             IconButton(onClick = onFavorite) {
                 Icon(
-                    if (favorite) Icons.Default.Star else Icons.Outlined.StarOutline,
+                    if (favorite) Icons.Outlined.Star else Icons.Outlined.StarOutline,
                     contentDescription = if (favorite) stringResource(R.string.ui_xkeenscreen_334c3299a8) else stringResource(R.string.ui_xkeenscreen_2a6b5f7278),
                     tint = if (favorite) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (!active) Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (!active) Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -367,20 +375,20 @@ private fun diagnosticLabel(value: XkeenNodeDiagnostic): String = stringResource
 private fun RouteRail(active: Boolean) {
     Box(
         Modifier
-            .width(4.dp)
-            .height(56.dp)
-            .background(if (active) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp)),
+            .width(KeenSpacing.tight)
+            .height(KeenScale.dp56)
+            .background(if (active) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outline, RoundedCornerShape(KeenSpacing.tight)),
     )
 }
 
 @Composable
 private fun ActiveBadge() {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = ContinuousShape(KeenRadius.card),
         color = MaterialTheme.colorScheme.tertiary,
         contentColor = MaterialTheme.colorScheme.onTertiary,
     ) {
-        Text(stringResource(R.string.ui_xkeenscreen_c22462bc76), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+        Text(stringResource(R.string.ui_xkeenscreen_c22462bc76), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = KeenSpacing.inline, vertical = KeenScale.dp3))
     }
 }
 
@@ -394,10 +402,10 @@ private fun SelectionDialog(
 ) {
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
-        icon = { Icon(Icons.Default.Language, contentDescription = null) },
+        icon = { Icon(Icons.Outlined.Language, contentDescription = null) },
         title = { Text(stringResource(R.string.ui_xkeenscreen_0dc7eba110)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
                 val fallback = stringResource(R.string.xkeen_server_fallback)
                 Text("${current?.flag.orEmpty()} ${current?.let { cleanNodeName(it.flag, it.displayName, fallback) } ?: stringResource(R.string.xkeen_current_route)}  →  ${target.flag.orEmpty()} ${cleanNodeName(target.flag, target.displayName, fallback)}")
                 Text(stringResource(R.string.ui_xkeenscreen_e1bd32a0d4))
@@ -432,29 +440,29 @@ private fun lastRefreshText(epochSeconds: Long?): String {
 @Composable
 private fun LoadingRoute(modifier: Modifier = Modifier) {
     Column(
-        modifier.fillMaxSize().padding(24.dp),
+        modifier.fillMaxSize().padding(KeenSpacing.section),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         CircularProgressIndicator()
-        Text(stringResource(R.string.ui_xkeenscreen_d6138fa03b), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
+        Text(stringResource(R.string.ui_xkeenscreen_d6138fa03b), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = KeenSpacing.item))
     }
 }
 
 @Composable
 private fun SetupRoute(onSetupCompanion: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier.fillMaxSize().padding(24.dp),
+        modifier.fillMaxSize().padding(KeenSpacing.section),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(44.dp), tint = MaterialTheme.colorScheme.primary)
-        Text(stringResource(R.string.ui_xkeenscreen_72909eb470), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 14.dp))
+        Icon(Icons.Outlined.Language, contentDescription = null, modifier = Modifier.size(KeenScale.dp44), tint = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.ui_xkeenscreen_72909eb470), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = KeenScale.dp14))
         Text(
             stringResource(R.string.xkeen_pairing_required_detail),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp, bottom = 18.dp),
+            modifier = Modifier.padding(top = KeenSpacing.inline, bottom = KeenSpacing.card),
         )
         Button(onClick = onSetupCompanion, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.ui_xkeenscreen_7c8ef82d31)) }
     }

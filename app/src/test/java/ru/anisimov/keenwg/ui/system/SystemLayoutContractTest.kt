@@ -12,10 +12,10 @@ class SystemLayoutContractTest {
             Files.readAllBytes(Path.of("src/main/java/ru/anisimov/keenwg/ui/system/SystemScreen.kt")),
         )
 
-        assertTrue(source.contains("padding(horizontal = 12.dp, vertical = 8.dp)"))
+        assertTrue(source.contains("padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group)"))
         assertTrue(source.contains("Dialog(onDismissRequest = onDismiss)"))
-        assertTrue(source.contains("heightIn(min = 48.dp)"))
-        assertTrue(source.contains("widthIn(max = 360.dp)"))
+        assertTrue(source.contains("heightIn(min = KeenSize.touch)"))
+        assertTrue(source.contains("widthIn(max = KeenScale.dp360)"))
         assertFalse(source.contains("AlertDialog("))
     }
 }

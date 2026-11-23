@@ -48,15 +48,16 @@ type Store interface {
 type Job func(context.Context)
 
 type Engine struct {
-	mu        sync.Mutex
-	activeKey string
-	cfg       config.Config
-	fetcher   Fetcher
-	parser    Parser
-	store     Store
-	system    xray.System
-	clock     func() time.Time
-	urls      SubscriptionURLProvider
+	mu           sync.Mutex
+	activeKey    string
+	cfg          config.Config
+	fetcher      Fetcher
+	parser       Parser
+	store        Store
+	system       xray.System
+	clock        func() time.Time
+	urls         SubscriptionURLProvider
+	externalBusy func() (bool, error)
 }
 
 func New(cfg config.Config, fetcher Fetcher, parser Parser, store Store, system xray.System, clock func() time.Time) *Engine {
@@ -112,7 +113,7 @@ func (e *Engine) prepare(key, kind, nodeID string, supplied *model.Node, expecte
 	if found {
 		return existing, nil, nil
 	}
-	if e.activeKey != "" {
+	if e.activeKey != "" || e.externalMutationBusy() {
 		return model.Operation{}, nil, ErrBusy
 	}
 	controller, err := e.store.LoadControllerState()

@@ -1,5 +1,12 @@
 package ru.anisimov.keenwg.ui.about
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
+import ru.anisimov.keenwg.ui.theme.ContinuousShape
+import ru.anisimov.keenwg.ui.theme.KeenRadius
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,16 +26,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.StarOutline
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -40,7 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,14 +63,13 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.BuildConfig
 import ru.anisimov.keenwg.R
 
-private val AboutCardShape = RoundedCornerShape(20.dp)
-private val AboutRowShape = RoundedCornerShape(14.dp)
+private val AboutCardShape = ContinuousShape(KeenRadius.card)
+private val AboutRowShape = ContinuousShape(KeenRadius.control)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,8 +107,8 @@ fun AboutScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         ) {
             IdentityCard(provenance)
 
@@ -115,7 +121,7 @@ fun AboutScreen(
             Text(
                 stringResource(R.string.about_expert_section),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+                modifier = Modifier.padding(start = KeenSpacing.tight, top = KeenSpacing.tight),
             )
             ExpertModeCard(
                 enabled = expertMode,
@@ -124,7 +130,7 @@ fun AboutScreen(
                 },
                 onOpenManualSettings = onOpenManualSettings,
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(KeenSpacing.inline))
         }
     }
 
@@ -160,16 +166,16 @@ private fun IdentityCard(provenance: BuildProvenance) {
         shape = AboutCardShape,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(KeenSpacing.item),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
             ) {
                 Surface(
-                    modifier = Modifier.size(72.dp),
-                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.size(KeenScale.dp72),
+                    shape = ContinuousShape(KeenRadius.control),
                     color = colorResource(R.color.launcher_background),
                 ) {
                     Icon(
@@ -181,7 +187,7 @@ private fun IdentityCard(provenance: BuildProvenance) {
                 }
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(KeenScale.dp2),
                 ) {
                     Text(
                         stringResource(R.string.app_name),
@@ -219,18 +225,18 @@ private fun ProvenanceRow(provenance: BuildProvenance) {
     val color = if (official) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         verticalAlignment = Alignment.Top,
     ) {
         Icon(
-            imageVector = if (official) Icons.Default.CheckCircle else Icons.Default.WarningAmber,
+            imageVector = if (official) Icons.Outlined.CheckCircle else Icons.Outlined.WarningAmber,
             contentDescription = null,
             tint = color,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(KeenSpacing.section),
         )
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(KeenScale.dp2),
         ) {
             Text(
                 stringResource(if (official) R.string.about_official_build else R.string.about_unverified_build),
@@ -263,20 +269,20 @@ private fun RouterComponentCard(onClick: () -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 72.dp)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .heightIn(min = KeenScale.dp72)
+                .padding(horizontal = KeenSpacing.item, vertical = KeenSpacing.group),
+            horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Default.SystemUpdate,
+                Icons.Outlined.SystemUpdate,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(KeenSpacing.section),
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(KeenScale.dp2),
             ) {
                 Text(
                     stringResource(R.string.about_router_component),
@@ -291,7 +297,7 @@ private fun RouterComponentCard(onClick: () -> Unit) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(KeenSpacing.card),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -306,15 +312,15 @@ private fun CompanyCard(onOpenLink: (AboutLinkTarget) -> Unit) {
         shape = AboutCardShape,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(KeenSpacing.item),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline),
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_apex_intellect_wordmark),
                 contentDescription = stringResource(R.string.about_company_logo_description),
                 modifier = Modifier
-                    .width(201.dp)
-                    .height(60.dp),
+                    .width(KeenScale.dp201)
+                    .height(KeenScale.dp60),
                 tint = Color.Unspecified,
             )
             Text(
@@ -323,14 +329,14 @@ private fun CompanyCard(onOpenLink: (AboutLinkTarget) -> Unit) {
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = KeenSpacing.tight),
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
 
             aboutLinkTargets().forEachIndexed { index, target ->
                 if (index > 0) {
                     HorizontalDivider(
-                        modifier = Modifier.padding(start = 52.dp),
+                        modifier = Modifier.padding(start = KeenScale.dp52),
                         color = MaterialTheme.colorScheme.outlineVariant,
                     )
                 }
@@ -344,7 +350,7 @@ private fun CompanyCard(onOpenLink: (AboutLinkTarget) -> Unit) {
                 stringResource(R.string.about_license),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 8.dp, top = 4.dp),
+                modifier = Modifier.padding(start = KeenSpacing.inline, top = KeenSpacing.tight),
             )
         }
     }
@@ -359,15 +365,15 @@ private fun AboutLink(
     val label: String
     when (target) {
         AboutLinkTarget.OFFICIAL_SOURCE -> {
-            icon = Icons.Default.Code
+            icon = Icons.Outlined.Code
             label = stringResource(R.string.about_official_source)
         }
         AboutLinkTarget.STAR_REPOSITORY -> {
-            icon = Icons.Default.StarOutline
+            icon = Icons.Outlined.StarOutline
             label = stringResource(R.string.about_star_github)
         }
         AboutLinkTarget.COMPANY_WEBSITE -> {
-            icon = Icons.Default.Language
+            icon = Icons.Outlined.Language
             label = stringResource(R.string.about_company_website)
         }
         AboutLinkTarget.DEVELOPER -> {
@@ -389,16 +395,16 @@ private fun AboutLink(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .heightIn(min = KeenScale.dp56)
+                .padding(horizontal = KeenSpacing.inline, vertical = KeenSpacing.inline),
+            horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(KeenSpacing.section),
             )
             Text(
                 label,
@@ -408,7 +414,7 @@ private fun AboutLink(
             Icon(
                 Icons.AutoMirrored.Filled.OpenInNew,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(KeenSpacing.card),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -427,18 +433,18 @@ private fun ExpertModeCard(
         shape = AboutCardShape,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(KeenSpacing.item),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
             ) {
                 Icon(
-                    Icons.Default.Tune,
+                    Icons.Outlined.Tune,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(KeenSpacing.section),
                 )
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -457,14 +463,14 @@ private fun ExpertModeCard(
                 )
             }
             AnimatedVisibility(enabled) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(KeenScale.dp10),
                         verticalAlignment = Alignment.Top,
                     ) {
                         Icon(
-                            Icons.Default.WarningAmber,
+                            Icons.Outlined.WarningAmber,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.secondary,
                         )

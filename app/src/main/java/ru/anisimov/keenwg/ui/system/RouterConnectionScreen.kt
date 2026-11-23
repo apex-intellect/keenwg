@@ -1,5 +1,9 @@
 package ru.anisimov.keenwg.ui.system
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,25 +17,25 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Router
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import ru.anisimov.keenwg.R
 import ru.anisimov.keenwg.ui.overview.OverviewState
 
@@ -78,8 +81,8 @@ fun RouterConnectionScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.item),
         ) {
             Text(
                 stringResource(R.string.router_connection_intro),
@@ -103,14 +106,14 @@ fun RouterConnectionScreen(
                     }
                 },
                 enabled = !presentation.checking,
-                modifier = Modifier.fillMaxWidth().height(54.dp),
+                modifier = Modifier.fillMaxWidth().height(KeenScale.dp54),
             ) {
                 if (presentation.checking) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(modifier = Modifier.size(KeenSpacing.screen), strokeWidth = KeenScale.dp2)
                     Text(stringResource(R.string.router_connection_checking))
                 } else {
                     Icon(
-                        if (presentation.primaryAction == RouterConnectionPrimaryAction.CHECK) Icons.Default.Refresh else Icons.Default.Router,
+                        if (presentation.primaryAction == RouterConnectionPrimaryAction.CHECK) Icons.Outlined.Refresh else Icons.Outlined.Router,
                         contentDescription = null,
                     )
                     Text(
@@ -126,26 +129,26 @@ fun RouterConnectionScreen(
             }
 
             if (presentation.canRecover) {
-                OutlinedButton(onClick = onRecover, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                OutlinedButton(onClick = onRecover, modifier = Modifier.fillMaxWidth().height(KeenScale.dp52)) {
                     Text(stringResource(R.string.router_connection_recover))
                 }
                 Text(
                     stringResource(R.string.router_connection_recover_explanation),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 4.dp),
+                    modifier = Modifier.padding(horizontal = KeenSpacing.tight),
                 )
             }
 
             if (presentation.canChangeRouter) {
                 OutlinedButton(
                     onClick = { confirmChangeRouter = true },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    modifier = Modifier.fillMaxWidth().height(KeenScale.dp52),
                 ) {
                     Text(stringResource(R.string.router_connection_change_router))
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(KeenSpacing.inline))
         }
     }
 
@@ -184,24 +187,24 @@ private fun ConnectionStatusCard(
         -> MaterialTheme.colorScheme.error
     }
     val icon: ImageVector = when (status) {
-        SystemConnectionStatus.CONNECTED -> Icons.Default.CheckCircle
-        SystemConnectionStatus.CHECKING -> Icons.Default.Refresh
+        SystemConnectionStatus.CONNECTED -> Icons.Outlined.CheckCircle
+        SystemConnectionStatus.CHECKING -> Icons.Outlined.Refresh
         SystemConnectionStatus.DEGRADED,
         SystemConnectionStatus.SETUP_REQUIRED,
-        -> Icons.Default.WarningAmber
-        SystemConnectionStatus.LOCKED -> Icons.Default.Lock
+        -> Icons.Outlined.WarningAmber
+        SystemConnectionStatus.LOCKED -> Icons.Outlined.Lock
     }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(KeenSpacing.screen),
+            horizontalArrangement = Arrangement.spacedBy(KeenScale.dp14),
             verticalAlignment = Alignment.Top,
         ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(28.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(KeenScale.dp28))
+            Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.tight)) {
                 Text(profileName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text(routerConnectionStatusText(status), color = color)
                 if (!message.isNullOrBlank()) {
@@ -219,12 +222,12 @@ private fun CredentialExplanation() {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Row(
-            modifier = Modifier.padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(KeenSpacing.card),
+            horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
             verticalAlignment = Alignment.Top,
         ) {
-            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.tight)) {
                 Text(stringResource(R.string.router_connection_credentials_title), fontWeight = FontWeight.SemiBold)
                 Text(
                     stringResource(R.string.router_connection_credentials_body),

@@ -333,6 +333,10 @@ func (s *SecureServer) handleCapabilities(w http.ResponseWriter, r *http.Request
 	}
 	if principal.Scope != auth.ScopeOwner {
 		for index := range document.Capabilities {
+			if document.Capabilities[index].ID == capability.XKeenRuntime && document.Capabilities[index].Available {
+				document.Capabilities[index].Access = capability.AccessRead
+				document.Capabilities[index].Reason = "owner_required"
+			}
 			if document.Capabilities[index].ID == capability.SystemDevices {
 				document.Capabilities[index].Access = capability.AccessNone
 				document.Capabilities[index].Available = false
@@ -500,6 +504,11 @@ func decodeSecureJSONLimit(w http.ResponseWriter, r *http.Request, destination a
 
 func coreScope(r *http.Request) (auth.Scope, bool) {
 	switch {
+	case r.URL.Path == "/v1/xkeen/runtime":
+		if r.Method == http.MethodGet {
+			return auth.ScopeViewer, true
+		}
+		return auth.ScopeOwner, true
 	case r.URL.Path == "/v1/xkeen/status", r.URL.Path == "/v1/diagnostics/nodes", r.URL.Path == "/v1/network/domains":
 		return auth.ScopeViewer, true
 	case r.URL.Path == "/v1/network/exclusions":

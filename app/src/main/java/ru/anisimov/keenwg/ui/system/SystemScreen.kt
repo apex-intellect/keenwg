@@ -1,5 +1,11 @@
 package ru.anisimov.keenwg.ui.system
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,18 +21,18 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Router
+import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
@@ -36,7 +42,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,7 +55,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.os.LocaleListCompat
 import ru.anisimov.keenwg.R
@@ -81,14 +86,14 @@ fun SystemScreen(
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         ) {
             RouterStatusCard(presentation)
             Text(
                 text = stringResource(R.string.system_section_management),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 4.dp),
+                modifier = Modifier.padding(start = KeenSpacing.tight),
             )
             KeenGlassSurface(Modifier.fillMaxWidth()) {
                 presentation.rows.forEachIndexed { index, row ->
@@ -110,12 +115,12 @@ fun SystemScreen(
                     if (index < presentation.rows.lastIndex) {
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-                            modifier = Modifier.padding(horizontal = 16.dp),
+                            modifier = Modifier.padding(horizontal = KeenSpacing.item),
                         )
                     }
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(KeenSpacing.tight))
         }
     }
 
@@ -144,18 +149,18 @@ private fun RouterStatusCard(presentation: SystemPresentation) {
         -> MaterialTheme.colorScheme.error
     }
     val statusIcon = when (presentation.connectionStatus) {
-        SystemConnectionStatus.CONNECTED -> Icons.Default.CheckCircle
-        SystemConnectionStatus.CHECKING -> Icons.Default.Refresh
+        SystemConnectionStatus.CONNECTED -> Icons.Outlined.CheckCircle
+        SystemConnectionStatus.CHECKING -> Icons.Outlined.Refresh
         SystemConnectionStatus.DEGRADED,
         SystemConnectionStatus.SETUP_REQUIRED,
-        -> Icons.Default.WarningAmber
-        SystemConnectionStatus.LOCKED -> Icons.Default.Lock
+        -> Icons.Outlined.WarningAmber
+        SystemConnectionStatus.LOCKED -> Icons.Outlined.Lock
     }
 
     KeenGlassSurface(Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(KeenSpacing.group),
+            horizontalArrangement = Arrangement.spacedBy(KeenScale.dp10),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
@@ -163,9 +168,9 @@ private fun RouterStatusCard(presentation: SystemPresentation) {
                 color = statusColor.copy(alpha = 0.14f),
                 contentColor = statusColor,
             ) {
-                Icon(statusIcon, contentDescription = null, modifier = Modifier.padding(10.dp).size(22.dp))
+                Icon(statusIcon, contentDescription = null, modifier = Modifier.padding(KeenScale.dp10).size(KeenSize.icon))
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenScale.dp3)) {
                 Text(
                     presentation.profileName ?: stringResource(R.string.system_router_default),
                     style = MaterialTheme.typography.titleLarge,
@@ -200,16 +205,16 @@ private fun SystemMenuRow(row: SystemRow, currentLanguage: AppLanguage, onClick:
         shape = MaterialTheme.shapes.medium,
     ) {
         Row(
-            modifier = Modifier.heightIn(min = 58.dp).padding(horizontal = 12.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.heightIn(min = KeenScale.dp58).padding(horizontal = KeenSpacing.group, vertical = KeenScale.dp9),
+            horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(KeenSize.icon))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenScale.dp2)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -228,32 +233,32 @@ private fun statusText(status: SystemConnectionStatus): String = stringResource(
 @Composable
 private fun rowContent(action: SystemAction, currentLanguage: AppLanguage): Triple<ImageVector, String, String> = when (action) {
     SystemAction.CONNECTION -> Triple(
-        Icons.Default.Router,
+        Icons.Outlined.Router,
         stringResource(R.string.system_connection_title),
         stringResource(R.string.system_connection_body),
     )
     SystemAction.COMPANION -> Triple(
-        Icons.Default.SystemUpdate,
+        Icons.Outlined.SystemUpdate,
         stringResource(R.string.system_companion_title),
         stringResource(R.string.system_companion_body),
     )
     SystemAction.DEVICES -> Triple(
-        Icons.Default.Devices,
+        Icons.Outlined.Devices,
         stringResource(R.string.system_devices_title),
         stringResource(R.string.system_devices_body),
     )
     SystemAction.DIAGNOSTICS -> Triple(
-        Icons.Default.BugReport,
+        Icons.Outlined.BugReport,
         stringResource(R.string.system_diagnostics_title),
         stringResource(R.string.system_diagnostics_body),
     )
     SystemAction.BACKUP -> Triple(
-        Icons.Default.Backup,
+        Icons.Outlined.Backup,
         stringResource(R.string.system_backup_title),
         stringResource(R.string.system_backup_body),
     )
     SystemAction.LANGUAGE -> Triple(
-        Icons.Default.Translate,
+        Icons.Outlined.Translate,
         stringResource(R.string.system_language_title),
         stringResource(
             when (currentLanguage) {
@@ -264,7 +269,7 @@ private fun rowContent(action: SystemAction, currentLanguage: AppLanguage): Trip
         ),
     )
     SystemAction.ABOUT -> Triple(
-        Icons.Default.Info,
+        Icons.Outlined.Info,
         stringResource(R.string.system_about_title),
         stringResource(R.string.system_about_body),
     )
@@ -278,12 +283,12 @@ private fun LanguageDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.fillMaxWidth().widthIn(max = 360.dp),
+            modifier = Modifier.fillMaxWidth().widthIn(max = KeenScale.dp360),
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+            tonalElevation = KeenScale.dp6,
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.padding(KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenScale.dp6)) {
                 Text(stringResource(R.string.language_dialog_title), style = MaterialTheme.typography.headlineSmall)
                 Text(
                     stringResource(R.string.language_change_description),
@@ -297,7 +302,7 @@ private fun LanguageDialog(
                         color = if (language == current) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 8.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = KeenSize.touch).padding(horizontal = KeenSpacing.inline),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(selected = language == current, onClick = null)
@@ -309,7 +314,7 @@ private fun LanguageDialog(
                                         AppLanguage.ENGLISH -> R.string.language_english
                                     },
                                 ),
-                                modifier = Modifier.padding(start = 8.dp),
+                                modifier = Modifier.padding(start = KeenSpacing.inline),
                             )
                         }
                     }

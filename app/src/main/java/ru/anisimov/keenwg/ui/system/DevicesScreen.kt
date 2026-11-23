@@ -1,5 +1,12 @@
 package ru.anisimov.keenwg.ui.system
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
+import ru.anisimov.keenwg.ui.theme.ContinuousShape
+import ru.anisimov.keenwg.ui.theme.KeenRadius
+
 import ru.anisimov.keenwg.R
 
 import androidx.compose.ui.res.stringResource
@@ -24,26 +31,26 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -54,7 +61,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
@@ -91,17 +97,17 @@ fun DevicesScreen(
                 },
                 actions = {
                     IconButton(onClick = { vm.refresh() }, enabled = !state.loading && !state.busy) {
-                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.ui_devicesscreen_603e460bf5))
+                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.ui_devicesscreen_603e460bf5))
                     }
                 },
             )
         },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = KeenSpacing.screen),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         ) {
-            item { Spacer(Modifier.height(2.dp)) }
+            item { Spacer(Modifier.height(KeenScale.dp2)) }
             item { CompanionStatusCard(state) }
             state.errorResource?.let { errorResource ->
                 item { StatusNotice(stringResource(R.string.ui_devicesscreen_87f1858048), detail = stringResource(errorResource), isError = true) }
@@ -109,7 +115,7 @@ fun DevicesScreen(
             state.messageResource?.let { messageResource -> item { StatusNotice(stringResource(messageResource)) } }
             if (state.loading) {
                 item {
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxWidth().padding(KeenScale.dp32), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
@@ -128,16 +134,16 @@ fun DevicesScreen(
                         Button(
                             onClick = vm::createViewerOffer,
                             enabled = !state.busy && state.offer == null,
-                            modifier = Modifier.fillMaxWidth().height(54.dp),
-                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.fillMaxWidth().height(KeenScale.dp54),
+                            shape = ContinuousShape(KeenRadius.card),
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
+                            Icon(Icons.Outlined.Add, contentDescription = null)
                             Text(stringResource(R.string.ui_devicesscreen_1425e75173))
                         }
                     }
                 }
             }
-            item { Spacer(Modifier.height(20.dp)) }
+            item { Spacer(Modifier.height(KeenSpacing.screen)) }
         }
     }
 
@@ -151,16 +157,16 @@ fun DevicesScreen(
 private fun CompanionStatusCard(state: DevicesUiState) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
+        shape = ContinuousShape(KeenRadius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
-        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxWidth().padding(KeenSpacing.screen), verticalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)),
+                    Modifier.size(KeenScale.dp44).clip(RoundedCornerShape(KeenScale.dp15)),
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Default.Devices, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
-                Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                ) { Icon(Icons.Outlined.Devices, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
+                Column(Modifier.padding(start = KeenSpacing.group).weight(1f)) {
                     Text(stringResource(R.string.system_connection_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text(
                         stringResource(R.string.devices_api_label, stringResource(state.apiStateResource)),
@@ -186,21 +192,21 @@ private fun StatusRow(label: String, value: String, mono: Boolean = false) {
 private fun DeviceCard(device: DeviceItem, canRevoke: Boolean, onRevoke: (String) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = ContinuousShape(KeenRadius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-            Column(Modifier.padding(horizontal = 13.dp).weight(1f)) {
+        Row(Modifier.fillMaxWidth().padding(KeenSpacing.item), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(KeenScale.dp28))
+            Column(Modifier.padding(horizontal = KeenScale.dp13).weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(device.label, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (device.current) {
                         Surface(
-                            modifier = Modifier.padding(start = 8.dp),
+                            modifier = Modifier.padding(start = KeenSpacing.inline),
                             shape = RoundedCornerShape(50),
                             color = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ) { Text(stringResource(R.string.ui_devicesscreen_153c990b62), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) }
+                        ) { Text(stringResource(R.string.ui_devicesscreen_153c990b62), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = KeenSpacing.inline, vertical = KeenSpacing.tight)) }
                     }
                 }
                 Text(scopeLabel(device.scope), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
@@ -208,7 +214,7 @@ private fun DeviceCard(device: DeviceItem, canRevoke: Boolean, onRevoke: (String
             }
             if (canRevoke) {
                 IconButton(onClick = { onRevoke(device.id) }) {
-                    Icon(Icons.Default.DeleteOutline, contentDescription = stringResource(R.string.ui_devicesscreen_de1aec86ab), tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Outlined.DeleteOutline, contentDescription = stringResource(R.string.ui_devicesscreen_de1aec86ab), tint = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -223,11 +229,11 @@ private fun PairingOfferDialog(offer: VisiblePairingOffer, busy: Boolean, onDism
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.ui_devicesscreen_d41e207576)) },
         text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
                 QrImage(
                     text = offer.qrPayload,
                     contentDescription = stringResource(R.string.ui_devicesscreen_27e38db9bc),
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
+                    modifier = Modifier.fillMaxWidth().clip(ContinuousShape(KeenRadius.card)),
                 )
                 Text(stringResource(R.string.ui_devicesscreen_07d098a986), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

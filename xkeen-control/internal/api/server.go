@@ -99,6 +99,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.handleStatus(w, r)
+	case r.URL.Path == "/v1/xkeen/runtime":
+		required := auth.ScopeOwner
+		if r.Method == http.MethodGet {
+			required = auth.ScopeViewer
+		}
+		if !s.authorize(w, r, required) {
+			return
+		}
+		s.handleRuntime(w, r)
 	case r.URL.Path == "/v1/diagnostics/nodes":
 		if !s.authorize(w, r, auth.ScopeViewer) {
 			return

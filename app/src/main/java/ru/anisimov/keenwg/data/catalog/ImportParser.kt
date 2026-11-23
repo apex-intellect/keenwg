@@ -215,7 +215,7 @@ object ImportParser {
 
     private fun JsonObject.optionalString(key: String): String? = get(key)?.jsonPrimitive?.content
 
-    private val VLESS_FIELDS = setOf("type", "security", "sni", "fp", "flow", "pbk", "sid", "path", "host", "serviceName", "mode", "alpn", "encryption", "headerType", "allowInsecure")
+    private val VLESS_FIELDS = setOf("type", "security", "sni", "fp", "flow", "pbk", "sid", "spx", "path", "host", "serviceName", "authority", "mode", "alpn", "encryption", "headerType", "allowInsecure")
     private val TROJAN_FIELDS = setOf("type", "security", "sni", "fp", "path", "host", "serviceName", "mode", "alpn", "allowInsecure")
     private val HYSTERIA_FIELDS = setOf("sni", "insecure", "obfs", "obfs-password", "pinSHA256")
     private val VMESS_FIELDS = setOf("v", "ps", "add", "port", "id", "aid", "scy", "net", "type", "host", "path", "tls", "sni", "alpn", "fp")

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
+<title id="title">KeenWG — Your network. Clearly.</title>
+<desc id="desc">Local Android control for WireGuard, XKeen and your router. By Apex Intellect.</desc>
+<rect width="1200" height="340" rx="28" fill="#f5f2ea"/>
+<g fill="none" stroke="#dbd8d0" stroke-width="2"><path d="M820 95h240c30 0 45 15 45 45v60c0 30-15 45-45 45H820c-30 0-45-15-45-45v-60c0-30 15-45 45-45Z"/><path d="M835 95V55m210 40V55"/><circle cx="835" cy="170" r="6"/><path d="M875 170h160"/></g>
+<g font-family="Arial,Helvetica,sans-serif" fill="#282927"><text x="64" y="92" font-size="17" letter-spacing="4">KEENWG / BY APEX</text><text x="60" y="176" font-size="60" font-weight="600" letter-spacing="-2">Your network.</text><text x="60" y="241" font-size="60" font-weight="600" letter-spacing="-2">Clearly.</text></g>
+<text x="64" y="293" fill="#686962" font-family="Arial,Helvetica,sans-serif" font-size="19">Local control · Explicit changes · Android</text>
+</svg>

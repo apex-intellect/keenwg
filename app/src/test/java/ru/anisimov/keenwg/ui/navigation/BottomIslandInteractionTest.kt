@@ -7,14 +7,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BottomIslandInteractionTest {
-    @Test fun `navigation items keep press indication inside their rounded black surfaces`() {
+    @Test fun `navigation items keep press indication inside continuous translucent surfaces`() {
         val source = String(Files.readAllBytes(Path.of("src/main/java/ru/anisimov/keenwg/ui/navigation/KeenBottomIsland.kt")))
         assertFalse(source.contains("import androidx.compose.foundation.clickable"))
         assertFalse(source.contains("NavigationBarItem("))
         assertTrue(source.contains("Surface("))
         assertTrue(source.contains("onClick = { onSelect(destination) }"))
-        assertTrue(source.contains("shape = itemShape"))
-        assertTrue(source.contains("KeenNavigationBlack"))
+        assertTrue(source.contains("shape = ContinuousShape(KeenRadius.navigationItem)"))
+        assertTrue(source.contains("KeenOpacity.glass"))
+        assertTrue(source.contains("this.selected = isSelected"))
+        assertTrue(source.contains("role = Role.Tab"))
         assertTrue(source.contains("navigationBarsPadding()"))
         assertTrue(source.contains("destinations.forEach"))
     }

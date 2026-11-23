@@ -1,5 +1,12 @@
 package ru.anisimov.keenwg.ui.overview
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
+import ru.anisimov.keenwg.ui.theme.ContinuousShape
+import ru.anisimov.keenwg.ui.theme.KeenRadius
+
 import ru.anisimov.keenwg.R
 
 import androidx.compose.ui.res.stringResource
@@ -13,34 +20,36 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Route
-import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Route
+import androidx.compose.material.icons.outlined.Router
+import androidx.compose.material.icons.outlined.Warning
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,9 +59,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import ru.anisimov.keenwg.data.companion.CapabilityAccess
 import ru.anisimov.keenwg.domain.model.RouterProfile
+import ru.anisimov.keenwg.ui.navigation.TopLevelDestination
+import ru.anisimov.keenwg.ui.components.KeenGlassSurface
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,23 +72,17 @@ fun OverviewScreen(
     onSelectProfile: (String) -> Unit,
     onOpenSystem: () -> Unit,
     onSetup: () -> Unit,
+    onOpenDestination: (TopLevelDestination) -> Unit = {},
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("KeenWG")
-                        Text(
-                            stringResource(R.string.home_subtitle),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(stringResource(R.string.nav_overview))
                 },
                 actions = {
                     IconButton(onClick = onRefresh, enabled = !state.loading) {
-                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.ui_overviewscreen_ed96001620))
+                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.ui_overviewscreen_ed96001620))
                     }
                 },
             )
@@ -89,16 +93,16 @@ fun OverviewScreen(
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.item),
         ) {
             if (state.showProfileSelector) {
                 ProfileSelector(state, onSelectProfile)
             } else {
                 Text(
                     state.selectedProfileName ?: stringResource(R.string.home_router_not_selected),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -106,26 +110,30 @@ fun OverviewScreen(
 
             state.activeXkeenNode?.let { node ->
                 InfoCard(
-                    icon = Icons.Default.Language,
+                    icon = Icons.Outlined.Language,
                     title = stringResource(R.string.home_active_vpn_server),
                     body = node,
                 )
             }
 
             Text(stringResource(R.string.home_sections), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            ModuleCard("connections.", Icons.Default.Language, state)
-            ModuleCard("routes.", Icons.Default.Route, state)
-            ModuleCard("access.", Icons.Default.Devices, state)
+            KeenGlassSurface(Modifier.fillMaxWidth()) {
+                ModuleCard("connections.", Icons.Outlined.Language, state) { onOpenDestination(TopLevelDestination.CONNECTIONS) }
+                HorizontalDivider(Modifier.padding(horizontal = KeenSpacing.card))
+                ModuleCard("routes.", Icons.Outlined.Route, state) { onOpenDestination(TopLevelDestination.ROUTES) }
+                HorizontalDivider(Modifier.padding(horizontal = KeenSpacing.card))
+                ModuleCard("access.", Icons.Outlined.Devices, state) { onOpenDestination(TopLevelDestination.ACCESS) }
+            }
 
             if (state.health == OverviewHealth.SETUP_REQUIRED || state.health == OverviewHealth.DEGRADED || state.health == OverviewHealth.LOCKED) {
                 OutlinedButton(
                     onClick = if (state.health == OverviewHealth.LOCKED) onOpenSystem else onSetup,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52),
                 ) {
                     Text(if (state.health == OverviewHealth.LOCKED) stringResource(R.string.ui_overviewscreen_e1ea72a240) else stringResource(R.string.ui_overviewscreen_50a765b16f))
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(KeenSpacing.inline))
         }
     }
 }
@@ -136,16 +144,16 @@ private fun ProfileSelector(state: OverviewState, onSelectProfile: (String) -> U
     Box {
         Surface(
             onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
-            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp64),
+            shape = ContinuousShape(KeenRadius.card),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             Row(
-                Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                Modifier.padding(horizontal = KeenSpacing.card, vertical = KeenSpacing.group),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
             ) {
-                Icon(Icons.Default.Router, contentDescription = null)
+                Icon(Icons.Outlined.Router, contentDescription = null)
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.ui_overviewscreen_0925f2d263), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(state.selectedProfileName.orEmpty(), style = MaterialTheme.typography.titleMedium)
@@ -157,7 +165,7 @@ private fun ProfileSelector(state: OverviewState, onSelectProfile: (String) -> U
             state.profiles.forEach { profile: RouterProfile ->
                 DropdownMenuItem(
                     text = { Text(profile.displayName) },
-                    leadingIcon = { if (profile.id == state.selectedProfileId) Icon(Icons.Default.CheckCircle, null) },
+                    leadingIcon = { if (profile.id == state.selectedProfileId) Icon(Icons.Outlined.CheckCircle, null) },
                     onClick = {
                         expanded = false
                         onSelectProfile(profile.id)
@@ -172,29 +180,27 @@ private fun ProfileSelector(state: OverviewState, onSelectProfile: (String) -> U
 private fun RouterHealthCard(state: OverviewState) {
     val copy = overviewHealthCopy(state.health)
     val presentation = when (state.health) {
-        OverviewHealth.LOADING -> HealthPresentation(stringResource(copy.titleResource), stringResource(copy.bodyResource), Icons.Default.Router)
-        OverviewHealth.HEALTHY -> HealthPresentation(stringResource(copy.titleResource), stringResource(copy.bodyResource), Icons.Default.CheckCircle)
-        OverviewHealth.DEGRADED -> HealthPresentation(stringResource(copy.titleResource), state.messageResource?.let { stringResource(it) } ?: stringResource(copy.bodyResource), Icons.Default.Warning)
-        OverviewHealth.SETUP_REQUIRED -> HealthPresentation(stringResource(copy.titleResource), state.messageResource?.let { stringResource(it) } ?: stringResource(copy.bodyResource), Icons.Default.Warning)
-        OverviewHealth.LOCKED -> HealthPresentation(stringResource(copy.titleResource), state.messageResource?.let { stringResource(it) } ?: stringResource(copy.bodyResource), Icons.Default.Lock)
+        OverviewHealth.LOADING -> HealthPresentation(stringResource(copy.titleResource), stringResource(copy.bodyResource), Icons.Outlined.Router)
+        OverviewHealth.HEALTHY -> HealthPresentation(stringResource(copy.titleResource), stringResource(copy.bodyResource), Icons.Outlined.CheckCircle)
+        OverviewHealth.DEGRADED -> HealthPresentation(stringResource(copy.titleResource), state.messageResource?.let { stringResource(it) } ?: stringResource(copy.bodyResource), Icons.Outlined.Warning)
+        OverviewHealth.SETUP_REQUIRED -> HealthPresentation(stringResource(copy.titleResource), state.messageResource?.let { stringResource(it) } ?: stringResource(copy.bodyResource), Icons.Outlined.Warning)
+        OverviewHealth.LOCKED -> HealthPresentation(stringResource(copy.titleResource), state.messageResource?.let { stringResource(it) } ?: stringResource(copy.bodyResource), Icons.Outlined.Lock)
     }
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = ContinuousShape(KeenRadius.card),
         colors = CardDefaults.cardColors(
-            containerColor = if (state.health == OverviewHealth.HEALTHY) MaterialTheme.colorScheme.tertiaryContainer
-            else MaterialTheme.colorScheme.surfaceContainerHigh,
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
         border = CardDefaults.outlinedCardBorder(),
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            Modifier.fillMaxWidth().padding(KeenSpacing.screen),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.item),
         ) {
-            if (state.loading) CircularProgressIndicator(modifier = Modifier.height(28.dp), strokeWidth = 3.dp)
-            else Icon(presentation.icon, contentDescription = null, tint = healthColor(state.health))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(presentation.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (state.loading) CircularProgressIndicator(modifier = Modifier.size(KeenScale.dp32), strokeWidth = KeenScale.dp3)
+            else Icon(presentation.icon, contentDescription = null, tint = healthColor(state.health), modifier = Modifier.size(KeenScale.dp32))
+            Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
+                Text(presentation.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                 Text(presentation.body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -202,7 +208,7 @@ private fun RouterHealthCard(state: OverviewState) {
 }
 
 @Composable
-private fun ModuleCard(prefix: String, icon: ImageVector, state: OverviewState) {
+private fun ModuleCard(prefix: String, icon: ImageVector, state: OverviewState, onClick: () -> Unit) {
     val capabilities = state.capabilities?.capabilities.orEmpty().filter { it.id.startsWith(prefix) }
     val available = capabilities.filter { it.available }
     val writable = available.any { it.access == CapabilityAccess.WRITE }
@@ -211,21 +217,31 @@ private fun ModuleCard(prefix: String, icon: ImageVector, state: OverviewState) 
         writable -> stringResource(R.string.home_management_available)
         else -> stringResource(R.string.home_view_available)
     }
-    InfoCard(icon, stringResource(overviewModuleTitle(prefix)), detail, enabled = available.isNotEmpty())
+    Surface(onClick = onClick, enabled = available.isNotEmpty(), color = androidx.compose.ui.graphics.Color.Transparent) {
+        Row(Modifier.fillMaxWidth().heightIn(min = KeenScale.dp80).padding(KeenSpacing.card),
+            horizontalArrangement = Arrangement.spacedBy(KeenSpacing.item),
+            verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenSpacing.tight)) {
+                Text(stringResource(overviewModuleTitle(prefix)), style = MaterialTheme.typography.titleSmall)
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
 }
 
 @Composable
 private fun InfoCard(icon: ImageVector, title: String, body: String, enabled: Boolean = true) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = ContinuousShape(KeenRadius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         border = CardDefaults.outlinedCardBorder(),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+            Modifier.fillMaxWidth().padding(horizontal = KeenSpacing.card, vertical = KeenSpacing.item),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(KeenScale.dp14),
         ) {
             Icon(
                 icon,

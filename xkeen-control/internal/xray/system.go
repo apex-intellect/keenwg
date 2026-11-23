@@ -55,6 +55,7 @@ type routerSystem struct {
 	cfg      config.Config
 	runner   runner
 	resolver resolver
+	procDir  string
 }
 
 func NewSystem(cfg config.Config) System {
@@ -62,7 +63,7 @@ func NewSystem(cfg config.Config) System {
 }
 
 func newSystem(cfg config.Config, runner runner, resolver resolver) *routerSystem {
-	return &routerSystem{cfg: cfg, runner: runner, resolver: resolver}
+	return &routerSystem{cfg: cfg, runner: runner, resolver: resolver, procDir: "/proc"}
 }
 
 func (s *routerSystem) ResolveIPv4(ctx context.Context, host string) ([]netip.Addr, error) {

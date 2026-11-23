@@ -14,6 +14,7 @@ const (
 	ConnectionsAWG     = "connections.awg"
 	ConnectionsSingBox = "connections.singbox"
 	ConnectionsXKeen   = "connections.xkeen"
+	XKeenRuntime       = "xkeen.runtime"
 	RoutesDomains      = "routes.domains"
 	RoutesExclusions   = "routes.exclusions"
 	NetworkHomeDevices = "network.home_devices"

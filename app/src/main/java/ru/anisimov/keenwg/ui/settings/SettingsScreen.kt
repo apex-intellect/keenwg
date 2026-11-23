@@ -1,5 +1,11 @@
 package ru.anisimov.keenwg.ui.settings
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,17 +21,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Router
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,7 +39,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -41,7 +47,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -59,7 +65,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Job
@@ -141,8 +146,8 @@ fun SettingsScreen(
                 .padding(contentPadding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group),
+            verticalArrangement = Arrangement.spacedBy(KeenScale.dp14),
         ) {
             Text(
                 stringResource(R.string.settings_privacy_notice),
@@ -152,7 +157,7 @@ fun SettingsScreen(
             formErrorResource?.let { StatusNotice(stringResource(R.string.ui_settingsscreen_f236f158aa), detail = stringResource(it), isError = true) }
 
             SettingsSection(
-                icon = { Icon(Icons.Default.Router, contentDescription = null) },
+                icon = { Icon(Icons.Outlined.Router, contentDescription = null) },
                 title = stringResource(R.string.ui_settingsscreen_4a65bf9c4b),
                 subtitle = stringResource(R.string.ui_settingsscreen_5b430f96ba),
             ) {
@@ -182,7 +187,7 @@ fun SettingsScreen(
             }
 
             SettingsSection(
-                icon = { Icon(Icons.Default.Key, contentDescription = null) },
+                icon = { Icon(Icons.Outlined.Key, contentDescription = null) },
                 title = "WireGuard",
                 subtitle = stringResource(R.string.ui_settingsscreen_8f508532ef),
             ) {
@@ -207,7 +212,7 @@ fun SettingsScreen(
             }
 
             SettingsSection(
-                icon = { Icon(Icons.Default.Devices, contentDescription = null) },
+                icon = { Icon(Icons.Outlined.Devices, contentDescription = null) },
                 title = stringResource(R.string.ui_settingsscreen_ff296ddaed),
                 subtitle = stringResource(R.string.ui_settingsscreen_8ac3871e5a),
             ) {
@@ -224,7 +229,7 @@ fun SettingsScreen(
                     label = "DNS",
                     mono = true,
                 )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
                     SettingsTextField(
                         value = mtuText,
                         onValueChange = { mtuText = it.filter(Char::isDigit); formErrorResource = null },
@@ -247,16 +252,16 @@ fun SettingsScreen(
                     TextButton(
                         onClick = { showAdvanced = !showAdvanced },
                         enabled = busyAction == null && productState?.mutationsEnabled != false,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = KeenScale.dp6),
                     ) {
-                        Icon(Icons.Default.Tune, contentDescription = null)
+                        Icon(Icons.Outlined.Tune, contentDescription = null)
                         Text(stringResource(R.string.ui_settingsscreen_a3c4da8156), Modifier.weight(1f), fontWeight = FontWeight.Bold)
                         Icon(if (showAdvanced) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
                     }
                     if (showAdvanced) {
                         Column(
-                            Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            Modifier.padding(start = KeenSpacing.item, end = KeenSpacing.screen, bottom = KeenSpacing.item),
+                            verticalArrangement = Arrangement.spacedBy(KeenScale.dp10),
                         ) {
                             Text(
                                 stringResource(R.string.settings_discovery_explanation),
@@ -271,7 +276,7 @@ fun SettingsScreen(
                                 enabled = busyAction == null && productState?.mutationsEnabled != false,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Icon(Icons.Default.Search, contentDescription = null)
+                                Icon(Icons.Outlined.Search, contentDescription = null)
                                 Text(stringResource(R.string.ui_settingsscreen_b810b420a8))
                             }
                             Text(
@@ -286,21 +291,21 @@ fun SettingsScreen(
             Button(
                 onClick = { runOperation(savingLabel, vm::saveAndTest) },
                 enabled = busyAction == null && productState?.mutationsEnabled != false,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().height(KeenScale.dp52),
             ) {
                 if (busyAction != null) {
                     CircularProgressIndicator(
-                        modifier = Modifier.height(20.dp),
-                        strokeWidth = 2.dp,
+                        modifier = Modifier.height(KeenSpacing.screen),
+                        strokeWidth = KeenScale.dp2,
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                     Text("  $busyAction")
                 } else {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null)
+                    Icon(Icons.Outlined.CheckCircle, contentDescription = null)
                     Text(stringResource(R.string.ui_settingsscreen_ae95f45059))
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(KeenSpacing.inline))
             }
         }
     }
@@ -338,17 +343,17 @@ private fun SettingsSection(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.fillMaxWidth().padding(KeenSpacing.item),
+            verticalArrangement = Arrangement.spacedBy(KeenScale.dp10),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(0.dp),
+                    modifier = Modifier.padding(KeenSize.zero),
                 ) {
-                    Row(Modifier.padding(8.dp)) { icon() }
+                    Row(Modifier.padding(KeenSpacing.inline)) { icon() }
                 }
                 Column {
                     Text(title, style = MaterialTheme.typography.titleMedium)
@@ -409,7 +414,7 @@ private fun DiscoveryPreviewDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.ui_settingsscreen_103fb24291)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
                 rows.forEach { row ->
                     Column {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -426,7 +431,7 @@ private fun DiscoveryPreviewDialog(
                 preview.endpointCandidate?.let { candidate ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = acceptEndpoint, onCheckedChange = { acceptEndpoint = it }, enabled = !busy && mutationsEnabled)
-                        Column(Modifier.padding(start = 4.dp)) {
+                        Column(Modifier.padding(start = KeenSpacing.tight)) {
                             Text(stringResource(R.string.ui_settingsscreen_4f3fa90799))
                             Text(candidate, style = MonoLabel)
                         }

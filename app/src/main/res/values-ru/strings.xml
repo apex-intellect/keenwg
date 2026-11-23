@@ -917,4 +917,23 @@
     <string name="route_warning_quic">QUIC (UDP/443) может идти другим путём</string>
     <string name="route_warning_selector">Не удалось подтвердить выбранный сервер</string>
     <string name="route_warning_other">Часть маршрута не удалось подтвердить</string>
+    <string name="xkeen_runtime_title">XKeen</string>
+    <string name="xkeen_runtime_running">Работает</string>
+    <string name="xkeen_runtime_stopped">Выключен</string>
+    <string name="xkeen_runtime_unknown">Состояние неизвестно</string>
+    <string name="xkeen_runtime_checking">Проверяем роутер…</string>
+    <string name="xkeen_runtime_applying">Применяем и проверяем…</string>
+    <string name="xkeen_runtime_scope">Только текущее состояние. WireGuard, Companion и настройки сохраняются.</string>
+    <string name="xkeen_runtime_stop_title">Выключить XKeen?</string>
+    <string name="xkeen_runtime_stop_warning">Трафик, который обрабатывает XKeen, пойдёт в интернет напрямую, без прокси. Часть сервисов может стать недоступна.\n\nWireGuard и Companion продолжат работать. Выбранный узел и конфигурация не изменятся. Автозапуск не меняется: после перезагрузки роутера или перезапуска служб XKeen может включиться снова.</string>
+    <string name="xkeen_runtime_stop">Выключить</string>
+    <string name="xkeen_runtime_cancel">Отмена</string>
+    <string name="xkeen_runtime_refresh">Проверить состояние</string>
+    <string name="xkeen_runtime_unsupported">В этой версии Companion или конфигурации роутера управление недоступно. Для переключателя нужен обновлённый Companion.</string>
+    <string name="xkeen_runtime_owner_only">Включать и выключать XKeen может только владелец роутера.</string>
+    <string name="xkeen_runtime_unauthorized">Не удалось подтвердить доступ. Проверьте привязку Companion в разделе «Система».</string>
+    <string name="xkeen_runtime_busy">Роутер занят другой операцией. Перед повтором проверьте состояние.</string>
+    <string name="xkeen_runtime_unavailable">Не удалось завершить запрос. Состояние меняется на экране только после проверки. Если оно неизвестно, проверьте ещё раз.</string>
+    <string name="xkeen_runtime_invalid_response">Companion вернул неподдерживаемый ответ о состоянии. Переключатель недоступен.</string>
+    <string name="xkeen_runtime_verification_failed">Запрошенное состояние не подтвердилось. Показано фактическое состояние роутера.</string>
 </resources>

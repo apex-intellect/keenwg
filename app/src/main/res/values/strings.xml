@@ -915,4 +915,23 @@
     <string name="route_warning_quic">QUIC (UDP/443) may use another route</string>
     <string name="route_warning_selector">Could not confirm the selected server</string>
     <string name="route_warning_other">Part of the route could not be confirmed</string>
+    <string name="xkeen_runtime_title">XKeen</string>
+    <string name="xkeen_runtime_running">Running</string>
+    <string name="xkeen_runtime_stopped">Stopped</string>
+    <string name="xkeen_runtime_unknown">Status unknown</string>
+    <string name="xkeen_runtime_checking">Checking router…</string>
+    <string name="xkeen_runtime_applying">Applying and verifying…</string>
+    <string name="xkeen_runtime_scope">Runtime only. WireGuard, Companion and saved settings are preserved.</string>
+    <string name="xkeen_runtime_stop_title">Turn off XKeen?</string>
+    <string name="xkeen_runtime_stop_warning">Traffic handled by XKeen will go directly to the Internet, without the proxy. Some services may become unavailable.\n\nWireGuard and Companion will keep working. The selected node and configuration will not change. Autostart is unchanged: XKeen may start again after the router or its services restart.</string>
+    <string name="xkeen_runtime_stop">Turn off</string>
+    <string name="xkeen_runtime_cancel">Cancel</string>
+    <string name="xkeen_runtime_refresh">Check status</string>
+    <string name="xkeen_runtime_unsupported">Runtime control is unavailable in this Companion version or router setup. Update Companion to use the switch.</string>
+    <string name="xkeen_runtime_owner_only">Only the router owner can turn XKeen on or off.</string>
+    <string name="xkeen_runtime_unauthorized">Access could not be verified. Check the Companion pairing in System.</string>
+    <string name="xkeen_runtime_busy">The router is busy with another operation. Check status before trying again.</string>
+    <string name="xkeen_runtime_unavailable">Could not complete the request. The displayed state is only updated after verification. If status is unknown, check it again.</string>
+    <string name="xkeen_runtime_invalid_response">Companion returned an unsupported status response. The switch is disabled.</string>
+    <string name="xkeen_runtime_verification_failed">The requested state was not confirmed. The actual router state is shown.</string>
 </resources>

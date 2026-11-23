@@ -1,5 +1,11 @@
 package ru.anisimov.keenwg.ui.update
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,10 +19,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.SecurityUpdateGood
-import androidx.compose.material.icons.filled.WarningAmber
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.SecurityUpdateGood
+import androidx.compose.material.icons.outlined.WarningAmber
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -27,7 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -35,7 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.R
@@ -76,8 +81,8 @@ fun CompanionUpdateScreen(
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         ) {
             ComponentSummary(state, presentation, busy)
             VersionCard(state)
@@ -104,12 +109,12 @@ private fun ComponentSummary(
 ) {
     KeenGlassSurface(Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(KeenSpacing.item),
             verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         ) {
             StatusIcon(state.phase, presentation.error, busy)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenScale.dp5)) {
                 Text(
                     if (state.phase == UpdatePhase.AVAILABLE) {
                         stringResource(presentation.title, state.targetVersion.orEmpty())
@@ -143,19 +148,19 @@ private fun StatusIcon(phase: UpdatePhase, error: Boolean, busy: Boolean) {
     ) {
         if (busy) {
             CircularProgressIndicator(
-                modifier = Modifier.padding(10.dp).size(24.dp),
-                strokeWidth = 2.5.dp,
+                modifier = Modifier.padding(KeenScale.dp10).size(KeenSpacing.section),
+                strokeWidth = KeenScale.dp2_5,
                 color = color,
             )
         } else {
             Icon(
                 imageVector = when {
-                    error -> Icons.Default.WarningAmber
-                    phase == UpdatePhase.UP_TO_DATE || phase == UpdatePhase.SUCCESS -> Icons.Default.CheckCircle
-                    else -> Icons.Default.SecurityUpdateGood
+                    error -> Icons.Outlined.WarningAmber
+                    phase == UpdatePhase.UP_TO_DATE || phase == UpdatePhase.SUCCESS -> Icons.Outlined.CheckCircle
+                    else -> Icons.Outlined.SecurityUpdateGood
                 },
                 contentDescription = null,
-                modifier = Modifier.padding(10.dp).size(24.dp),
+                modifier = Modifier.padding(KeenScale.dp10).size(KeenSpacing.section),
             )
         }
     }
@@ -164,7 +169,7 @@ private fun StatusIcon(phase: UpdatePhase, error: Boolean, busy: Boolean) {
 @Composable
 private fun VersionCard(state: CompanionUpdateUiState) {
     KeenGlassSurface(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = KeenSpacing.item, vertical = KeenSpacing.group), verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
             Text(stringResource(R.string.update_versions_title), style = MaterialTheme.typography.titleMedium)
             VersionRow(R.string.update_version_installed, state.currentVersion)
             VersionRow(R.string.update_version_bundled, state.targetVersion)
@@ -182,17 +187,17 @@ private fun VersionRow(label: Int, version: String?) {
 
 @Composable
 private fun DiagnosticCard(checks: List<CompanionStatusCheck>) {
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(KeenScale.dp7)) {
         Text(
             stringResource(R.string.update_checks_title),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 4.dp),
+            modifier = Modifier.padding(horizontal = KeenSpacing.tight),
         )
         Text(
             stringResource(R.string.update_checks_body),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp),
+            modifier = Modifier.padding(horizontal = KeenSpacing.tight),
         )
         KeenGlassSurface(Modifier.fillMaxWidth()) {
             checks.forEachIndexed { index, check ->
@@ -200,7 +205,7 @@ private fun DiagnosticCard(checks: List<CompanionStatusCheck>) {
                 if (index < checks.lastIndex) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = KeenSpacing.item),
                     )
                 }
             }
@@ -218,17 +223,17 @@ private fun CheckRow(check: CompanionStatusCheck) {
         CompanionCheckState.NOT_CHECKED -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 14.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52).padding(horizontal = KeenScale.dp14, vertical = KeenSpacing.inline),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(KeenScale.dp10),
     ) {
         when (check.state) {
-            CompanionCheckState.CHECKING -> CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp, color = color)
-            CompanionCheckState.OK -> Icon(Icons.Default.CheckCircle, null, Modifier.size(20.dp), tint = color)
+            CompanionCheckState.CHECKING -> CircularProgressIndicator(Modifier.size(KeenScale.dp19), strokeWidth = KeenScale.dp2, color = color)
+            CompanionCheckState.OK -> Icon(Icons.Outlined.CheckCircle, null, Modifier.size(KeenSpacing.screen), tint = color)
             CompanionCheckState.ERROR,
             CompanionCheckState.ATTENTION,
-            -> Icon(Icons.Default.WarningAmber, null, Modifier.size(20.dp), tint = color)
-            CompanionCheckState.NOT_CHECKED -> Icon(Icons.AutoMirrored.Filled.HelpOutline, null, Modifier.size(20.dp), tint = color)
+            -> Icon(Icons.Outlined.WarningAmber, null, Modifier.size(KeenSpacing.screen), tint = color)
+            CompanionCheckState.NOT_CHECKED -> Icon(Icons.AutoMirrored.Filled.HelpOutline, null, Modifier.size(KeenSpacing.screen), tint = color)
         }
         Text(
             checkLabel(check.id),
@@ -258,7 +263,7 @@ private fun ComponentActions(
     onDone: () -> Unit,
     onDiagnostics: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(KeenSpacing.tight)) {
         when (action) {
             UpdateAction.UPDATE -> PrimaryAction(R.string.update_action_install, onInstall)
             UpdateAction.RETRY -> PrimaryAction(R.string.update_action_retry, onRetry)
@@ -286,7 +291,7 @@ private fun ComponentActions(
 
 @Composable
 private fun PrimaryAction(label: Int, onClick: () -> Unit) {
-    Button(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+    Button(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = KeenSize.touch)) {
         Text(stringResource(label))
     }
 }

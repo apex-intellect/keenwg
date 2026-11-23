@@ -1,5 +1,11 @@
 package ru.anisimov.keenwg.ui.support
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,32 +20,31 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.IosShare
-import androidx.compose.material.icons.filled.PrivacyTip
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Error
+import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.material.icons.outlined.PrivacyTip
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Info
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -71,8 +76,8 @@ fun SupportScreen(
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.group, end = KeenSpacing.screen, bottom = KeenScale.dp32),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         ) {
             item {
                 Card(
@@ -80,8 +85,8 @@ fun SupportScreen(
                     shape = MaterialTheme.shapes.extraLarge,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 ) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(Icons.Default.PrivacyTip, null, tint = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.padding(KeenSpacing.card), verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
+                        Icon(Icons.Outlined.PrivacyTip, null, tint = MaterialTheme.colorScheme.primary)
                         Text(stringResource(R.string.support_intro_title), style = MaterialTheme.typography.titleLarge)
                         Text(
                             stringResource(R.string.support_intro_body),
@@ -108,7 +113,7 @@ fun SupportScreen(
                     )
                 }
                 item {
-                    Button(onClick = onSetupCompanion, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                    Button(onClick = onSetupCompanion, modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52)) {
                         Text(stringResource(R.string.support_pairing_action))
                     }
                 }
@@ -116,9 +121,9 @@ fun SupportScreen(
             val export = state.export
             if (export == null && state.requirement == null) {
                 item {
-                    Button(onClick = vm::generate, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                        if (state.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                        else Icon(Icons.Default.Refresh, null)
+                    Button(onClick = vm::generate, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52)) {
+                        if (state.busy) CircularProgressIndicator(Modifier.size(KeenSpacing.screen), strokeWidth = KeenScale.dp2, color = MaterialTheme.colorScheme.onPrimary)
+                        else Icon(Icons.Outlined.Refresh, null)
                         Text("  " + stringResource(if (state.busy) R.string.support_generating else R.string.support_generate))
                     }
                 }
@@ -131,7 +136,7 @@ fun SupportScreen(
                 }
                 items(export.bundle.report.checks, key = { it.layer }) { check -> SupportCheckCard(check) }
                 item {
-                    Text(stringResource(R.string.support_txt_content), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
+                    Text(stringResource(R.string.support_txt_content), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = KeenSpacing.tight))
                 }
                 item {
                     Surface(
@@ -140,7 +145,7 @@ fun SupportScreen(
                         color = MaterialTheme.colorScheme.surfaceContainer,
                     ) {
                         SelectionContainer {
-                            Text(export.text, style = MonoLabel, modifier = Modifier.padding(16.dp))
+                            Text(export.text, style = MonoLabel, modifier = Modifier.padding(KeenSpacing.item))
                         }
                     }
                 }
@@ -151,15 +156,15 @@ fun SupportScreen(
                                 .onFailure { Toast.makeText(context, context.getString(R.string.support_share_failed), Toast.LENGTH_SHORT).show() }
                         },
                         enabled = !state.busy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52),
                     ) {
-                        Icon(Icons.Default.IosShare, null)
+                        Icon(Icons.Outlined.IosShare, null)
                         Text("  " + stringResource(R.string.support_share))
                     }
                 }
                 item {
-                    OutlinedButton(onClick = vm::generate, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                        Icon(Icons.Default.Refresh, null)
+                    OutlinedButton(onClick = vm::generate, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = KeenSize.touch)) {
+                        Icon(Icons.Outlined.Refresh, null)
                         Text("  " + stringResource(R.string.support_retry))
                     }
                 }
@@ -171,9 +176,9 @@ fun SupportScreen(
 @Composable
 private fun SupportCheckCard(check: SupportCheck) {
     val icon = when (check.status) {
-        "ok" -> Icons.Default.CheckCircle
-        "failed" -> Icons.Default.Error
-        else -> Icons.Default.Info
+        "ok" -> Icons.Outlined.CheckCircle
+        "failed" -> Icons.Outlined.Error
+        else -> Icons.Outlined.Info
     }
     val tint = when (check.status) {
         "ok" -> MaterialTheme.colorScheme.tertiary
@@ -181,9 +186,9 @@ private fun SupportCheckCard(check: SupportCheck) {
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().padding(KeenScale.dp14), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
             Icon(icon, null, tint = tint)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenSpacing.tight)) {
                 Text(check.layer.supportLayerLabel(), style = MaterialTheme.typography.titleMedium)
                 Text(check.status.supportStatusLabel(), color = tint, style = MaterialTheme.typography.labelLarge)
                 Text(

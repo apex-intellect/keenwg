@@ -27,6 +27,7 @@ type companionSelfUpdater struct {
 	publicKey       ed25519.PublicKey
 	keyID           string
 	root            string
+	mutationGuard   func() (func(), error)
 }
 
 func newCompanionSelfUpdater(version, root string) (*companionSelfUpdater, error) {
@@ -71,7 +72,24 @@ func (u *companionSelfUpdater) Status(context.Context) (selfupdate.Status, error
 }
 
 func (u *companionSelfUpdater) Stage(_ context.Context, reader io.Reader) (selfupdate.AcceptedUpdate, error) {
+	if u.mutationGuard != nil {
+		release, err := u.mutationGuard()
+		if err != nil {
+			return selfupdate.AcceptedUpdate{}, selfupdate.ErrUpdateBusy
+		}
+		defer release()
+	}
+	// Once Stage publishes pending.json, subsequent runtime/domain/select
+	// mutations are blocked until the updater removes that durable marker.
 	return u.stager.Stage(reader)
+}
+
+func (u *companionSelfUpdater) pending() (bool, error) {
+	_, err := os.Lstat(u.requestPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func (u *companionSelfUpdater) Launch(selfupdate.AcceptedUpdate) error {

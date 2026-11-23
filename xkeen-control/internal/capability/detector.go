@@ -90,6 +90,7 @@ func (d Detector) Detect(ctx context.Context) (Document, error) {
 		withAdapterAvailability(ConnectionsAWG, awgAvailable, awgWritable, awgReason),
 		withAdapterAvailability(ConnectionsSingBox, singBoxAvailable, singBoxWritable, singBoxReason),
 		withAvailability(ConnectionsXKeen, AccessWrite, xkeenAvailable, xkeenReason),
+		withAvailability(XKeenRuntime, AccessWrite, xkeenAvailable, xkeenReason),
 		withAvailability(RoutesDomains, AccessWrite, xkeenAvailable, xkeenReason),
 		withAvailability(RoutesExclusions, AccessWrite, xkeenAvailable, xkeenReason),
 		withAvailability(AccessWireGuard, AccessWrite, ndmqAvailable, "ndmq_not_found"),

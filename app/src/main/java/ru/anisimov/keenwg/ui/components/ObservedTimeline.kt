@@ -1,5 +1,11 @@
 package ru.anisimov.keenwg.ui.components
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import ru.anisimov.keenwg.R
 
 import androidx.compose.ui.res.stringResource
@@ -19,7 +25,6 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.unit.dp
 import ru.anisimov.keenwg.domain.model.PeerStats
 import ru.anisimov.keenwg.domain.model.PeerStatsPoint
 import ru.anisimov.keenwg.ui.util.durationLabel
@@ -123,8 +128,8 @@ fun ObservedTimeline(stats: PeerStats, modifier: Modifier = Modifier) {
     Canvas(
         modifier
             .fillMaxWidth()
-            .height(28.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .height(KeenScale.dp28)
+            .clip(RoundedCornerShape(KeenSpacing.inline))
             .semantics {
                 contentDescription = historyContentDescription
                 stateDescription = summary
@@ -162,8 +167,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGapHatching(
         clipRect(left = gapLeft, right = gapLeft + gapWidth) {
             var x = gapLeft - size.height
             while (x < gapLeft + gapWidth) {
-                drawLine(color, Offset(x, size.height), Offset(x + size.height, 0f), strokeWidth = 1.dp.toPx())
-                x += 8.dp.toPx()
+                drawLine(color, Offset(x, size.height), Offset(x + size.height, 0f), strokeWidth = KeenSize.hairline.toPx())
+                x += KeenSpacing.inline.toPx()
             }
         }
     }

@@ -14,8 +14,8 @@ class StableCardLayoutTest {
         assertTrue(connections.contains("ConnectionCardTrailing"))
         assertFalse(connections.contains("Box(Modifier.fillMaxWidth().height(20.dp)"))
         assertFalse(connections.contains("heightIn(min = 158.dp)"))
-        assertTrue(connections.contains("heightIn(min = 96.dp)"))
-        assertTrue(xkeen.contains("height(22.dp)"))
+        assertTrue(connections.contains("heightIn(min = KeenScale.dp96)"))
+        assertTrue(xkeen.contains("height(KeenSize.icon)"))
         assertTrue(connections.contains("maxLines = 1"))
         assertTrue(xkeen.contains("maxLines = 1"))
         assertFalse(connections.contains("animateContentSize"))
@@ -27,7 +27,7 @@ class StableCardLayoutTest {
 
         assertTrue(connections.contains("ConnectionToolbar"))
         assertTrue(connections.contains("SubscriptionSources"))
-        assertTrue(connections.contains("heightIn(min = 72.dp)"))
+        assertTrue(connections.contains("heightIn(min = KeenScale.dp72)"))
         assertFalse(connections.contains("item { Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()"))
     }
 

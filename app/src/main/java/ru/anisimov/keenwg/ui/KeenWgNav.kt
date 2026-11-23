@@ -119,6 +119,16 @@ fun KeenWgNav() {
                         onSelectProfile = { overviewViewModel.selectProfile(it) },
                         onOpenSystem = { nav.navigate(SystemRoute) },
                         onSetup = { nav.navigate(SetupRoute) },
+                        onOpenDestination = { target ->
+                            val route: Any = when (target) {
+                                TopLevelDestination.CONNECTIONS -> ConnectionsRoute
+                                TopLevelDestination.ROUTES -> RoutesRoute
+                                TopLevelDestination.ACCESS -> AccessRoute
+                                TopLevelDestination.SYSTEM -> SystemRoute
+                                TopLevelDestination.OVERVIEW -> OverviewRoute
+                            }
+                            nav.navigate(route) { launchSingleTop = true }
+                        },
                     )
                 }
                 composable<AccessRoute> {

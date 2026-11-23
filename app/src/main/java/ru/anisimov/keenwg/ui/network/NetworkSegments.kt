@@ -8,10 +8,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Router
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -25,46 +25,36 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import ru.anisimov.keenwg.R
+import ru.anisimov.keenwg.ui.theme.*
 
 @Composable
 fun NetworkSegmentControl(state: NetworkUiState, onSelect: (NetworkSegment) -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = ContinuousShape(KeenRadius.control),
+        color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        Row(Modifier.fillMaxWidth().padding(5.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth().padding(KeenScale.dp5), horizontalArrangement = Arrangement.spacedBy(KeenSpacing.tight)) {
             NetworkSegment.entries.forEach { segment ->
                 val selected = state.selectedSegment == segment
                 Surface(
                     onClick = { onSelect(segment) },
-                    modifier = Modifier.weight(1f).heightIn(min = 58.dp).semantics {
+                    modifier = Modifier.weight(1f).heightIn(min = KeenSize.touch).semantics {
                         this.selected = selected
                         role = Role.Tab
                     },
-                    shape = RoundedCornerShape(21.dp),
-                    color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                    shape = ContinuousShape(KeenRadius.control),
+                    color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
                     contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {
                     Column(
-                        Modifier.padding(horizontal = 3.dp, vertical = 7.dp),
+                        Modifier.padding(horizontal = KeenScale.dp3, vertical = KeenScale.dp7),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        Icon(
-                            when (segment) {
-                                NetworkSegment.DEVICES -> Icons.Default.Devices
-                                NetworkSegment.IP_ADDRESSES -> Icons.Default.Router
-                                NetworkSegment.DOMAINS -> Icons.Default.Language
-                                NetworkSegment.EXPLAIN -> Icons.Default.Search
-                            },
-                            contentDescription = null,
-                        )
-                        Text(stringResource(networkSegmentLabelResource(segment)), style = MaterialTheme.typography.labelSmall, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
-                        Text("${segmentCount(segment, state)}", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(networkSegmentLabelResource(segment)), style = MaterialTheme.typography.labelMedium, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
                     }
                 }
             }

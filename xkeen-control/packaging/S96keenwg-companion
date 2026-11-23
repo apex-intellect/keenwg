@@ -1,7 +1,16 @@
 #!/bin/sh
 set -eu
+umask 077
 
 ROOT=${KEENWG_DESTDIR:-}
+case "$ROOT" in ''|/*) ;; *) exit 1;; esac
+[ "$ROOT" != / ] || exit 1
+if [ -n "$ROOT" ]; then
+    [ -d "$ROOT" ] && [ "$(CDPATH= cd -- "$ROOT" && pwd -P)" = "$ROOT" ] || exit 1
+else
+    PATH=/opt/bin:/opt/sbin:/sbin:/bin:/usr/sbin:/usr/bin
+    export PATH
+fi
 BINARY=$ROOT/opt/lib/keenwg-companion/current/keenwg-companion
 UPDATER=$ROOT/opt/lib/keenwg-companion/current/keenwg-updater
 CONFIG=$ROOT/opt/etc/keenwg/companion.json
@@ -9,12 +18,162 @@ PIDFILE=$ROOT/opt/var/run/keenwg-companion.pid
 READY=$ROOT/opt/var/run/keenwg-companion.ready
 CERT=$ROOT/opt/etc/keenwg/identity/certificate.pem
 SSD=/opt/sbin/start-stop-daemon
+LOG=$ROOT/opt/var/log/keenwg-companion.log
+WATCH_STATE=$ROOT/tmp/keenwg-companion-watchdog
+DISABLED=$WATCH_STATE/disabled
+QUEUE=$WATCH_STATE/control
+TICKET_DIR=
+CRON_DIR=$ROOT/opt/var/spool/cron/crontabs
+CRON_LINE='* * * * * /opt/etc/init.d/S96keenwg-companion watchdog >/dev/null 2>&1 # keenwg-companion-watchdog'
+
+process_start() {
+    case "$1" in ''|0|*[!0-9]*) return 1;; esac
+    [ -r "/proc/$1/stat" ] || return 1
+    # comm may contain spaces; starttime is field 20 after pid/comm.
+    sed 's/.*) //' "/proc/$1/stat" 2>/dev/null | awk '$1 != "Z" {print $20}'
+}
+
+prepare_state() {
+    [ ! -L "$WATCH_STATE" ] && [ ! -L "$QUEUE" ] || return 1
+    mkdir -p "$QUEUE" || return 1
+    chmod 700 "$WATCH_STATE" "$QUEUE" || return 1
+    for item in disabled failures last_ok last_restart; do
+        [ ! -L "$WATCH_STATE/$item" ] || return 1
+        [ ! -e "$WATCH_STATE/$item" ] || [ -f "$WATCH_STATE/$item" ] || return 1
+    done
+}
+
+ticket_live() {
+    entry_name=${1##*/}
+    entry_pid=${entry_name%%-*}
+    entry_start=${entry_name#*-}
+    case "$entry_pid:$entry_start" in *[!0-9:]*|:|0:*) return 1;; esac
+    [ -n "$entry_pid" ] && [ -n "$entry_start" ] && [ "$entry_start" != "$entry_name" ] || return 1
+    [ "$(process_start "$entry_pid")" = "$entry_start" ]
+}
+
+release_control() {
+    [ -n "$TICKET_DIR" ] || return 0
+    rm -f "$TICKET_DIR/ticket" "$TICKET_DIR/next"
+    rmdir "$TICKET_DIR" 2>/dev/null || :
+    TICKET_DIR=
+}
+
+# Lamport bakery queue: each process only removes its own PID/start directory.
+# Dead owners and PID reuse cannot block controls; no stale shared-lock unlink
+# race, flock, or stat extensions. Missing ticket means its owner is choosing.
+acquire_control() {
+    prepare_state || return 1
+    own_start=$(process_start "$$")
+    case "$own_start" in ''|*[!0-9]*) return 1;; esac
+    TICKET_DIR=$QUEUE/$$-$own_start
+    mkdir "$TICKET_DIR" || { TICKET_DIR=; return 1; }
+    trap release_control EXIT
+    trap 'exit 1' HUP INT TERM
+    largest=0
+    for entry in "$QUEUE"/*; do
+        [ -d "$entry" ] && [ ! -L "$entry" ] || continue
+        ticket_live "$entry" || continue
+        [ -f "$entry/ticket" ] && [ ! -L "$entry/ticket" ] || continue
+        number=$(sed -n '1p' "$entry/ticket" 2>/dev/null || :)
+        [ -n "$number" ] || continue
+        case "$number" in *[!0-9]*) return 1;; esac
+        [ "${#number}" -le 8 ] || return 1
+        [ "$number" -le "$largest" ] || largest=$number
+    done
+    own_number=$((largest + 1))
+    printf '%s\n' "$own_number" >"$TICKET_DIR/next" || return 1
+    mv "$TICKET_DIR/next" "$TICKET_DIR/ticket" || return 1
+    waiting=0
+    while :; do
+        blocked=false
+        for entry in "$QUEUE"/*; do
+            [ "$entry" != "$TICKET_DIR" ] && [ -d "$entry" ] && [ ! -L "$entry" ] || continue
+            ticket_live "$entry" || continue
+            if [ ! -f "$entry/ticket" ] || [ -L "$entry/ticket" ]; then blocked=true; break; fi
+            number=$(sed -n '1p' "$entry/ticket" 2>/dev/null || :)
+            if [ -z "$number" ]; then ticket_live "$entry" && blocked=true; continue; fi
+            case "$number" in *[!0-9]*) return 1;; esac
+            [ "${#number}" -le 8 ] || return 1
+            other_pid=${entry##*/}; other_pid=${other_pid%%-*}
+            if [ "$number" -lt "$own_number" ] || { [ "$number" -eq "$own_number" ] && [ "$other_pid" -lt "$$" ]; }; then blocked=true; break; fi
+        done
+        $blocked || return 0
+        [ "${1:-wait}" != skip ] || return 1
+        [ "$waiting" -lt 60 ] || return 1
+        waiting=$((waiting + 1))
+        sleep 1
+    done
+}
+
+prepare_log() {
+    mkdir -p "${LOG%/*}" || return 1
+    for path in "$LOG" "$LOG.1"; do
+        [ ! -L "$path" ] || return 1
+        [ ! -e "$path" ] || [ -f "$path" ] || return 1
+    done
+    if [ -f "$LOG" ] && [ "$(wc -c <"$LOG")" -gt 262144 ]; then
+        cp "$LOG" "$LOG.1" && chmod 600 "$LOG.1" && : >"$LOG" || return 1
+    fi
+    touch "$LOG" && chmod 600 "$LOG"
+}
+
+watch_log() {
+    printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*" >>"$LOG"
+}
+
+cron_command() {
+    if [ -n "$ROOT" ]; then
+        # DESTDIR tests must never touch the host's real crontab.
+        [ -x "$ROOT/opt/bin/crontab" ] || return 1
+        "$ROOT/opt/bin/crontab" "$@"
+    else
+        command -v crontab >/dev/null 2>&1 || return 1
+        crontab "$@"
+    fi
+}
+
+read_cron() {
+    if cron_command -l >"$1" 2>/dev/null; then return 0; else cron_status=$?; fi
+    # BusyBox uses exit 1 for no crontab. Accept only a verifiably absent
+    # regular root table in the known, accessible spool; never existing errors.
+    if [ "$cron_status" -eq 1 ] && [ -d "$CRON_DIR" ] && [ -r "$CRON_DIR" ] && [ -x "$CRON_DIR" ] &&
+        [ ! -e "$CRON_DIR/root" ] && [ ! -L "$CRON_DIR/root" ]; then
+        : >"$1"
+        return 0
+    fi
+    return 1
+}
+
+update_watchdog_cron() {
+    # Never infer an empty table from a failed read of an existing crontab.
+    if [ "$1" = remove ] && [ -d "$CRON_DIR" ] && [ ! -e "$CRON_DIR/root" ] && [ ! -L "$CRON_DIR/root" ]; then return 0; fi
+    if [ "$1" = remove ] && [ -n "$ROOT" ] && [ ! -x "$ROOT/opt/bin/crontab" ] && [ ! -e "$CRON_DIR/root" ]; then return 0; fi
+    table=$(mktemp "$WATCH_STATE/cron.XXXXXX") || return 1
+    if ! read_cron "$table"; then rm -f "$table"; return 1; fi
+    if [ "$1" = add ] && grep -Fxq "$CRON_LINE" "$table"; then rm -f "$table"; return 0; fi
+    if [ "$1" = remove ] && ! grep -Fxq "$CRON_LINE" "$table"; then rm -f "$table"; return 0; fi
+    next=$table.next
+    current=$table.current
+    if [ "$1" = add ]; then
+        cp "$table" "$next" || { rm -f "$table" "$next"; return 1; }
+        if [ -s "$next" ] && [ "$(tail -c 1 "$next" | wc -l)" -eq 0 ]; then printf '\n' >>"$next"; fi
+        printf '%s\n' "$CRON_LINE" >>"$next" || { rm -f "$table" "$next"; return 1; }
+    else
+        awk -v managed="$CRON_LINE" '$0 != managed {print}' "$table" >"$next" || { rm -f "$table" "$next"; return 1; }
+    fi
+    # Refuse to overwrite another cron edit observed after the first read.
+    if ! read_cron "$current" || ! cmp -s "$table" "$current" || ! cron_command "$next"; then
+        rm -f "$table" "$next" "$current"; return 1
+    fi
+    rm -f "$table" "$next" "$current"
+}
 
 alive() {
-    [ -r "$PIDFILE" ] || return 1
+    [ -r "$PIDFILE" ] && [ ! -L "$PIDFILE" ] || return 1
     pid=$(sed -n '1p' "$PIDFILE")
-    case "$pid" in ''|*[!0-9]*) return 1;; esac
-    kill -0 "$pid" 2>/dev/null || return 1
+    case "$pid" in ''|0|*[!0-9]*) return 1;; esac
+    kill -0 "$pid" 2>/dev/null && [ -n "$(process_start "$pid")" ] || return 1
     if [ -z "$ROOT" ]; then
         expected=$(readlink -f "$BINARY" 2>/dev/null || true)
         running=$(readlink "/proc/$pid/exe" 2>/dev/null || true)
@@ -23,24 +182,24 @@ alive() {
     return 0
 }
 
-start() {
+start_service() {
     if alive; then return 0; fi
     rm -f "$PIDFILE" "$READY"
     [ -x "$BINARY" ] && [ -f "$CONFIG" ] || return 1
     mkdir -p "${PIDFILE%/*}"
     if [ -z "$ROOT" ]; then
         [ -x "$SSD" ] || return 1
-        "$SSD" -S -b -m -p "$PIDFILE" -x "$BINARY" -- -config "$CONFIG" || return 1
+        "$SSD" -S -b -m -p "$PIDFILE" -O "$LOG" -x "$BINARY" -- -config "$CONFIG" || return 1
         pid=$(sed -n '1p' "$PIDFILE")
     else
-        KEENWG_DESTDIR="$ROOT" "$BINARY" -config "$CONFIG" >/dev/null 2>&1 &
+        KEENWG_DESTDIR="$ROOT" "$BINARY" -config "$CONFIG" >>"$LOG" 2>&1 &
         pid=$!
         printf '%s\n' "$pid" >"$PIDFILE"
     fi
     chmod 600 "$PIDFILE"
     count=0
     while [ "$count" -lt 20 ]; do
-        if kill -0 "$pid" 2>/dev/null; then return 0; fi
+        if kill -0 "$pid" 2>/dev/null && [ -n "$(process_start "$pid")" ]; then return 0; fi
         count=$((count+1))
         [ -n "$ROOT" ] || sleep 1
     done
@@ -48,7 +207,17 @@ start() {
     return 1
 }
 
+start() {
+    rm -f "$DISABLED" "$WATCH_STATE/failures"
+    prepare_log || return 1
+    update_watchdog_cron add || watch_log 'warning: could not register Companion watchdog; crontab left unchanged'
+    start_service
+}
+
 stop() {
+    if [ "${1:-}" != auto ]; then
+        : >"$DISABLED"
+    fi
     if ! alive; then rm -f "$PIDFILE" "$READY"; return 0; fi
     pid=$(sed -n '1p' "$PIDFILE")
     if [ -z "$ROOT" ]; then
@@ -58,11 +227,19 @@ stop() {
     fi
     count=0
     while [ "$count" -lt 45 ]; do
-        if ! kill -0 "$pid" 2>/dev/null; then rm -f "$PIDFILE" "$READY"; return 0; fi
+        if ! kill -0 "$pid" 2>/dev/null || [ -z "$(process_start "$pid")" ]; then rm -f "$PIDFILE" "$READY"; return 0; fi
         count=$((count+1))
         if [ -n "$ROOT" ]; then sleep 0.05; else sleep 1; fi
     done
     return 1
+}
+
+health_address() {
+    # Read the field from both pretty-printed and valid one-line JSON. Restrict
+    # the resulting endpoint before constructing the local HTTPS health URL.
+    address=$(tr '\r\n' '  ' <"$CONFIG" | sed -n 's/.*[{,][[:space:]]*"secure_listen_address"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p') || return 1
+    printf '%s' "$address" | grep -Eq '^([0-9.]+|\[[0-9a-fA-F:.]+\]):[0-9]+$' || return 1
+    printf '%s\n' "$address"
 }
 
 health() {
@@ -73,17 +250,73 @@ health() {
         return
     fi
     [ -f "$CERT" ] && [ ! -L "$CERT" ] || return 1
-    address=$(sed -n 's/^[[:space:]]*"secure_listen_address"[[:space:]]*:[[:space:]]*"\([0-9a-fA-F:.]*\)"[[:space:]]*,\{0,1\}[[:space:]]*$/\1/p' "$CONFIG")
-    [ -n "$address" ] || return 1
+    address=$(health_address) || return 1
     body=$(curl --silent --show-error --fail --max-time 5 --cacert "$CERT" "https://$address/v1/health") || return 1
     printf '%s' "$body" | grep -q '"status":"ok"'
 }
 
+opt_writable() {
+    [ -d "$ROOT/opt" ] && [ -w "$ROOT/opt" ] || return 1
+    mounts=/proc/mounts
+    if [ -n "$ROOT" ]; then mounts=$ROOT/proc/mounts; [ -f "$mounts" ] || return 0; fi
+    awk '$2 == "/opt" && $4 ~ /(^|,)rw(,|$)/ {found=1} END {exit !found}' "$mounts"
+}
+
+# Independent of the history collector. Never restart networking or repair disks.
+watchdog() {
+    [ ! -e "$DISABLED" ] || return 0
+    [ ! -e "$ROOT/opt/etc/keenwg/update/pending.json" ] && [ ! -L "$ROOT/opt/etc/keenwg/update/pending.json" ] || return 0
+    opt_writable || return 0
+    [ -x "$BINARY" ] && [ -r "$CONFIG" ] || return 0
+    acquire_control skip || return 0
+    # A manual stop or updater may have won while we acquired control.
+    [ ! -e "$DISABLED" ] && [ ! -e "$ROOT/opt/etc/keenwg/update/pending.json" ] && [ ! -L "$ROOT/opt/etc/keenwg/update/pending.json" ] || return 0
+    opt_writable || return 0
+    prepare_log || return 1
+    if health >/dev/null 2>&1; then
+        rm -f "$WATCH_STATE/failures"
+        date +%s >"$WATCH_STATE/last_ok"
+        return 0
+    fi
+    failures=0
+    if [ -f "$WATCH_STATE/failures" ]; then read -r failures <"$WATCH_STATE/failures" || :; fi
+    case "$failures" in 1|2) failures=$((failures + 1));; 3) ;; *) failures=1;; esac
+    printf '%s\n' "$failures" >"$WATCH_STATE/failures"
+    watch_log "Companion health failure $failures/3"
+    [ "$failures" -ge 3 ] || return 0
+    now=$(date +%s)
+    previous=0
+    if [ -f "$WATCH_STATE/last_restart" ]; then read -r previous <"$WATCH_STATE/last_restart" || :; fi
+    case "$previous" in ''|*[!0-9]*) previous=0;; esac
+    [ "${#previous}" -le 12 ] || previous=0
+    previous=$(printf '%s' "$previous" | sed 's/^0*//'); previous=${previous:-0}
+    if [ "$now" -lt "$previous" ]; then printf '%s\n' "$now" >"$WATCH_STATE/last_restart"; return 0; fi
+    [ "$((now - previous))" -ge 300 ] || return 0
+    # The HTTPS probe may have overlapped a just-started update or USB failure.
+    [ ! -e "$ROOT/opt/etc/keenwg/update/pending.json" ] && [ ! -L "$ROOT/opt/etc/keenwg/update/pending.json" ] || return 0
+    opt_writable || return 0
+    printf '%s\n' "$now" >"$WATCH_STATE/last_restart"
+    watch_log 'restarting Companion after repeated health failures'
+    if stop auto && start_service; then
+        rm -f "$WATCH_STATE/failures"
+        watch_log 'Companion restart requested; health will be checked again'
+    else
+        watch_log 'Companion restart failed; cooldown before next attempt'
+        return 1
+    fi
+}
+
 case "${1:-}" in
-    start) start ;;
-    stop) stop ;;
-    restart) stop && start ;;
+    start|stop|restart|uninstall)
+        acquire_control wait || { echo 'Companion service control is busy or unavailable' >&2; exit 1; }
+        case "$1" in
+            start) start ;;
+            stop) stop ;;
+            restart) stop && start ;;
+            uninstall) stop && update_watchdog_cron remove ;;
+        esac ;;
     status) alive ;;
     health) health ;;
-    *) echo "usage: $0 {start|stop|restart|status|health}" >&2; exit 2 ;;
+    watchdog) watchdog ;;
+    *) echo "usage: $0 {start|stop|restart|status|health|watchdog|uninstall}" >&2; exit 2 ;;
 esac

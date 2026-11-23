@@ -1,5 +1,11 @@
 package ru.anisimov.keenwg.ui.detail
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import ru.anisimov.keenwg.R
 
 import androidx.compose.ui.res.stringResource
@@ -19,21 +25,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.PowerSettingsNew
+import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,7 +48,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -50,7 +56,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,7 +69,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -173,7 +178,7 @@ fun PeerDetailScreen(
                         onClick = { vm.load(pub); vm.refreshStats(pub) },
                         enabled = !state.initialLoading && state.operation == null && !safetyCheckInProgress,
                     ) {
-                        Icon(Icons.Default.Refresh, stringResource(R.string.access_refresh_description))
+                        Icon(Icons.Outlined.Refresh, stringResource(R.string.access_refresh_description))
                     }
                 },
             )
@@ -194,8 +199,8 @@ fun PeerDetailScreen(
                     .padding(contentPadding)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group),
+                verticalArrangement = Arrangement.spacedBy(KeenScale.dp14),
             ) {
                 if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (!writable) {
@@ -256,7 +261,7 @@ fun PeerDetailScreen(
                         onDelete = { showDeleteConfirm = true },
                     )
                 }
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(KeenSpacing.screen))
             }
         }
     }
@@ -266,9 +271,9 @@ fun PeerDetailScreen(
             onDismissRequest = vm::clearConf,
             title = { Text(stringResource(R.string.peer_configuration_title, peer?.name.orEmpty())) },
             text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
                     Surface(color = androidx.compose.ui.graphics.Color.White, shape = MaterialTheme.shapes.medium) {
-                        QrImage(conf, Modifier.padding(10.dp).size(240.dp), stringResource(R.string.qr_code_description))
+                        QrImage(conf, Modifier.padding(KeenScale.dp10).size(KeenScale.dp240), stringResource(R.string.qr_code_description))
                     }
                     Text(
                         stringResource(R.string.qr_private_key_warning),
@@ -279,7 +284,7 @@ fun PeerDetailScreen(
             },
             confirmButton = {
                 TextButton(onClick = { shareConf(context, peer?.name ?: "wireguard-access", conf) }) {
-                    Icon(Icons.Default.Share, contentDescription = null)
+                    Icon(Icons.Outlined.Share, contentDescription = null)
                     Text(stringResource(R.string.ui_peerdetailscreen_62bb18ef10))
                 }
             },
@@ -293,7 +298,7 @@ fun PeerDetailScreen(
             onDismissRequest = { showRename = false },
             title = { Text(stringResource(R.string.ui_peerdetailscreen_a6a6b0ec07)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
@@ -377,24 +382,24 @@ private fun PeerStatusHero(peer: Peer, stats: PeerStats?) {
             else MaterialTheme.colorScheme.surface,
         ),
     ) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            SessionRail(peer.online, peer.enabled, Modifier.height(64.dp))
-            Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Row(Modifier.fillMaxWidth().padding(KeenSpacing.item), verticalAlignment = Alignment.CenterVertically) {
+            SessionRail(peer.online, peer.enabled, Modifier.height(KeenScale.dp64))
+            Column(Modifier.weight(1f).padding(start = KeenScale.dp14)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(KeenScale.dp7)) {
                     Icon(
-                        if (peer.online && peer.enabled) Icons.Default.Wifi else Icons.Default.WifiOff,
+                        if (peer.online && peer.enabled) Icons.Outlined.Wifi else Icons.Outlined.WifiOff,
                         contentDescription = null,
                         tint = if (peer.online && peer.enabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
                     )
                     Text(peerStatusLabel(peer), style = MaterialTheme.typography.titleLarge)
                 }
-                Text(peer.ip ?: stringResource(R.string.ui_peerdetailscreen_c83580eaa5), style = MonoLabel, modifier = Modifier.padding(top = 4.dp))
+                Text(peer.ip ?: stringResource(R.string.ui_peerdetailscreen_c83580eaa5), style = MonoLabel, modifier = Modifier.padding(top = KeenSpacing.tight))
                 stats?.lastOnlineAt?.let {
                     Text(
                         stringResource(R.string.peer_last_observed, timestampLabel(it)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 5.dp),
+                        modifier = Modifier.padding(top = KeenScale.dp5),
                     )
                 }
             }
@@ -409,7 +414,7 @@ private fun HistorySection(
     onRetry: () -> Unit,
 ) {
     val historyErrorDetail = state.historyError?.let { historyErrorDetail(it) }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.ui_peerdetailscreen_45451fbf75), style = MaterialTheme.typography.titleMedium)
@@ -426,24 +431,24 @@ private fun HistorySection(
                     )
                 }
             }
-            Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                if (state.historyRefreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            Box(Modifier.size(KeenSpacing.screen), contentAlignment = Alignment.Center) {
+                if (state.historyRefreshing) CircularProgressIndicator(Modifier.size(KeenSpacing.screen), strokeWidth = KeenScale.dp2)
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
             RangeChip(stringResource(R.string.history_range_day), PeerHistoryRange.DAY, state.selectedRange, onSelectRange)
             RangeChip(stringResource(R.string.history_range_week), PeerHistoryRange.WEEK, state.selectedRange, onSelectRange)
             RangeChip(stringResource(R.string.history_range_month), PeerHistoryRange.MONTH, state.selectedRange, onSelectRange)
         }
         when {
             state.historyLoading && state.stats == null -> Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth().padding(KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
                     Text(stringResource(R.string.ui_peerdetailscreen_efb18c179d))
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
             }
             state.stats != null -> StatsContent(state.stats)
-            state.historyError != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.historyError != null -> Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                 StatusNotice(
                     title = stringResource(R.string.ui_peerdetailscreen_a9d6061f62),
                     detail = requireNotNull(historyErrorDetail),
@@ -488,15 +493,15 @@ private fun RangeChip(
         selected = range == selected,
         onClick = { onSelect(range) },
         label = { Text(label) },
-        modifier = Modifier.height(48.dp),
+        modifier = Modifier.height(KeenSize.touch),
     )
 }
 
 @Composable
 private fun StatsContent(stats: PeerStats) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
         Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxWidth().padding(KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
                 ObservedTimeline(stats)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(timestampLabel(stats.from), style = MaterialTheme.typography.labelMedium)
@@ -521,11 +526,11 @@ private fun StatsContent(stats: PeerStats) {
                 detail = stringResource(R.string.history_counter_resets, stats.counterResets),
             )
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
             MetricCard(stringResource(R.string.peer_metric_online), durationLabel(stats.onlineSeconds), Modifier.weight(1f))
             MetricCard(stringResource(R.string.peer_metric_coverage), "${(stats.coverageRatio * 100).roundToInt()}%", Modifier.weight(1f))
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
             MetricCard(stringResource(R.string.peer_metric_received), bytesLabel(stats.clientDownloadBytes), Modifier.weight(1f))
             MetricCard(stringResource(R.string.peer_metric_sent), bytesLabel(stats.clientUploadBytes), Modifier.weight(1f))
         }
@@ -535,9 +540,9 @@ private fun StatsContent(stats: PeerStats) {
 @Composable
 private fun MetricCard(label: String, value: String, modifier: Modifier = Modifier) {
     Card(modifier) {
-        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+        Column(Modifier.fillMaxWidth().padding(KeenScale.dp14)) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 5.dp))
+            Text(value, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = KeenScale.dp5))
         }
     }
 }
@@ -545,7 +550,7 @@ private fun MetricCard(label: String, value: String, modifier: Modifier = Modifi
 @Composable
 private fun ConfigurationSection(hasOperation: Boolean, canRename: Boolean, onShowConf: () -> Unit, onRename: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.fillMaxWidth().padding(KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
             Text(stringResource(R.string.ui_peerdetailscreen_f67a185fb3), style = MaterialTheme.typography.titleMedium)
             Text(
                 stringResource(R.string.access_configuration_helper),
@@ -553,12 +558,12 @@ private fun ConfigurationSection(hasOperation: Boolean, canRename: Boolean, onSh
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedButton(onClick = onShowConf, enabled = !hasOperation, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.QrCode2, contentDescription = null)
+                Icon(Icons.Outlined.QrCode2, contentDescription = null)
                 Text(stringResource(R.string.ui_peerdetailscreen_1394e56458))
             }
             if (canRename) {
                 TextButton(onClick = onRename, enabled = !hasOperation, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.Edit, contentDescription = null)
+                    Icon(Icons.Outlined.Edit, contentDescription = null)
                     Text(stringResource(R.string.ui_peerdetailscreen_2b30c7105c))
                 }
             }
@@ -571,10 +576,10 @@ private fun CurrentManagementSection(peer: Peer, busy: Boolean, onToggle: () -> 
     OutlinedButton(
         onClick = onToggle,
         enabled = !busy,
-        modifier = Modifier.fillMaxWidth().height(52.dp),
+        modifier = Modifier.fillMaxWidth().height(KeenScale.dp52),
     ) {
-        if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-        else Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
+        if (busy) CircularProgressIndicator(Modifier.size(KeenSpacing.card), strokeWidth = KeenScale.dp2)
+        else Icon(Icons.Outlined.PowerSettingsNew, contentDescription = null)
         Text(if (peer.enabled) stringResource(R.string.ui_peerdetailscreen_3d48738ce8) else stringResource(R.string.ui_peerdetailscreen_8121f6f155))
     }
 }
@@ -583,12 +588,12 @@ private fun CurrentManagementSection(peer: Peer, busy: Boolean, onToggle: () -> 
 private fun ExpandableTechnical(expanded: Boolean, onToggle: () -> Unit, peer: Peer) {
     Card(Modifier.fillMaxWidth().animateContentSize()) {
         Column(Modifier.fillMaxWidth()) {
-            TextButton(onClick = onToggle, modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)) {
+            TextButton(onClick = onToggle, modifier = Modifier.fillMaxWidth().padding(horizontal = KeenScale.dp6)) {
                 Text(stringResource(R.string.ui_peerdetailscreen_cb1ec12927), Modifier.weight(1f), fontWeight = FontWeight.Bold)
                 Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
             }
             if (expanded) {
-                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(start = KeenSpacing.item, end = KeenSpacing.screen, bottom = KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                     TechnicalLine(stringResource(R.string.peer_technical_ip), peer.ip ?: stringResource(R.string.access_ip_unassigned))
                     TechnicalLine(stringResource(R.string.peer_technical_public_key), peer.publicKey)
                     TechnicalLine(stringResource(R.string.peer_technical_state), peerStatusLabel(peer))
@@ -623,20 +628,20 @@ private fun DangerZone(
         Column(Modifier.fillMaxWidth()) {
             TextButton(
                 onClick = onToggle,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = KeenScale.dp6),
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onErrorContainer),
             ) {
                 Text(stringResource(R.string.ui_peerdetailscreen_f173ac574b), Modifier.weight(1f), fontWeight = FontWeight.Bold)
                 Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
             }
             if (expanded) {
-                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(start = KeenSpacing.item, end = KeenSpacing.screen, bottom = KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
                     Text(
                         stringResource(R.string.access_danger_helper),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     OutlinedButton(onClick = onRotate, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.Key, contentDescription = null)
+                        Icon(Icons.Outlined.Key, contentDescription = null)
                         Text(stringResource(R.string.ui_peerdetailscreen_ce0569c6db))
                     }
                     Button(
@@ -648,7 +653,7 @@ private fun DangerZone(
                             contentColor = MaterialTheme.colorScheme.onError,
                         ),
                     ) {
-                        Icon(Icons.Default.DeleteForever, contentDescription = null)
+                        Icon(Icons.Outlined.DeleteForever, contentDescription = null)
                         Text(stringResource(R.string.ui_peerdetailscreen_eaf03570b0))
                     }
                 }
@@ -660,7 +665,7 @@ private fun DangerZone(
 @Composable
 private fun LoadingDetail(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
             CircularProgressIndicator()
             Text(stringResource(R.string.ui_peerdetailscreen_666b4235cf))
         }
@@ -676,7 +681,7 @@ private fun MissingDetail(
     onRetry: () -> Unit,
 ) {
     Column(
-        modifier.fillMaxSize().padding(24.dp),
+        modifier.fillMaxSize().padding(KeenSpacing.section),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -685,7 +690,7 @@ private fun MissingDetail(
             detail = if (notFound) stringResource(R.string.ui_peerdetailscreen_38af38c89c) else message,
             isError = !notFound,
         )
-        if (!notFound) Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) { Text(stringResource(R.string.ui_peerdetailscreen_5189135a61)) }
+        if (!notFound) Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().padding(top = KeenScale.dp14)) { Text(stringResource(R.string.ui_peerdetailscreen_5189135a61)) }
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.ui_peerdetailscreen_59df144dcc)) }
     }
 }

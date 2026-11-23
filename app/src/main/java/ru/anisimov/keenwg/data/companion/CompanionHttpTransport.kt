@@ -14,7 +14,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 data class CompanionHttpResponse(val status: Int, val body: String)
 
-class CompanionHttpTransport {
+class CompanionHttpTransport(
+    private val readTimeoutSeconds: Long = 60,
+) {
     private val clients = ConcurrentHashMap<ClientKey, OkHttpClient>()
 
     fun execute(
@@ -122,7 +124,7 @@ class CompanionHttpTransport {
             OkHttpClient.Builder()
                 .sslSocketFactory(context.socketFactory, trustManager)
                 .connectTimeout(5, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(readTimeoutSeconds, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
                 .callTimeout(75, TimeUnit.SECONDS)
                 .build()

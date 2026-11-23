@@ -1,5 +1,9 @@
 package ru.anisimov.keenwg.ui.network
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import ru.anisimov.keenwg.R
 
 import androidx.compose.ui.res.stringResource
@@ -11,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -21,7 +25,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import ru.anisimov.keenwg.data.network.DomainRule
 import ru.anisimov.keenwg.data.network.DomainRuleDraft
 
@@ -39,7 +42,7 @@ fun DomainRuleDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(if (editor.original == null) stringResource(R.string.ui_domainrulesheet_86885217ae) else stringResource(R.string.ui_domainrulesheet_01ec28b25e)) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
                 if (editor.reviewing) {
                     Text(stringResource(R.string.ui_domainrulesheet_badb2f85d6), style = MaterialTheme.typography.titleMedium)
                         Text(stringResource(R.string.domain_rule_summary, stringResource(domainRuleKindResource(draft.kind)), displayValue(draft)))
@@ -47,7 +50,7 @@ fun DomainRuleDialog(
                     Text(stringResource(R.string.ui_domainrulesheet_73ff0c584c), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Text(stringResource(R.string.ui_domainrulesheet_d4a6795c19), style = MaterialTheme.typography.labelLarge)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(KeenScale.dp6)) {
                         listOf(
                             "domain" to R.string.rules_site_domain,
                             "suffix" to R.string.rules_site_zone,
@@ -63,7 +66,7 @@ fun DomainRuleDialog(
                         "geosite" -> Text(stringResource(R.string.ui_domainrulesheet_ae3bd2f37c), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         "suffix" -> {
                             Text(stringResource(R.string.ui_domainrulesheet_08069c7b92), style = MaterialTheme.typography.labelLarge)
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(KeenScale.dp6)) {
                                 listOf("ru", "su", "xn--p1ai", "moscow").forEach { zone ->
                                     FilterChip(selected = draft.value == zone, onClick = { onDraft(draft.copy(value = zone)) }, label = { Text(if (zone == "xn--p1ai") stringResource(R.string.ui_domainrulesheet_68365bcf3e) else ".$zone") })
                                 }
@@ -73,7 +76,7 @@ fun DomainRuleDialog(
                     }
                     OutlinedTextField(draft.label, { onDraft(draft.copy(label = it)) }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.ui_domainrulesheet_cc8ac85ff0)) }, singleLine = true)
                     Text(stringResource(R.string.ui_domainrulesheet_9c2c7eeb43), style = MaterialTheme.typography.labelLarge)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                         FilterChip(selected = draft.effect == "direct", onClick = { onDraft(draft.copy(effect = "direct")) }, label = { Text(stringResource(R.string.ui_domainrulesheet_a672e5372a)) })
                         FilterChip(selected = draft.effect == "vpn", onClick = { onDraft(draft.copy(effect = "vpn")) }, label = { Text(stringResource(R.string.ui_domainrulesheet_569264348e)) })
                     }

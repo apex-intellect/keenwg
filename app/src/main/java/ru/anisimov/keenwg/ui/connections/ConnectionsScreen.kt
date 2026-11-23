@@ -1,5 +1,13 @@
 package ru.anisimov.keenwg.ui.connections
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+import ru.anisimov.keenwg.ui.theme.ContinuousShape
+import ru.anisimov.keenwg.ui.theme.KeenRadius
+
 import ru.anisimov.keenwg.R
 
 import androidx.compose.ui.res.stringResource
@@ -34,16 +42,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -54,13 +62,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -72,7 +80,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.ui.components.StatusNotice
@@ -114,34 +121,36 @@ fun ConnectionsScreen(
     }
     Scaffold(topBar = {
         TopAppBar(title = {
-            Column {
-                Text(stringResource(R.string.ui_connectionsscreen_fe230e6f5b))
-                Text(stringResource(R.string.ui_connectionsscreen_3e9283cbda), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Text(stringResource(R.string.ui_connectionsscreen_fe230e6f5b))
         })
     }) { padding ->
-        when {
-            state.loading && state.catalog == null -> Column(Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { CircularProgressIndicator() }
-            state.setupRequired -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.Center) {
-                StatusNotice(stringResource(R.string.ui_connectionsscreen_a0fb0b600a), detail = stringResource(R.string.ui_connectionsscreen_ebac69e24e))
-                Button(onClick = onSettings, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text(stringResource(R.string.ui_connectionsscreen_7c8ef82d31)) }
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            XkeenRuntimePanel(Modifier.padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group))
+            Box(Modifier.weight(1f)) {
+                when {
+                    state.loading && state.catalog == null -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { CircularProgressIndicator() }
+                    state.setupRequired -> Column(Modifier.fillMaxSize().padding(KeenSpacing.section), verticalArrangement = Arrangement.Center) {
+                        StatusNotice(stringResource(R.string.ui_connectionsscreen_a0fb0b600a), detail = stringResource(R.string.ui_connectionsscreen_ebac69e24e))
+                        Button(onClick = onSettings, modifier = Modifier.fillMaxWidth().padding(top = KeenSpacing.item)) { Text(stringResource(R.string.ui_connectionsscreen_7c8ef82d31)) }
+                    }
+                    state.catalog == null -> Column(Modifier.fillMaxSize().padding(KeenSpacing.section), verticalArrangement = Arrangement.Center) {
+                        StatusNotice(
+                            stringResource(R.string.connections_load_failed_title),
+                            detail = if (state.loadError == CatalogErrorCode.UNSUPPORTED_SCHEMA) {
+                                stringResource(R.string.connections_schema_unsupported)
+                            } else {
+                                stringResource(R.string.connections_load_failed_detail)
+                            },
+                            isError = true,
+                        )
+                        Button(
+                            onClick = { viewModel.loadCatalog() },
+                            modifier = Modifier.fillMaxWidth().padding(top = KeenSpacing.item),
+                        ) { Text(stringResource(R.string.connections_retry)) }
+                    }
+                    else -> ConnectionsContent(state, viewModel, { showImport = true }, Modifier)
+                }
             }
-            state.catalog == null -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.Center) {
-                StatusNotice(
-                    stringResource(R.string.connections_load_failed_title),
-                    detail = if (state.loadError == CatalogErrorCode.UNSUPPORTED_SCHEMA) {
-                        stringResource(R.string.connections_schema_unsupported)
-                    } else {
-                        stringResource(R.string.connections_load_failed_detail)
-                    },
-                    isError = true,
-                )
-                Button(
-                    onClick = { viewModel.loadCatalog() },
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                ) { Text(stringResource(R.string.connections_retry)) }
-            }
-            else -> ConnectionsContent(state, viewModel, { showImport = true }, Modifier.padding(padding))
         }
     }
     if (showImport && state.pendingImport == null) {
@@ -149,7 +158,7 @@ fun ConnectionsScreen(
             onDismissRequest = { showImport = false },
             title = { Text(stringResource(R.string.ui_connectionsscreen_19bb65cdf3)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                     OutlinedButton(onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()?.toByteArray()?.let {
@@ -171,7 +180,7 @@ fun ConnectionsScreen(
             onDismissRequest = { showImport = false; importLabel = ""; viewModel.cancelImport() },
             title = { Text(stringResource(R.string.ui_connectionsscreen_b22b73eee2)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
                     Text("${pending.preview.protocol?.name ?: stringResource(R.string.connection_subscription)} · ${pending.preview.host}:${pending.preview.port}")
                     Text("${pending.preview.transport} · ${pending.preview.security}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (pending.duplicateWarning) Text(stringResource(R.string.ui_connectionsscreen_e707467eef), color = MaterialTheme.colorScheme.secondary)
@@ -182,7 +191,7 @@ fun ConnectionsScreen(
                         supportingText = { Text(stringResource(R.string.connections_import_name_helper)) },
                         singleLine = true,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(KeenScale.dp6)) {
                         groups.forEach { group ->
                             FilterChip(
                                 selectedGroup == group.id,
@@ -232,8 +241,8 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
     val cards = connectionCards(catalog, state.selectedGroupId)
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.tight, end = KeenSpacing.screen, bottom = KeenScale.dp32),
+        verticalArrangement = Arrangement.spacedBy(KeenScale.dp10),
     ) {
         state.notice?.let { notice ->
             item {
@@ -274,7 +283,7 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
             Text(
                 stringResource(R.string.ui_connectionsscreen_eef29a39f7),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(top = KeenSpacing.inline),
             )
         }
         items(cards, key = { it.id }) { card ->
@@ -282,8 +291,8 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
             Card(
                 onClick = { viewModel.requestActivation(card.id) },
                 enabled = !card.active && card.id !in state.busyNodes,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp),
-                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp96),
+                shape = ContinuousShape(KeenRadius.card),
                 colors = CardDefaults.cardColors(
                     containerColor = if (card.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                     contentColor = if (card.active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
@@ -292,11 +301,11 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
                 ),
             ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = KeenSpacing.item, vertical = KeenScale.dp14),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
                 ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenScale.dp3)) {
                         Text(
                             card.title,
                             style = MaterialTheme.typography.titleMedium,
@@ -353,7 +362,7 @@ private fun ConnectionToolbar(
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Row(
             Modifier.weight(1f).horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(KeenSpacing.inline),
         ) {
             FilterChip(
                 selected = selectedGroupId == null,
@@ -377,8 +386,8 @@ private fun ConnectionToolbar(
             }
         }
         TextButton(onClick = onAdd) {
-            Icon(Icons.Default.Add, null, Modifier.size(18.dp))
-            Spacer(Modifier.width(4.dp))
+            Icon(Icons.Outlined.Add, null, Modifier.size(KeenSpacing.card))
+            Spacer(Modifier.width(KeenSpacing.tight))
             Text(stringResource(R.string.connections_add_action))
         }
     }
@@ -396,7 +405,7 @@ private fun SubscriptionSources(
     var deleteCandidate by remember { mutableStateOf<CatalogSource?>(null) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = ContinuousShape(KeenRadius.card),
         color = MaterialTheme.colorScheme.surface,
     ) {
         Column {
@@ -408,10 +417,10 @@ private fun SubscriptionSources(
                     state.sourceConfiguration[source.id] != null
                 val canDelete = !source.foreign && source.adapterId == "catalog"
                 Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(start = 16.dp, end = 8.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp72).padding(start = KeenSpacing.item, end = KeenSpacing.inline),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenScale.dp2)) {
                         Text(
                             sourceDisplayTitle(source) ?: stringResource(R.string.connections_source_generic),
                             style = MaterialTheme.typography.titleSmall,
@@ -432,18 +441,18 @@ private fun SubscriptionSources(
                         )
                     }
                     when {
-                        busy -> CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp), strokeWidth = 2.dp)
+                        busy -> CircularProgressIndicator(Modifier.padding(KeenSpacing.group).size(KeenSpacing.screen), strokeWidth = KeenScale.dp2)
                         mode == SubscriptionSourceMode.NEEDS_LINK -> IconButton(onClick = { onEditLink(source.id) }) {
-                            Icon(Icons.Default.Link, stringResource(R.string.connections_subscription_add_link))
+                            Icon(Icons.Outlined.Link, stringResource(R.string.connections_subscription_add_link))
                         }
                         sourceCanRefresh(source) -> IconButton(onClick = { onRefresh(source.id) }) {
-                            Icon(Icons.Default.Refresh, stringResource(R.string.connections_subscription_refresh))
+                            Icon(Icons.Outlined.Refresh, stringResource(R.string.connections_subscription_refresh))
                         }
                     }
                     if (canEditLink || canDelete) {
                         Box {
                             IconButton(onClick = { menuSourceId = source.id }) {
-                                Icon(Icons.Default.MoreVert, stringResource(R.string.connections_source_actions))
+                                Icon(Icons.Outlined.MoreVert, stringResource(R.string.connections_source_actions))
                             }
                             DropdownMenu(
                                 expanded = menuSourceId == source.id,
@@ -452,14 +461,14 @@ private fun SubscriptionSources(
                                 if (canEditLink) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.connections_subscription_change_link)) },
-                                        leadingIcon = { Icon(Icons.Default.Link, null) },
+                                        leadingIcon = { Icon(Icons.Outlined.Link, null) },
                                         onClick = { menuSourceId = null; onEditLink(source.id) },
                                     )
                                 }
                                 if (canDelete) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.connections_source_delete)) },
-                                        leadingIcon = { Icon(Icons.Default.DeleteOutline, null) },
+                                        leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) },
                                         onClick = { menuSourceId = null; deleteCandidate = source },
                                     )
                                 }
@@ -467,7 +476,7 @@ private fun SubscriptionSources(
                         }
                     }
                 }
-                if (index != sources.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                if (index != sources.lastIndex) HorizontalDivider(Modifier.padding(horizontal = KeenSpacing.item))
             }
         }
     }
@@ -530,14 +539,14 @@ private fun ConnectionCardTrailing(
     onTest: () -> Unit,
 ) {
     if (card.active) {
-        Icon(Icons.Default.CheckCircle, stringResource(R.string.active), tint = MaterialTheme.colorScheme.onPrimary)
+        Icon(Icons.Outlined.CheckCircle, stringResource(R.string.active), tint = MaterialTheme.colorScheme.onPrimary)
         return
     }
     if (!card.testable) return
     Column(horizontalAlignment = Alignment.End) {
-        Box(Modifier.height(20.dp), contentAlignment = Alignment.CenterEnd) {
+        Box(Modifier.height(KeenSpacing.screen), contentAlignment = Alignment.CenterEnd) {
             when {
-                busy -> CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                busy -> CircularProgressIndicator(Modifier.size(KeenSpacing.item), strokeWidth = KeenScale.dp2)
                 test != null -> Text(
                     if (test.reachable) stringResource(R.string.reachable_latency, test.latencyMs)
                     else stringResource(R.string.ui_connectionsscreen_53ba89acf4),
@@ -548,8 +557,8 @@ private fun ConnectionCardTrailing(
             }
         }
         TextButton(onClick = onTest, enabled = !busy) {
-            Icon(Icons.Default.Speed, null, Modifier.size(18.dp))
-            Spacer(Modifier.width(5.dp))
+            Icon(Icons.Outlined.Speed, null, Modifier.size(KeenSpacing.card))
+            Spacer(Modifier.width(KeenScale.dp5))
             Text(stringResource(R.string.connections_test_action))
         }
     }
@@ -568,7 +577,7 @@ private fun SubscriptionLinkDialog(
         onDismissRequest = { if (!saving) onDismiss() },
         title = { Text(stringResource(R.string.connections_subscription_link_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
                 Text(
                     stringResource(R.string.connections_subscription_link_helper),
                     style = MaterialTheme.typography.bodyMedium,
@@ -601,8 +610,8 @@ private fun SubscriptionLinkDialog(
                 enabled = !saving && value.isNotBlank(),
             ) {
                 if (saving) {
-                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
+                    CircularProgressIndicator(Modifier.size(KeenSpacing.card), strokeWidth = KeenScale.dp2)
+                    Spacer(Modifier.width(KeenSpacing.inline))
                 }
                 Text(
                     stringResource(

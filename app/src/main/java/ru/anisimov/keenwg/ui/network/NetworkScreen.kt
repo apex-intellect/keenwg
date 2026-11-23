@@ -1,5 +1,11 @@
 package ru.anisimov.keenwg.ui.network
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import ru.anisimov.keenwg.R
 
 import androidx.compose.ui.res.stringResource
@@ -17,32 +23,32 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Router
+import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +57,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.data.network.DomainRule
@@ -68,18 +73,18 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Column { Text(stringResource(R.string.rules_title)); Text(stringResource(R.string.rules_subtitle), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
-                actions = { IconButton(onClick = vm::refreshVisible, enabled = !state.refreshing && !state.busy && !state.scenarioBusy) { Icon(Icons.Default.Refresh, stringResource(R.string.rules_refresh_description)) } },
+                title = { Text(stringResource(R.string.rules_title)) },
+                actions = { IconButton(onClick = vm::refreshVisible, enabled = !state.refreshing && !state.busy && !state.scenarioBusy) { Icon(Icons.Outlined.Refresh, stringResource(R.string.rules_refresh_description)) } },
             )
         },
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.group, end = KeenSpacing.screen, bottom = KeenScale.dp32),
+            verticalArrangement = Arrangement.spacedBy(KeenScale.dp10),
         ) {
             item { NetworkSegmentControl(state, vm::selectSegment) }
-            if (state.refreshing || state.loading) item { Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(24.dp)) } }
+            if (state.refreshing || state.loading) item { Row(Modifier.fillMaxWidth().padding(KeenSpacing.group), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(KeenSpacing.section)) } }
             state.messageResource?.let { messageResource ->
                 item {
                     StatusNotice(
@@ -113,17 +118,17 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
         AlertDialog(
             onDismissRequest = { if (!state.scenarioBusy) vm.dismissScenarioReview() },
             title = { Text(stringResource(R.string.ui_networkscreen_fa98c16a41)) },
-            text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            text = { Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                 Text(stringResource(R.string.ui_networkscreen_20b3f51f41), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 review.plan.steps.forEach { step ->
-                    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) { Column(Modifier.fillMaxWidth().padding(10.dp)) {
+                    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) { Column(Modifier.fillMaxWidth().padding(KeenScale.dp10)) {
                         Text(stringResource(scenarioModuleResource(step.module)), style = MaterialTheme.typography.labelLarge)
                         Text("${step.matchKind.scenarioMatcherLabel()} · ${step.value}", style = MaterialTheme.typography.bodyMedium)
                         Text(step.outcome.scenarioOutcomeLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     } }
                 }
             review.plan.skippedModules.forEach { Text(stringResource(R.string.scenario_skipped_module, stringResource(scenarioModuleResource(it))), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                if (state.scenarioBusy) CircularProgressIndicator(Modifier.size(22.dp))
+                if (state.scenarioBusy) CircularProgressIndicator(Modifier.size(KeenSize.icon))
             } },
             confirmButton = { Button(onClick = vm::applyReviewedScenario, enabled = !state.scenarioBusy && review.plan.steps.isNotEmpty()) { Text(stringResource(R.string.ui_networkscreen_e15f960d93)) } },
             dismissButton = { TextButton(onClick = vm::dismissScenarioReview, enabled = !state.scenarioBusy) { Text(stringResource(R.string.ui_networkscreen_8fbe9b75cb)) } },
@@ -134,7 +139,7 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
         AlertDialog(
             onDismissRequest = { if (!state.scenarioBusy) recoveryConfirmOpen = false },
             title = { Text(stringResource(R.string.ui_networkscreen_3c2a545019)) },
-            text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            text = { Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                 Text(stringResource(R.string.ui_networkscreen_0c5f334ead))
                 Text(stringResource(R.string.recovery_plan, recovery.planId.orEmpty()), style = MonoLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(stringResource(R.string.recovery_modules, scenarioModulesLabel(recovery.modules)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -148,8 +153,8 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
 private fun androidx.compose.foundation.lazy.LazyListScope.readyRulesSection(state: NetworkUiState, vm: NetworkViewModel, onRequestRecovery: () -> Unit) {
     item { SectionTitle(stringResource(R.string.rules_sets_title), stringResource(R.string.rules_sets_subtitle)) }
     if (state.scenarioBusy && state.scenarioCatalog == null) item {
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.Center) {
-            CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+        Row(Modifier.fillMaxWidth().padding(vertical = KeenSpacing.inline), horizontalArrangement = Arrangement.Center) {
+            CircularProgressIndicator(Modifier.size(KeenSize.icon), strokeWidth = KeenScale.dp2)
         }
     }
     state.scenarioErrorResource?.let { message -> item {
@@ -159,7 +164,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.readyRulesSection(sta
             contentColor = MaterialTheme.colorScheme.onErrorContainer,
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                Modifier.fillMaxWidth().padding(start = KeenSpacing.group, end = KeenScale.dp6, top = KeenSpacing.inline, bottom = KeenSpacing.inline),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
@@ -174,7 +179,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.readyRulesSection(sta
     } }
     state.recoveryState?.takeIf { it.pending }?.let { recovery ->
         item { Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(KeenScale.dp14), verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
                 Text(stringResource(R.string.ui_networkscreen_66840f0894), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onErrorContainer)
                 Text(stringResource(R.string.recovery_blocked_detail, recovery.planId.orEmpty(), scenarioModulesLabel(recovery.modules)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
                 Button(onClick = onRequestRecovery, enabled = !state.scenarioBusy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.ui_networkscreen_38f90bf620)) }
@@ -195,8 +200,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.readyRulesSection(sta
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
             ) {
-                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(Modifier.fillMaxWidth().padding(KeenSpacing.group), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenScale.dp2)) {
                         Text(preset.id.scenarioPresetLabel(preset.label), style = MaterialTheme.typography.titleMedium)
                         Text(
                             preset.id.scenarioPresetSummary(preset.conditions),
@@ -206,7 +211,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.readyRulesSection(sta
                         )
                     }
                     Text(preset.outcome.scenarioOutcomeLabel(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.ui_networkscreen_9a506a2a8b), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Outlined.ChevronRight, contentDescription = stringResource(R.string.ui_networkscreen_9a506a2a8b), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -285,7 +290,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.explainSection(state:
         explanation.warnings.forEach { warning -> item { StatusNotice(stringResource(R.string.ui_networkscreen_f348d7ff4e), detail = warning.routeWarningLabel(), isError = true) } }
         items(explanation.steps, key = { "${it.kind}:${it.label}:${it.observedAt}" }) { step ->
             Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.padding(KeenScale.dp14), verticalArrangement = Arrangement.spacedBy(KeenSpacing.tight)) {
                     Text(step.kind.routeStepLabel(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     Text(step.label, style = MaterialTheme.typography.titleMedium)
                     Text(step.source.routeEvidenceLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -305,17 +310,17 @@ private fun RouteExplainForm(busy: Boolean, onCheck: (String, String, Int, Strin
     var protocol by remember { mutableStateOf("tcp") }
     var port by remember { mutableStateOf("443") }
     Card(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(KeenScale.dp14), verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
             OutlinedTextField(target, { target = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.ui_networkscreen_5eb5dfd20a)) }, singleLine = true, enabled = !busy)
             OutlinedTextField(device, { device = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.ui_networkscreen_e8fa921829)) }, singleLine = true, enabled = !busy)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(KeenSpacing.inline), verticalAlignment = Alignment.CenterVertically) {
                 listOf("tcp", "udp").forEach { value ->
                     OutlinedButton(onClick = { protocol = value }, enabled = !busy && protocol != value) { Text(value.uppercase()) }
                 }
                 OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), label = { Text(stringResource(R.string.ui_networkscreen_90947197f8)) }, singleLine = true, enabled = !busy, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             }
             Button(onClick = { onCheck(target, protocol, port.toIntOrNull() ?: 0, device) }, Modifier.fillMaxWidth(), enabled = !busy && target.isNotBlank()) {
-                if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(stringResource(R.string.ui_networkscreen_be52d3380f))
+                if (busy) CircularProgressIndicator(Modifier.size(KeenSpacing.card), strokeWidth = KeenScale.dp2) else Text(stringResource(R.string.ui_networkscreen_be52d3380f))
             }
         }
     }
@@ -360,7 +365,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ipSection(state: Netw
     item {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionTitle(stringResource(R.string.rules_addresses_title), stringResource(R.string.rules_addresses_subtitle), Modifier.weight(1f))
-            OutlinedButton(onClick = vm::openExclusionEditor, enabled = state.exclusions != null && !state.busy && !state.writesBlocked) { Icon(Icons.Default.Add, null); Text(stringResource(R.string.rules_addresses_add)) }
+            OutlinedButton(onClick = vm::openExclusionEditor, enabled = state.exclusions != null && !state.busy && !state.writesBlocked) { Icon(Icons.Outlined.Add, null); Text(stringResource(R.string.rules_addresses_add)) }
         }
     }
     state.exclusionErrorResource?.let { item { StatusNotice(stringResource(R.string.ui_networkscreen_e9f3bcf7d6), detail = stringResource(it), isError = true) } }
@@ -376,7 +381,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: 
     item {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionTitle(stringResource(R.string.rules_sites_title), stringResource(R.string.rules_sites_subtitle), Modifier.weight(1f))
-            OutlinedButton(onClick = vm::openDomainCreate, enabled = state.domains != null && !state.busy && !state.writesBlocked) { Icon(Icons.Default.Add, null); Text(stringResource(R.string.rules_sites_add)) }
+            OutlinedButton(onClick = vm::openDomainCreate, enabled = state.domains != null && !state.busy && !state.writesBlocked) { Icon(Icons.Outlined.Add, null); Text(stringResource(R.string.rules_sites_add)) }
         }
     }
     readyRulesSection(state, vm, onRequestRecovery)
@@ -387,14 +392,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: 
     listOf("direct" to R.string.rules_direct, "vpn" to R.string.rules_via_vpn).forEach { (effect, titleResource) ->
         val group = rules.filter { it.effect == effect }
         if (group.isNotEmpty()) {
-            item { Text(stringResource(titleResource), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)) }
+            item { Text(stringResource(titleResource), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = KeenSpacing.inline, bottom = KeenScale.dp2)) }
             items(group, key = DomainRule::id) { rule -> DomainRuleCard(rule, { vm.openDomainEdit(rule) }, { vm.requestDomainDelete(rule) }) }
         }
     }
 }
 
 @Composable private fun SectionTitle(title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Column(modifier.padding(top = 4.dp, bottom = 2.dp)) {
+    Column(modifier.padding(top = KeenSpacing.tight, bottom = KeenScale.dp2)) {
         Text(title, style = MaterialTheme.typography.titleLarge)
         Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -402,13 +407,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: 
 
 @Composable private fun ExclusionCard(entry: NetworkExclusionEntry, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (entry.isProtected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface)) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (entry.isProtected) Icons.Default.Lock else Icons.Default.Router, null, tint = if (entry.isProtected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+        Row(Modifier.fillMaxWidth().padding(KeenScale.dp14), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (entry.isProtected) Icons.Outlined.Lock else Icons.Outlined.Router, null, tint = if (entry.isProtected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f).padding(start = KeenSpacing.group)) {
                 Text(entry.value, style = MonoLabel)
                 Text(if (entry.isProtected) stringResource(R.string.ui_networkscreen_c16a7f6e30) else stringResource(R.string.ui_networkscreen_7a70e219d3), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (!entry.isProtected) IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, stringResource(R.string.rules_address_delete_description, entry.value), tint = MaterialTheme.colorScheme.error) }
+            if (!entry.isProtected) IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, stringResource(R.string.rules_address_delete_description, entry.value), tint = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -416,7 +421,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: 
 @Composable private fun ExclusionAddDialog(busy: Boolean, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var value by remember { mutableStateOf("") }
     AlertDialog(onDismissRequest = { if (!busy) onDismiss() }, title = { Text(stringResource(R.string.ui_networkscreen_9072846785)) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { OutlinedTextField(value, { value = it }, label = { Text(stringResource(R.string.ui_networkscreen_4cd4ff8882)) }, singleLine = true, enabled = !busy); Text(stringResource(R.string.ui_networkscreen_c28e773439), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) { OutlinedTextField(value, { value = it }, label = { Text(stringResource(R.string.ui_networkscreen_4cd4ff8882)) }, singleLine = true, enabled = !busy); Text(stringResource(R.string.ui_networkscreen_c28e773439), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
         confirmButton = { Button(onClick = { onConfirm(value) }, enabled = !busy && value.isNotBlank()) { Text(stringResource(R.string.ui_networkscreen_71038c53bb)) } },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.ui_networkscreen_8fbe9b75cb)) } })
 }
@@ -428,22 +433,22 @@ private fun androidx.compose.foundation.lazy.LazyListScope.domainSection(state: 
 
 @Composable private fun DeviceCard(device: NetworkDevice, onEdit: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (device.online) Icons.Default.Wifi else Icons.Default.WifiOff, stringResource(if (device.online) R.string.rules_device_online else R.string.rules_device_offline), tint = if (device.online) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) { Text(device.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); if (device.staticReservation) Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.primaryContainer) { Text(stringResource(R.string.ui_networkscreen_6e61611687), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)) } }
+        Row(Modifier.fillMaxWidth().padding(KeenScale.dp14), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (device.online) Icons.Outlined.Wifi else Icons.Outlined.WifiOff, stringResource(if (device.online) R.string.rules_device_online else R.string.rules_device_offline), tint = if (device.online) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.weight(1f).padding(start = KeenSpacing.group)) {
+                Row(verticalAlignment = Alignment.CenterVertically) { Text(device.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); if (device.staticReservation) Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.primaryContainer) { Text(stringResource(R.string.ui_networkscreen_6e61611687), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = KeenSpacing.inline, vertical = KeenScale.dp3)) } }
                 Text(device.ip ?: stringResource(R.string.ui_networkscreen_c83580eaa5), style = MonoLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(device.mac, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, stringResource(R.string.rules_device_edit_description, device.name)) }
+            IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, stringResource(R.string.rules_device_edit_description, device.name)) }
         }
     }
 }
 
 @Composable private fun StaticIpDialog(device: NetworkDevice, busy: Boolean, onDismiss: () -> Unit, onConfirm: (String) -> Unit, onRemove: () -> Unit) {
     var value by remember(device) { mutableStateOf(device.reservedIp ?: device.ip.orEmpty()) }
-    AlertDialog(onDismissRequest = { if (!busy) onDismiss() }, icon = { Icon(Icons.Default.Router, null) }, title = { Text(stringResource(R.string.ui_networkscreen_0fa7484f3c)) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { Text("${device.name} · ${device.mac}"); OutlinedTextField(value, { value = it }, enabled = !busy, label = { Text(stringResource(R.string.ui_networkscreen_ce77976823)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)); Text(stringResource(R.string.ui_networkscreen_449e859f81), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant); if (busy) CircularProgressIndicator(Modifier.size(22.dp)) } },
-        confirmButton = { Button(onClick = { onConfirm(value) }, enabled = !busy && value.isNotBlank()) { Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.size(6.dp)); Text(stringResource(R.string.ui_networkscreen_b4d30cae52)) } },
+    AlertDialog(onDismissRequest = { if (!busy) onDismiss() }, icon = { Icon(Icons.Outlined.Router, null) }, title = { Text(stringResource(R.string.ui_networkscreen_0fa7484f3c)) },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(KeenSpacing.group)) { Text("${device.name} · ${device.mac}"); OutlinedTextField(value, { value = it }, enabled = !busy, label = { Text(stringResource(R.string.ui_networkscreen_ce77976823)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)); Text(stringResource(R.string.ui_networkscreen_449e859f81), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant); if (busy) CircularProgressIndicator(Modifier.size(KeenSize.icon)) } },
+        confirmButton = { Button(onClick = { onConfirm(value) }, enabled = !busy && value.isNotBlank()) { Icon(Icons.Outlined.CheckCircle, null); Spacer(Modifier.size(KeenScale.dp6)); Text(stringResource(R.string.ui_networkscreen_b4d30cae52)) } },
         dismissButton = { Row { if (device.staticReservation) TextButton(onClick = onRemove, enabled = !busy) { Text(stringResource(R.string.ui_networkscreen_8b9781c793), color = MaterialTheme.colorScheme.error) }; TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.ui_networkscreen_8fbe9b75cb)) } } })
 }

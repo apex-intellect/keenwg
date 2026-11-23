@@ -1,5 +1,11 @@
 package ru.anisimov.keenwg.ui.setup
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -20,32 +26,32 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Router
+import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,7 +71,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.R
@@ -139,8 +144,8 @@ fun SetupScreen(
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.item),
         ) {
             when (val current = state) {
                 SetupState.Credentials -> CredentialsContent(
@@ -173,14 +178,14 @@ fun SetupScreen(
                 is SetupState.Completed -> CompletedContent(current, onCompleted)
                 is SetupState.Failed -> FailureContent(current, vm::reset)
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(KeenSpacing.inline))
         }
     }
 
     if (showHelp) {
         AlertDialog(
             onDismissRequest = { showHelp = false },
-            icon = { Icon(Icons.Default.Info, contentDescription = null) },
+            icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
             title = { Text(stringResource(R.string.setup_help_title)) },
             text = { Text(stringResource(R.string.setup_help_body)) },
             confirmButton = { TextButton(onClick = { showHelp = false }) { Text(stringResource(R.string.action_understood)) } },
@@ -195,7 +200,7 @@ fun SetupScreen(
     if (confirmChangedKey) {
         AlertDialog(
             onDismissRequest = { confirmChangedKey = false },
-            icon = { Icon(Icons.Default.WarningAmber, contentDescription = null) },
+            icon = { Icon(Icons.Outlined.WarningAmber, contentDescription = null) },
             title = { Text(stringResource(R.string.setup_key_confirm_title)) },
             text = { Text(stringResource(R.string.setup_key_confirm_body)) },
             confirmButton = {
@@ -225,9 +230,9 @@ private fun CredentialsContent(
     onHelp: () -> Unit,
     onSubmit: () -> Unit,
 ) {
-    SetupHeader(Icons.Default.Router, stringResource(R.string.setup_connect_title), stringResource(R.string.setup_connect_body))
+    SetupHeader(Icons.Outlined.Router, stringResource(R.string.setup_connect_title), stringResource(R.string.setup_connect_body))
     KeenGlassSurface(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenSpacing.tight)) {
             Text(stringResource(R.string.setup_router_label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(host.ifBlank { stringResource(R.string.setup_router_default) }, style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.setup_router_local_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -242,7 +247,7 @@ private fun CredentialsContent(
     )
     PasswordField(password, onPasswordChange, error == "password")
     TextButton(onClick = onHelp) {
-        Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(18.dp))
+        Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(KeenSpacing.card))
         Text(stringResource(R.string.setup_where_credentials))
     }
     Text(
@@ -252,10 +257,10 @@ private fun CredentialsContent(
     )
     TextButton(onClick = onToggleParameters, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.setup_change_parameters), modifier = Modifier.weight(1f))
-        Icon(if (showParameters) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+        Icon(if (showParameters) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
     }
     AnimatedVisibility(showParameters) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
             OutlinedTextField(
                 value = host,
                 onValueChange = onHostChange,
@@ -274,7 +279,7 @@ private fun CredentialsContent(
         }
     }
     if (error == "endpoint") InlineError(stringResource(R.string.setup_error_endpoint))
-    Button(onClick = onSubmit, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+    Button(onClick = onSubmit, modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52)) {
         Text(stringResource(R.string.setup_connect_action))
     }
 }
@@ -293,7 +298,7 @@ private fun PasswordField(value: String, onValueChange: (String) -> Unit, error:
         trailingIcon = {
             IconButton(onClick = { visible = !visible }) {
                 Icon(
-                    if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                     stringResource(if (visible) R.string.action_hide_password else R.string.action_show_password),
                 )
             }
@@ -304,10 +309,10 @@ private fun PasswordField(value: String, onValueChange: (String) -> Unit, error:
 
 @Composable
 private fun CheckingContent(state: SetupState.Checking) {
-    SetupHeader(Icons.Default.Security, stringResource(R.string.setup_checking_title), stringResource(R.string.setup_checking_body))
+    SetupHeader(Icons.Outlined.Security, stringResource(R.string.setup_checking_title), stringResource(R.string.setup_checking_body))
     LinearProgressIndicator(modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
     KeenGlassSurface(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Column(Modifier.padding(horizontal = KeenSpacing.item, vertical = KeenSpacing.tight)) {
             ProgressRow(stringResource(R.string.setup_check_router), setupRowStatus(state.progress, 0))
             ProgressRow(stringResource(R.string.setup_check_entware), setupRowStatus(state.progress, 1))
             ProgressRow(stringResource(R.string.setup_check_modules), setupRowStatus(state.progress, 2))
@@ -320,15 +325,15 @@ private fun CheckingContent(state: SetupState.Checking) {
 @Composable
 private fun ProgressRow(label: String, state: SetupRowStatus) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        Modifier.fillMaxWidth().heightIn(min = KeenScale.dp56),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group),
     ) {
-        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(KeenSpacing.section), contentAlignment = Alignment.Center) {
             when (state) {
-                SetupRowStatus.COMPLETE -> Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
-                SetupRowStatus.ACTIVE -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                SetupRowStatus.PENDING -> Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+                SetupRowStatus.COMPLETE -> Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                SetupRowStatus.ACTIVE -> CircularProgressIndicator(Modifier.size(KeenSpacing.screen), strokeWidth = KeenScale.dp2)
+                SetupRowStatus.PENDING -> Icon(Icons.Outlined.RadioButtonUnchecked, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
             }
         }
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
@@ -353,13 +358,13 @@ private fun PrerequisiteContent(
     onRetry: () -> Unit,
     onReset: () -> Unit,
 ) {
-    SetupHeader(Icons.Default.Info, stringResource(R.string.setup_prerequisite_title), stringResource(R.string.setup_prerequisite_body))
+    SetupHeader(Icons.Outlined.Info, stringResource(R.string.setup_prerequisite_title), stringResource(R.string.setup_prerequisite_body))
     RouterProbeCard(state.probe)
     KeenGlassSurface(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.padding(KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenScale.dp14)) {
             state.missing.forEach { missing ->
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.RadioButtonUnchecked, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                     Text(stringResource(missing.labelResource()), style = MaterialTheme.typography.bodyLarge)
                 }
             }
@@ -367,12 +372,12 @@ private fun PrerequisiteContent(
         }
     }
     if (SetupPrerequisite.ENTWARE in state.missing) {
-        Button(onClick = onOpenGuide, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+        Button(onClick = onOpenGuide, modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52)) {
             Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
             Text(stringResource(R.string.setup_open_guide))
         }
     }
-    OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+    OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth().heightIn(min = KeenSize.touch)) {
         Text(stringResource(R.string.setup_check_again))
     }
     TextButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.setup_enter_again)) }
@@ -384,28 +389,28 @@ private fun HostKeyChangedContent(
     onConfirm: () -> Unit,
     onReset: () -> Unit,
 ) {
-    SetupHeader(Icons.Default.WarningAmber, stringResource(R.string.setup_key_changed_title), stringResource(R.string.setup_key_changed_body))
+    SetupHeader(Icons.Outlined.WarningAmber, stringResource(R.string.setup_key_changed_title), stringResource(R.string.setup_key_changed_body))
     InfoNotice(stringResource(R.string.setup_key_changed_warning), error = true)
     TechnicalDetails {
         Text(stringResource(R.string.setup_key_previous), style = MaterialTheme.typography.labelMedium)
         Text("${state.expected.algorithm} · ${state.expected.sha256}", style = MonoLabel)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(KeenSpacing.inline))
         Text(stringResource(R.string.setup_key_observed), style = MaterialTheme.typography.labelMedium)
         Text("${state.observed.algorithm} · ${state.observed.sha256}", style = MonoLabel)
     }
-    Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+    Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52)) {
         Text(stringResource(R.string.setup_key_changed_continue))
     }
-    OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+    OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth().heightIn(min = KeenSize.touch)) {
         Text(stringResource(R.string.action_cancel))
     }
 }
 
 @Composable
 private fun CompletedContent(state: SetupState.Completed, onCompleted: () -> Unit) {
-    SetupHeader(Icons.Default.CheckCircle, stringResource(R.string.setup_complete_title), stringResource(R.string.setup_complete_body))
+    SetupHeader(Icons.Outlined.CheckCircle, stringResource(R.string.setup_complete_title), stringResource(R.string.setup_complete_body))
     KeenGlassSurface(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+        Column(Modifier.padding(horizontal = KeenSpacing.item, vertical = KeenScale.dp6)) {
             ResultRow(stringResource(R.string.setup_result_protected_access))
         }
     }
@@ -414,15 +419,15 @@ private fun CompletedContent(state: SetupState.Completed, onCompleted: () -> Uni
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Button(onClick = onCompleted, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+    Button(onClick = onCompleted, modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52)) {
         Text(stringResource(R.string.setup_go_overview))
     }
 }
 
 @Composable
 private fun ResultRow(label: String) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+    Row(Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
+        Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
         Text(label, modifier = Modifier.weight(1f))
         Text(stringResource(R.string.setup_status_configured), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
     }
@@ -432,7 +437,7 @@ private fun ResultRow(label: String) {
 private fun FailureContent(state: SetupState.Failed, onReset: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     SetupHeader(
-        Icons.Default.WarningAmber,
+        Icons.Outlined.WarningAmber,
         stringResource(R.string.setup_failed_title),
         stringResource(state.phase.failureBodyResource()),
     )
@@ -442,28 +447,28 @@ private fun FailureContent(state: SetupState.Failed, onReset: () -> Unit) {
     )
     TechnicalDetails {
         Text(stringResource(R.string.setup_failure_stage, state.phase.userCode()), style = MonoLabel)
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(KeenScale.dp6))
         Text(stringResource(state.phase.failureBodyResource()), style = MaterialTheme.typography.bodySmall)
     }
-    Button(onClick = onReset, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+    Button(onClick = onReset, modifier = Modifier.fillMaxWidth().heightIn(min = KeenScale.dp52)) {
         Text(stringResource(R.string.action_try_again))
     }
     OutlinedButton(
         onClick = {
             clipboard.setText(AnnotatedString("KeenWG ${state.phase.userCode()}\nrouter_unchanged_confirmed=${state.rollbackVerified}"))
         },
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = KeenSize.touch),
     ) {
-        Icon(Icons.Default.ContentCopy, contentDescription = null)
+        Icon(Icons.Outlined.ContentCopy, contentDescription = null)
         Text(stringResource(R.string.setup_copy_report))
     }
 }
 
 @Composable
 private fun SetupHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String) {
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(KeenSpacing.item), verticalAlignment = Alignment.Top) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(KeenScale.dp32))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenScale.dp6)) {
             Text(title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
             Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -473,7 +478,7 @@ private fun SetupHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, t
 @Composable
 private fun RouterProbeCard(probe: InstallProbe) {
     KeenGlassSurface(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenSpacing.inline)) {
             Text(stringResource(R.string.setup_router_compatible), style = MaterialTheme.typography.titleMedium)
             InfoRow(stringResource(R.string.setup_probe_architecture), probe.architecture)
             InfoRow(stringResource(R.string.setup_probe_firmware), probe.firmware)
@@ -484,7 +489,7 @@ private fun RouterProbeCard(probe: InstallProbe) {
 
 @Composable
 private fun InfoRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group)) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(0.42f))
         Text(value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.58f))
     }
@@ -493,9 +498,9 @@ private fun InfoRow(label: String, value: String) {
 @Composable
 private fun InfoNotice(message: String, error: Boolean = false) {
     KeenGlassSurface(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.padding(KeenSpacing.item), horizontalArrangement = Arrangement.spacedBy(KeenSpacing.group), verticalAlignment = Alignment.Top) {
             Icon(
-                if (error) Icons.Default.WarningAmber else Icons.Default.Lock,
+                if (error) Icons.Outlined.WarningAmber else Icons.Outlined.Lock,
                 contentDescription = null,
                 tint = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
             )
@@ -509,12 +514,12 @@ private fun TechnicalDetails(content: @Composable () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     KeenGlassSurface(Modifier.fillMaxWidth()) {
         Column {
-            TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+            TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth().padding(horizontal = KeenSpacing.tight)) {
                 Text(stringResource(R.string.setup_technical_details), modifier = Modifier.weight(1f))
-                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+                Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
             }
             AnimatedVisibility(expanded) {
-                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), content = { content() })
+                Column(Modifier.padding(start = KeenSpacing.item, end = KeenSpacing.screen, bottom = KeenSpacing.item), content = { content() })
             }
         }
     }

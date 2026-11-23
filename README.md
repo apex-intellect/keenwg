@@ -1,117 +1,133 @@
-# KeenWG
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/hero-dark.svg">
+    <img src="docs/media/hero-light.svg" alt="KeenWG — Your network. Clearly." width="100%">
+  </picture>
+</p>
 
-[![Release](https://img.shields.io/github/v/release/apex-intellect/keenwg)](https://github.com/apex-intellect/keenwg/releases/latest)
-[![CI](https://github.com/apex-intellect/keenwg/actions/workflows/verify.yml/badge.svg)](https://github.com/apex-intellect/keenwg/actions/workflows/verify.yml)
-[![License](https://img.shields.io/github/license/apex-intellect/keenwg)](LICENSE)
-![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84)
+<p align="center">
+  <a href="https://github.com/apex-intellect/keenwg/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/apex-intellect/keenwg?style=flat-square&color=282927"></a>
+  <a href="https://github.com/apex-intellect/keenwg/actions/workflows/verify.yml"><img alt="Build checks" src="https://github.com/apex-intellect/keenwg/actions/workflows/verify.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/badge/license-Apache_2.0-686962?style=flat-square"></a>
+  <img alt="Android 8.0 or newer" src="https://img.shields.io/badge/Android-8.0%2B-686962?style=flat-square">
+</p>
 
-KeenWG — локальная Android-панель для Keenetic и Netcraze. Она объединяет управление WireGuard-доступами, ручной выбор XKeen/VLESS-подключения, маршруты Xray, IP-исключения, статические адреса, диагностику и резервное копирование. Облачного аккаунта и внешнего управляющего сервера нет.
+<p align="center">
+  <strong>English</strong> · <a href="README.ru.md">Русский</a> · <a href="README.de.md">Deutsch</a>
+</p>
+<p align="center">
+  <a href="https://github.com/apex-intellect/keenwg/releases/latest"><strong>Download APK</strong></a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="docs/COMPATIBILITY.md">Compatibility</a> ·
+  <a href="SECURITY.md">Security</a>
+</p>
 
-Проект разрабатывают [Apex Intellect](https://apex-intellect.ru/) и участники сообщества. Официальный исходный код, релизы и трекер находятся только в репозитории [`apex-intellect/keenwg`](https://github.com/apex-intellect/keenwg); ведущий разработчик — [@th-notorious](https://github.com/th-notorious).
+KeenWG is a local Android control panel for **Keenetic and Netcraze** routers. Manage WireGuard access, XKeen/VLESS connections, routing rules and router maintenance in one place — without a cloud account or an external management server.
 
-Линейка 2.x оставляет только один защищённый путь управления XKeen: локальный компонент на роутере (в технической документации — Companion) по HTTPS с точным pin сертификата и отдельным отзываемым токеном каждого телефона. В приложении это называется просто «защищённый доступ». Старый самостоятельный HTTP-сервис удалён.
+Built by [Apex Intellect](https://apex-intellect.ru/) and contributors. Lead developer: [@th-notorious](https://github.com/th-notorious). This repository is the official source for code, releases and issues.
 
-## Возможности
+## A calmer way to manage your network
 
-- создание, включение, ротация и отзыв WireGuard-доступов;
-- несколько профилей роутеров с секретами в Android Keystore;
-- добавление VLESS-ссылок и URL подписок прямо в приложение с немедленной загрузкой списка;
-- название, срок действия и расход трафика из совместимых с HAPP метаданных [`profile-title` и `subscription-userinfo`](https://github.com/HappDev/happ_su/blob/main/dev-docs/app-management.md);
-- ручное обновление подписки, проверка узла и подтверждённый выбор страны;
-- доменные правила, GeoSite, IP/CIDR-исключения и объяснение выбранного маршрута;
-- статические DHCP-адреса для устройств Keenetic;
-- готовые правила маршрутизации с просмотром изменений, read-back и откатом;
-- зашифрованный owner-only backup/restore;
-- доверенные телефоны со scope `viewer`, `operator` и `owner`;
-- подписанные обновления роутерного компонента из приложения без повторного ввода пароля;
-- безопасный диагностический отчёт без токенов, ключей, URL, MAC и полных IP;
-- необязательная локальная история WireGuard: Collector хранит данные на роутере, Companion отдаёт их телефону по уже защищённому каналу.
+Ivory and graphite, light and dark themes, continuous corners and a floating translucent navigation bar. The native Compose interface uses shared design tokens and components across real screens; it does not invent traffic, devices or connection status.
 
-Все сетевые изменения запускаются вручную. KeenWG не обновляет подписку, не меняет страну и не применяет готовые правила при открытии приложения или в фоне.
+| Area | What you can do |
+| :--- | :--- |
+| **Overview** | Check router health and available capabilities; switch router profiles. |
+| **Connections** | Import a VLESS link or subscription, inspect provider metadata, refresh manually and select a node. Control XKeen when supported by the paired Companion. |
+| **Rules** | Manage domains, GeoSite, IP/CIDR exclusions and static DHCP addresses. Preview changes and explain routing decisions. |
+| **Access** | Create, enable, rotate and revoke WireGuard access. View optional local history. |
+| **System** | Pair devices, manage permissions, update Companion, export sanitized diagnostics and restore encrypted backups. |
 
-## Архитектура
+Subscription titles, expiry and usage are read from compatible [provider metadata](https://github.com/HappDev/happ_su/blob/main/dev-docs/app-management.md). A missing value stays unknown; it is not synthesized.
 
-```mermaid
-flowchart LR
-    A[Android · KeenWG] -->|HTTPS 18779<br/>exact certificate pin<br/>per-device token| C[Companion on router]
-    C --> X[XKeen / Xray]
-    C -->|bounded ndmq commands| K[KeeneticOS]
-    A -. legacy RCI for unpaired profiles .-> K
-    C -. bounded read-only HTTP<br/>private IPv4 only .-> H[WireGuard Collector]
-```
+> [!IMPORTANT]
+> Opening the app does not refresh subscriptions, change countries or apply routing presets. Network mutations require an explicit action. Capability and permission checks remain in place.
 
-Модули независимы:
+## Quick start
 
-- Companion — стандартный защищённый путь для подключений, маршрутов, домашних устройств, статических адресов, WireGuard-доступов, backup, диагностики и доверенных телефонов;
-- XKeen/Xray нужен только для связанных с ним подключений и маршрутов;
-- RCI сохранён как локальный legacy-режим для профилей без Companion и не требует повторной настройки после успешного подключения Companion;
-- Collector нужен только для истории и не влияет на текущее состояние или управление. Телефон не знает его адрес или токен и никогда не подключается к нему напрямую.
+1. Download the signed APK from the [latest release](https://github.com/apex-intellect/keenwg/releases/latest).
+2. Ensure **Entware** is available. If not, KeenWG points to the [XKeen community instructions](https://github.com/Corvus-Malus/XKeen). The app does not format storage. XKeen itself is optional; only its related features depend on it.
+3. Open **System → Router connection**.
+4. Enter your Entware credentials once. A typical setup uses `root`, SSH port `222` and router address `192.168.1.1`; all can be changed.
+5. The wizard checks the router, installs `ndmq` through Entware if needed, preserves existing XKeen/Xray/ASC/WireGuard services and provisions a separate revocable device credential.
+6. Existing WireGuard peers and home devices are available after pairing. If the standard Collector is installed, history is discovered automatically.
 
-## Быстрый старт
+See [Companion setup and recovery](docs/COMPANION-SETUP.md) for prerequisites and troubleshooting.
 
-1. Скачайте подписанный APK из [последнего релиза](https://github.com/apex-intellect/keenwg/releases/latest).
-2. Для установки защищённого компонента нужен Entware. Если его нет, KeenWG покажет [инструкцию сообщества XKeen](https://github.com/Corvus-Malus/XKeen) и ничего не будет форматировать или устанавливать сам. Сам XKeen необязателен: без него недоступны только связанные с ним подключения и маршруты.
-3. Откройте «Система» → «Подключение к роутеру».
-4. Один раз введите логин и пароль, с которыми устанавливали XKeen/Entware. Обычно это `root`, порт `222`; адрес нового профиля — `192.168.1.1`, его можно изменить на этом же экране.
-5. KeenWG сам проверит роутер, при необходимости установит системный пакет `ndmq` через Entware, сохранит существующие XKeen/Xray/ASC/WireGuard и создаст для телефона отдельный отзываемый доступ. Накопители и разделы приложение не форматирует.
-6. После подключения домашние устройства и все существующие WireGuard-доступы открываются без повторного ввода пароля. Если на роутере установлен штатный Collector, история WireGuard подключится автоматически: адрес и отдельный токен на телефоне не нужны.
+<details>
+<summary>Upgrading an existing installation</summary>
 
-Версии до 2.2.0 ещё не умеют принимать подписанное обновление через защищённый канал. При первом переходе KeenWG один последний раз попросит пароль роутера; следующие обновления устанавливаются из раздела «О KeenWG» → «Компонент на роутере» без пароля. Архив проверяется подписью Apex Intellect, а не только токеном телефона.
+Companion versions before 2.2.0 require the router password once more to migrate to signed updates. Later updates use the paired secure channel and a signature verified against the trusted Apex Intellect key.
 
-Если актуальный роутерный компонент уже установлен и его бинарник совпадает, мастер выполняет только привязку телефона: бинарник и конфигурация на роутере не перезаписываются. При несовпадении той же версии выполняется проверяемое транзакционное обновление. Обновление сохраняет identity, доверенные устройства, активный маршрут, подписки и пользовательские правила.
+When the installed binary already matches, setup only pairs the phone. A different binary uses a verified transactional update, preserving router identity, trusted devices, the active route, subscriptions and user rules.
 
-Подробный процесс и варианты восстановления: [настройка Companion](docs/COMPANION-SETUP.md).
+Update the Android app first. Update the router component separately from **About → Router component** when needed. Publishing an APK does not automatically replace a running router service.
 
-## Совместимость
+</details>
 
-Физически подтверждённая платформа:
+## Compatibility
 
-- Netcraze Hopper SE (NC-3812);
-- KeeneticOS 5.01.C.1.0-0;
-- ARM64 и Entware;
-- XKeen 2.0 и Xray 26.3.27.
+| Component | Requirement / verified baseline |
+| :--- | :--- |
+| Phone | Android 8.0+; English and Russian app UI |
+| Router | ARM64 with Entware |
+| Physically verified hardware | Netcraze Hopper SE, NC-3812 |
+| Verified software baseline | KeeneticOS 5.01.C.1.0-0, XKeen 2.0, Xray 26.3.27 |
+| Other ARM64 hardware | Experimental until physically validated |
+| Not supported | MIPS/MIPSel, public/WAN Companion listeners, automatic country switching |
 
-Другие ARM64-модели могут работать, но считаются experimental до прохождения полного физического цикла. MIPS/MIPSel, публичный/WAN listener Companion и автоматическая смена страны не поддерживаются. Точная матрица: [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+This is a **tested baseline**, not a claim that every newer router or core version is certified. See the [compatibility matrix](docs/COMPATIBILITY.md).
 
-## Сборка
+## Local by design
 
-Требуются JDK 17 и Android SDK 35. Репозиторий содержит Gradle Wrapper 8.12.
+The app talks to Companion over HTTPS with **exact certificate pinning** and a **separate revocable token per device**. Router profile secrets are stored using Android Keystore. Trusted devices have `viewer`, `operator` or `owner` permissions; encrypted backup/restore is owner-only.
 
-```powershell
-$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
-.\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
-```
+| Module | Responsibility |
+| :--- | :--- |
+| Android app | User interface, explicit actions, local profiles and protected credentials |
+| Companion | Authorized router operations, routing transactions, updates and diagnostics |
+| XKeen / Xray | Optional proxy connections and routing |
+| Collector | Optional router-local WireGuard history; accessed only through Companion |
+| Legacy RCI | Local fallback for profiles that have not paired with Companion |
 
-Linux/macOS:
+Collector is optional and does not determine current connectivity or peer control. The phone never needs its address or token. The standalone legacy HTTP management service is no longer part of the 2.x architecture.
+
+## Build and contribute
+
+<details>
+<summary>Android, Go and release checks</summary>
+
+Requirements: **JDK 17**, **Android SDK 35**, **Go 1.26.11**. The repository includes **Gradle Wrapper 8.12**.
 
 ```bash
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
-```
-
-Companion и Collector требуют Go 1.26.7:
-
-```bash
 (cd xkeen-control && go test ./... && go vet ./...)
 (cd collector && go test ./... && go vet ./...)
 ```
 
-Релизная проверка дополнительно запускает race detector, `govulncheck`, fuzz targets, shell lifecycle, Android lint, SBOM и secret scan. Инструкции для изменений находятся в [CONTRIBUTING.md](CONTRIBUTING.md).
+On Windows, use `gradlew.bat`. Set `ANDROID_HOME` to the SDK location.
 
-## Безопасность и приватность
+Release verification includes race checks, vulnerability scanning, shell lifecycle tests, locale/UI resource checks, APK signing checks and SBOM generation. The tag must match the app version, and missing signing credentials fail the release.
 
-Не публикуйте subscription URL, VLESS URI, WireGuard private key, пароль доступа к роутеру, pairing secret, device token, backup, hostname, MAC или полный публичный IP. Для отчёта используйте только встроенный санитизированный экспорт.
+Shared UI primitives live in `ui/theme` and `ui/components`; see [the design-system guide](docs/DESIGN-SYSTEM.md). Contribution instructions: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-- [Security policy](SECURITY.md)
-- [Модель безопасности](docs/SECURITY-MODEL.md)
-- [Privacy](PRIVACY.md)
-- [Политика подписи APK](docs/SIGNING.md)
+</details>
 
-## Официальные сборки и зеркала
+Translations of this README are documentation translations; they do not imply additional app UI languages. English is the canonical README.
 
-Неизменённый APK можно свободно размещать на сторонних площадках: приложение само сверяет сертификат подписи с опубликованным сертификатом Apex Intellect и показывает происхождение сборки в разделе «О KeenWG». Поэтому точное зеркало остаётся проверяемой официальной сборкой независимо от сайта загрузки.
+## Security and privacy
 
-Для изменённой сборки нужны отдельные название, иконка, application ID и ключ подписи, чтобы пользователь не спутал форк с официальным релизом. Подробности: [правила бренда и распространения](TRADEMARKS.md), [проверка подписи](docs/SIGNING.md).
+> [!WARNING]
+> Never attach private keys, subscription URLs, VLESS URIs, router passwords, pairing secrets, device tokens, backups, hostnames, MAC addresses or complete public IPs to an issue. Use the app's sanitized diagnostic export.
 
-## Лицензия
+[Security policy](SECURITY.md) · [Security model](docs/SECURITY-MODEL.md) · [Privacy](PRIVACY.md) · [APK signing](docs/SIGNING.md)
 
-Исходный код — [Apache License 2.0](LICENSE). Лицензия разрешает форки и распространение; правила использования названия, иконки и обозначения официальной сборки описаны отдельно в [TRADEMARKS.md](TRADEMARKS.md). Названия WireGuard, Keenetic, Netcraze, XKeen и Xray принадлежат их владельцам; упоминание означает совместимость, а не одобрение проекта.
+Unmodified APK mirrors remain verifiable: the app checks its signing certificate against the published Apex Intellect certificate. Modified builds must use a distinct name, icon, application ID and signing key. See [branding and distribution](TRADEMARKS.md).
+
+## License
+
+[Apache License 2.0](LICENSE). WireGuard, Keenetic, Netcraze, XKeen and Xray are trademarks of their respective owners; compatibility does not imply endorsement.
+
+---
+
+<p align="center"><sub>Local control. Explicit changes. Your network.</sub></p>

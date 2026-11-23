@@ -22,6 +22,8 @@ import ru.anisimov.keenwg.data.store.XkeenPreferenceStore
 import ru.anisimov.keenwg.data.store.ExpertModeStore
 import ru.anisimov.keenwg.data.xkeen.XkeenClient
 import ru.anisimov.keenwg.data.xkeen.XkeenRepository
+import ru.anisimov.keenwg.data.xkeen.XkeenRuntimeClient
+import ru.anisimov.keenwg.data.xkeen.XkeenRuntimeRepository
 import ru.anisimov.keenwg.data.network.NetworkRepository
 import ru.anisimov.keenwg.data.network.NetworkGateway
 import ru.anisimov.keenwg.data.network.AdaptiveNetworkRepository
@@ -72,6 +74,8 @@ object ServiceLocator {
     lateinit var lineageStore: LineageStore
         private set
     lateinit var xkeenRepository: XkeenRepository
+        private set
+    lateinit var xkeenRuntimeRepository: XkeenRuntimeRepository
         private set
     lateinit var xkeenPreferenceStore: XkeenPreferenceStore
         private set
@@ -138,6 +142,7 @@ object ServiceLocator {
             ),
         )
         xkeenRepository = XkeenRepository(XkeenClient(companionTransport))
+        xkeenRuntimeRepository = XkeenRuntimeRepository(XkeenRuntimeClient())
         xkeenPreferenceStore = XkeenPreferenceStore(app)
         expertModeStore = ExpertModeStore(app)
         networkRepository = AdaptiveNetworkRepository(

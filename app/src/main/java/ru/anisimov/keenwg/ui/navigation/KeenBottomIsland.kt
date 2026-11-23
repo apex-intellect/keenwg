@@ -1,34 +1,28 @@
 package ru.anisimov.keenwg.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Route
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Route
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import ru.anisimov.keenwg.R
-import ru.anisimov.keenwg.ui.theme.KeenNavigationBlack
+import ru.anisimov.keenwg.ui.theme.*
 
 @Composable
 fun KeenBottomIsland(
@@ -37,58 +31,44 @@ fun KeenBottomIsland(
     onSelect: (TopLevelDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp)) {
+    Box(modifier.fillMaxWidth().navigationBarsPadding().padding(
+        horizontal = KeenSpacing.navigationInset, vertical = KeenSpacing.navigationBottom,
+    )) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
-            color = KeenNavigationBlack,
-            contentColor = Color.White,
-            shadowElevation = 10.dp,
+            shape = ContinuousShape(KeenRadius.navigation),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = KeenOpacity.glass),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            border = BorderStroke(KeenSize.hairline, MaterialTheme.colorScheme.surface.copy(alpha = KeenOpacity.glassRim)),
+            shadowElevation = KeenSize.navigationShadow,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
-            ) {
+            Row(Modifier.fillMaxWidth().padding(KeenSpacing.navigationContent)) {
                 destinations.forEach { destination ->
                     val isSelected = destination == selected
-                    val itemShape = RoundedCornerShape(22.dp)
-                    val label = stringResource(destination.labelResource())
                     val description = stringResource(destination.descriptionResource())
                     Surface(
                         onClick = { onSelect(destination) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(62.dp)
-                            .semantics { contentDescription = description },
-                        shape = itemShape,
-                        color = if (isSelected) Color.White.copy(alpha = 0.12f) else Color.Transparent,
-                        contentColor = if (isSelected) Color.White else Color.White.copy(alpha = 0.58f),
+                        modifier = Modifier.weight(1f).heightIn(min = KeenSize.navigationItem)
+                            .semantics {
+                                contentDescription = description
+                                this.selected = isSelected
+                                role = Role.Tab
+                            },
+                        shape = ContinuousShape(KeenRadius.navigationItem),
+                        color = if (isSelected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                     ) {
                         Column(
-                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                            modifier = Modifier.padding(vertical = KeenSpacing.tight),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(KeenSpacing.tight, Alignment.CenterVertically),
                         ) {
-                            Icon(destination.icon(), contentDescription = null)
+                            Icon(destination.icon(), contentDescription = null, modifier = Modifier.size(KeenSize.icon))
                             Text(
-                                label,
+                                stringResource(destination.labelResource()),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                maxLines = 1,
                             )
-                            if (isSelected) {
-                                Box(
-                                    Modifier
-                                        .padding(top = 3.dp)
-                                        .height(2.dp)
-                                        .fillMaxWidth(0.26f)
-                                        .then(Modifier),
-                                ) {
-                                    Surface(
-                                        modifier = Modifier.fillMaxWidth().height(2.dp),
-                                        shape = RoundedCornerShape(50),
-                                        color = MaterialTheme.colorScheme.primary,
-                                    ) {}
-                                }
-                            }
                         }
                     }
                 }
@@ -98,11 +78,11 @@ fun KeenBottomIsland(
 }
 
 private fun TopLevelDestination.icon(): ImageVector = when (this) {
-    TopLevelDestination.OVERVIEW -> Icons.Default.Home
-    TopLevelDestination.CONNECTIONS -> Icons.Default.Language
-    TopLevelDestination.ROUTES -> Icons.Default.Route
-    TopLevelDestination.ACCESS -> Icons.Default.Devices
-    TopLevelDestination.SYSTEM -> Icons.Default.Settings
+    TopLevelDestination.OVERVIEW -> Icons.Outlined.Home
+    TopLevelDestination.CONNECTIONS -> Icons.Outlined.Language
+    TopLevelDestination.ROUTES -> Icons.Outlined.Route
+    TopLevelDestination.ACCESS -> Icons.Outlined.Key
+    TopLevelDestination.SYSTEM -> Icons.Outlined.Settings
 }
 
 private fun TopLevelDestination.labelResource(): Int = when (this) {

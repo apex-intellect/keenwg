@@ -25,13 +25,27 @@ type cachedResult struct {
 }
 
 type Service struct {
-	store       *Store
-	policyPath  string
-	routingPath string
-	system      RuntimeSystem
-	mu          sync.Mutex
-	results     map[string]cachedResult
-	blocked     bool
+	store         *Store
+	policyPath    string
+	routingPath   string
+	system        RuntimeSystem
+	mu            sync.Mutex
+	results       map[string]cachedResult
+	blocked       bool
+	mutationGuard func() (func(), error)
+}
+
+func (s *Service) SetMutationGuard(guard func() (func(), error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.mutationGuard = guard
+}
+
+func (s *Service) acquireMutation() (func(), error) {
+	if s.mutationGuard == nil {
+		return func() {}, nil
+	}
+	return s.mutationGuard()
 }
 
 func NewService(policyPath, backupPath, routingPath string, system RuntimeSystem) *Service {
@@ -57,6 +71,12 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 func (s *Service) Mutate(ctx context.Context, mutation Mutation) Result {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	release, guardErr := s.acquireMutation()
+	if guardErr != nil {
+		status, _ := s.statusUnlocked(ctx)
+		return Result{Result: "rejected", Status: status}
+	}
+	defer release()
 	request := mutationHash(mutation)
 	if cached, ok := s.results[mutation.IdempotencyKey]; ok {
 		if cached.request == request {
@@ -141,6 +161,12 @@ func (s *Service) Mutate(ctx context.Context, mutation Mutation) Result {
 func (s *Service) Replace(ctx context.Context, request ReplaceRequest) Result {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	release, guardErr := s.acquireMutation()
+	if guardErr != nil {
+		status, _ := s.statusUnlocked(ctx)
+		return Result{Result: "rejected", Status: status}
+	}
+	defer release()
 	body, _ := json.Marshal(request)
 	digest := sha256.Sum256(body)
 	if cached, ok := s.results[request.IdempotencyKey]; ok {

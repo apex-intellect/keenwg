@@ -1,6 +1,9 @@
 package ru.anisimov.keenwg.data.catalog
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.tls.HandshakeCertificates
@@ -64,6 +67,35 @@ class CatalogClientTest {
             assertTrue(it.body.readUtf8().contains("private-user-id"))
         }
         fixture.close()
+    }
+
+    @Test fun `single VLESS import sends unmodified grpc authority and encoded spider path`() = runTest {
+        val link = "vless://11111111-2222-4333-8444-555555555555@grpc.example:443" +
+            "?type=grpc&security=reality&pbk=public-key&fp=chrome&sni=cdn.example&sid=0123456789abcdef" +
+            "&serviceName=private%2Fservice&authority=&spx=%2F#Test"
+        val source = link.toByteArray()
+        val preview = ImportParser.preview(source.copyOf(), ImportOrigin.CLIPBOARD)
+        val fixture = tlsServer(MockResponse().setBody(operationJson(2u)))
+        try {
+            val result = CatalogClient().saveSource(
+                fixture.profile, "operator-token", 1u, "create-source-grpc-0001",
+                CatalogSourceDraft("primary", preview.sourceKind, "Personal gRPC", "catalog"), source,
+            )
+
+            assertEquals("committed", result.result)
+            assertTrue(source.all { it == 0.toByte() })
+            fixture.server.takeRequest().also {
+                assertEquals("POST", it.method)
+                assertEquals("/v1/connections/sources", it.path)
+                val body = Json.parseToJsonElement(it.body.readUtf8()).jsonObject
+                assertEquals("share_link", body.getValue("kind").jsonPrimitive.content)
+                assertEquals("catalog", body.getValue("adapter_id").jsonPrimitive.content)
+                assertEquals(link, body.getValue("source").jsonPrimitive.content)
+            }
+            assertFalse(result.toString().contains("11111111-2222-4333-8444-555555555555"))
+        } finally {
+            fixture.close()
+        }
     }
 
     @Test fun `unknown response fields fail closed`() = runTest {

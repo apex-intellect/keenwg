@@ -1,5 +1,11 @@
 package ru.anisimov.keenwg.ui.add
 
+import ru.anisimov.keenwg.ui.theme.KeenScale
+
+import ru.anisimov.keenwg.ui.theme.KeenSize
+
+import ru.anisimov.keenwg.ui.theme.KeenSpacing
+
 import ru.anisimov.keenwg.R
 import ru.anisimov.keenwg.domain.normalizePeerName
 
@@ -20,11 +26,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Share
+import ru.anisimov.keenwg.ui.components.KeenButton as Button
+import ru.anisimov.keenwg.ui.components.KeenCard as Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,14 +38,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,7 +53,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.anisimov.keenwg.ui.components.StatusNotice
@@ -85,9 +90,9 @@ fun AddPeerScreen(
                 .padding(contentPadding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.group)
                 .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.item),
         ) {
             AddProgressHeader(success = state.result != null)
 
@@ -115,7 +120,7 @@ fun AddPeerScreen(
                 if (state.companionUpdateRequired) {
                     Button(
                         onClick = onUpdateCompanion,
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier.fillMaxWidth().height(KeenScale.dp52),
                     ) {
                         Text(stringResource(R.string.add_update_companion))
                     }
@@ -123,17 +128,17 @@ fun AddPeerScreen(
                     Button(
                         onClick = { if (state.stage == AddPeerStage.REVIEW) vm.create() else vm.review() },
                         enabled = !state.busy && !state.preparing && state.name.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier.fillMaxWidth().height(KeenScale.dp52),
                     ) {
                         if (state.busy) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(KeenSpacing.screen),
+                                strokeWidth = KeenScale.dp2,
                                 color = MaterialTheme.colorScheme.onPrimary,
                             )
                             Text(stringResource(R.string.ui_addpeerscreen_0bfd2694df))
                         } else {
-                            Icon(Icons.Default.Key, contentDescription = null)
+                            Icon(Icons.Outlined.Key, contentDescription = null)
                             Text(stringResource(if (state.stage == AddPeerStage.REVIEW) R.string.access_apply else R.string.access_review))
                         }
                     }
@@ -162,9 +167,9 @@ fun AddPeerScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
-                        Modifier.fillMaxWidth().padding(16.dp),
+                        Modifier.fillMaxWidth().padding(KeenSpacing.item),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(KeenSpacing.group),
                     ) {
                         Text(result.peer.name, style = MaterialTheme.typography.titleLarge)
                         Text(result.peer.ip ?: stringResource(R.string.ui_addpeerscreen_c83580eaa5), style = MonoLabel)
@@ -172,7 +177,7 @@ fun AddPeerScreen(
                             color = androidx.compose.ui.graphics.Color.White,
                             shape = MaterialTheme.shapes.medium,
                         ) {
-                            QrImage(result.conf, Modifier.padding(12.dp).size(248.dp), stringResource(R.string.qr_code_description))
+                            QrImage(result.conf, Modifier.padding(KeenSpacing.group).size(KeenScale.dp248), stringResource(R.string.qr_code_description))
                         }
                     }
                 }
@@ -182,19 +187,19 @@ fun AddPeerScreen(
                 )
                 OutlinedButton(
                     onClick = { shareConf(context, result.peer.name, result.conf) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    modifier = Modifier.fillMaxWidth().height(KeenScale.dp52),
                 ) {
-                    Icon(Icons.Default.Share, contentDescription = null)
+                    Icon(Icons.Outlined.Share, contentDescription = null)
                     Text(stringResource(R.string.ui_addpeerscreen_62bb18ef10))
                 }
                 Button(
                     onClick = onDone,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    modifier = Modifier.fillMaxWidth().height(KeenScale.dp52),
                 ) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null)
+                    Icon(Icons.Outlined.CheckCircle, contentDescription = null)
                     Text(stringResource(R.string.ui_addpeerscreen_02624a1f36))
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(KeenSpacing.inline))
             }
         }
     }
@@ -206,11 +211,11 @@ private fun AddProgressHeader(success: Boolean) {
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(KeenScale.dp10),
     ) {
         StepBadge(number = "1", label = stringResource(R.string.ui_addpeerscreen_dba20ab538), active = !success, completed = success)
         Box(
-            Modifier.weight(1f).height(1.dp),
+            Modifier.weight(1f).height(KeenSize.hairline),
             contentAlignment = Alignment.Center,
         ) {
             androidx.compose.material3.HorizontalDivider()
@@ -221,13 +226,13 @@ private fun AddProgressHeader(success: Boolean) {
 
 @Composable
 private fun StepBadge(number: String, label: String, active: Boolean, completed: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(KeenScale.dp6)) {
         Surface(
             shape = MaterialTheme.shapes.extraLarge,
             color = if (active || completed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
             contentColor = if (active || completed) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
         ) {
-            Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(KeenScale.dp28), contentAlignment = Alignment.Center) {
                 Text(if (completed) "✓" else number, fontWeight = FontWeight.Bold)
             }
         }
@@ -251,8 +256,8 @@ private fun AddPeerForm(
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(
-            Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxWidth().padding(KeenSpacing.item),
+            verticalArrangement = Arrangement.spacedBy(KeenSpacing.group),
         ) {
             Text(stringResource(R.string.ui_addpeerscreen_f92eb412b8), style = MaterialTheme.typography.titleMedium)
             Text(
@@ -326,7 +331,7 @@ private fun AccessReviewCard(state: AddPeerUiState) {
     val expiry = state.expiryDays.takeIf(String::isNotBlank)?.let { stringResource(R.string.access_days, it) }
         ?: stringResource(R.string.access_never_expires)
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(KeenSpacing.item), verticalArrangement = Arrangement.spacedBy(KeenScale.dp10)) {
             Text(stringResource(R.string.access_review_title), style = MaterialTheme.typography.titleMedium)
             Text(
                 stringResource(

@@ -3,6 +3,7 @@ set -eu
 umask 077
 
 ROOT=${KEENWG_DESTDIR:-}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 fail() { echo "$*" >&2; exit 1; }
 case "$ROOT" in ''|/*) ;; *) fail 'KEENWG_DESTDIR must be empty or absolute';; esac
 [ "$ROOT" != / ] || fail 'KEENWG_DESTDIR=/ is forbidden'
@@ -19,7 +20,11 @@ case "$LIB" in "$ROOT/opt/lib/keenwg-companion") ;; *) fail 'unsafe library targ
 [ ! -L "$INIT" ] || fail 'refusing symlink init target'
 [ ! -L "$LIB" ] || fail 'refusing symlink library target'
 
-if [ -x "$INIT" ]; then KEENWG_DESTDIR="$ROOT" "$INIT" stop || fail 'could not stop companion'; fi
+# This bundle's controller also handles init versions which predate watchdogs.
+# A failed cron read aborts removal rather than erasing unrelated router jobs.
+CONTROL=$HERE/S96keenwg-companion
+[ -f "$CONTROL" ] && [ ! -L "$CONTROL" ] || fail 'safe companion service control unavailable'
+KEENWG_DESTDIR="$ROOT" sh "$CONTROL" uninstall || fail 'could not stop companion or safely remove its watchdog'
 rm -f "$INIT"
 if [ -d "$LIB" ]; then rm -rf "$LIB"; fi
 echo 'keenwg-companion runtime removed; configuration, identity, pairing data, and user state were preserved'

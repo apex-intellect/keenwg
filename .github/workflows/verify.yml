@@ -32,7 +32,7 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
       - name: Packaging tests
         working-directory: xkeen-control/packaging
-        run: sh ./install-companion_test.sh
+        run: sh ./install-companion_test.sh && sh ./watchdog_test.sh
       - name: Secure-only runtime policy
         shell: pwsh
         run: ./scripts/verify-current-runtime.ps1

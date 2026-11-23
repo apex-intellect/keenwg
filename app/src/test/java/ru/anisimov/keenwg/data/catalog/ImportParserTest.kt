@@ -24,6 +24,55 @@ class ImportParserTest {
         assertTrue(bytes.all { it == 0.toByte() })
     }
 
+    @Test fun `vless grpc reality accepts empty and populated authority with encoded spider path`() {
+        val credential = "11111111-2222-4333-8444-555555555555"
+        for (authority in listOf("", "grpc.example")) {
+            for (origin in ImportOrigin.entries) {
+                val bytes = ("vless://$credential@server.example:443?encryption=none&type=grpc" +
+                    "&security=reality&sni=cdn.example&fp=chrome&pbk=public-key&sid=0123456789abcdef" +
+                    "&serviceName=private%2Fservice&mode=gun&authority=$authority&spx=%2F#Test").toByteArray()
+
+                val preview = ImportParser.preview(bytes, origin)
+
+                assertEquals(origin, preview.origin)
+                assertEquals(SourceKind.SHARE_LINK, preview.sourceKind)
+                assertEquals(Protocol.VLESS, preview.protocol)
+                assertEquals("grpc", preview.transport)
+                assertEquals("reality", preview.security)
+                assertEquals("cdn.example", preview.serverName)
+                assertTrue(preview.warnings.isEmpty())
+                assertFalse(preview.toString().contains(credential))
+                assertFalse(preview.toString().contains("private/service"))
+                assertTrue(bytes.all { it == 0.toByte() })
+            }
+        }
+    }
+
+    @Test fun `vless tcp reality also accepts spider path`() {
+        val bytes = ("vless://11111111-2222-4333-8444-555555555555@server.example:443" +
+            "?type=tcp&security=reality&flow=xtls-rprx-vision&pbk=public-key&spx=%2F").toByteArray()
+
+        val preview = ImportParser.preview(bytes, ImportOrigin.CLIPBOARD)
+
+        assertEquals("tcp", preview.transport)
+        assertEquals("reality", preview.security)
+        assertTrue(bytes.all { it == 0.toByte() })
+    }
+
+    @Test fun `supported reality fields do not allow unknown or duplicate fields`() {
+        val link = "vless://11111111-2222-4333-8444-555555555555@server.example:443" +
+            "?type=grpc&security=reality&pbk=public-key&authority=&spx=%2F"
+        for (suffix in listOf("&shell=reboot", "&authority=other.example", "&spx=%2Fother")) {
+            val bytes = (link + suffix).toByteArray()
+
+            val error = failure(bytes)
+
+            assertEquals(ImportErrorCode.UNSUPPORTED_FIELD, error.code)
+            assertFalse(error.message.orEmpty().contains("11111111-2222-4333-8444-555555555555"))
+            assertTrue(bytes.all { it == 0.toByte() })
+        }
+    }
+
     @Test fun `vmess and hysteria links decode strictly without preserving passwords`() {
         val vmessSecret = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
         val vmessJson = """{"v":"2","ps":"DE","add":"vm.example","port":"8443","id":"$vmessSecret","aid":"0","net":"ws","type":"none","host":"edge.example","path":"/ws","tls":"tls","sni":"edge.example","fp":"chrome"}"""
