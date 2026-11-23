@@ -1,19 +1,17 @@
 package ru.anisimov.keenwg.ui.navigation
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.Route
-import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
@@ -28,22 +26,27 @@ import ru.anisimov.keenwg.R
 import ru.anisimov.keenwg.ui.theme.*
 
 @Composable
-fun KeenBottomIsland(
+internal fun KeenBottomIsland(
     selected: TopLevelDestination,
     destinations: List<TopLevelDestination>,
     onSelect: (TopLevelDestination) -> Unit,
     modifier: Modifier = Modifier,
+    backdrop: KeenBackdrop? = null,
 ) {
+    val glassLayer = rememberGraphicsLayer()
+    val shape = ContinuousShape(KeenRadius.navigation)
+    val tint = MaterialTheme.colorScheme.surface
     Box(modifier.fillMaxWidth().navigationBarsPadding().padding(
         horizontal = KeenSpacing.navigationInset, vertical = KeenSpacing.navigationBottom,
     )) {
         Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = ContinuousShape(KeenRadius.navigation),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = KeenOpacity.glass),
+            modifier = Modifier.fillMaxWidth().testTag("floating-navigation")
+                .shadow(KeenGlass.shadow, shape, clip = false).clip(shape)
+                .then(if (backdrop != null) Modifier.keenBackdropEffect(backdrop, glassLayer, tint) else Modifier)
+                .border(KeenSize.hairline, tint.copy(alpha = KeenOpacity.glassRim), shape),
+            shape = shape,
+            color = if (backdrop != null) Color.Transparent else tint.copy(alpha = KeenGlass.fallbackTint),
             contentColor = MaterialTheme.colorScheme.onSurface,
-            border = BorderStroke(KeenSize.hairline, MaterialTheme.colorScheme.surface.copy(alpha = KeenOpacity.glassRim)),
-            shadowElevation = KeenSize.navigationShadow,
         ) {
             val largeText = LocalDensity.current.fontScale > KeenLayout.largeTextThreshold &&
                 LocalConfiguration.current.screenWidthDp < KeenLayout.compactWidth
@@ -102,7 +105,7 @@ private fun KeenNavigationRow(
                         role = Role.Tab
                     },
                 shape = ContinuousShape(KeenRadius.navigationItem),
-                color = if (isSelected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                color = if (isSelected) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = KeenGlass.selectedTint) else Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
                 Column(

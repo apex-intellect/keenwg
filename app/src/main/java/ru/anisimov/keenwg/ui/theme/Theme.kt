@@ -46,7 +46,8 @@ private val DarkColors = with(KeenPalette) { darkColorScheme(
 ) }
 
 private val KeenWgShapes = Shapes(
-    extraSmall = RoundedCornerShape(KeenRadius.badge),
+    // Material text fields use extraSmall; keep their corners aligned with controls.
+    extraSmall = RoundedCornerShape(KeenRadius.control),
     small = RoundedCornerShape(KeenRadius.control),
     medium = RoundedCornerShape(KeenRadius.control),
     large = RoundedCornerShape(KeenRadius.card),

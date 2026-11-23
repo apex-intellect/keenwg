@@ -47,7 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import ru.anisimov.keenwg.ui.components.KeenTextButton as TextButton
 import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -64,6 +64,7 @@ import ru.anisimov.keenwg.data.network.NetworkDevice
 import ru.anisimov.keenwg.data.network.NetworkExclusionEntry
 import ru.anisimov.keenwg.ui.components.StatusNotice
 import ru.anisimov.keenwg.ui.theme.MonoLabel
+import ru.anisimov.keenwg.ui.navigation.LocalKeenBottomClearance
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +81,7 @@ fun NetworkScreen(vm: NetworkViewModel = viewModel()) {
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.group, end = KeenSpacing.screen, bottom = KeenScale.dp32),
+            contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.group, end = KeenSpacing.screen, bottom = LocalKeenBottomClearance.current + KeenSpacing.item),
             verticalArrangement = Arrangement.spacedBy(KeenScale.dp10),
         ) {
             item { NetworkSegmentControl(state, vm::selectSegment) }

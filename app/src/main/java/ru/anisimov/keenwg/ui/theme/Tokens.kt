@@ -18,7 +18,7 @@ object KeenSpacing {
 
 object KeenRadius {
     val badge = 8.dp
-    val control = 14.dp
+    val control = 24.dp
     val card = 27.dp
     val sheet = 32.dp
     val navigation = 29.dp
@@ -42,4 +42,13 @@ object KeenOpacity {
 object KeenLayout {
     const val compactWidth = 600
     const val largeTextThreshold = 1.4f
+}
+
+object KeenGlass {
+    val blurRadius = 22.dp
+    val shadow = 6.dp
+    const val tintTop = 0.56f
+    const val tintBottom = 0.72f
+    const val fallbackTint = 0.96f
+    const val selectedTint = 0.72f
 }

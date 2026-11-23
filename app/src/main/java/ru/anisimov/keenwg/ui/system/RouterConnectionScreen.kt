@@ -34,7 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import ru.anisimov.keenwg.ui.components.KeenTextButton as TextButton
 import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue

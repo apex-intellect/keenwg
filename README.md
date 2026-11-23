@@ -40,6 +40,8 @@ Android emulator captures in the unpaired state. No real router, private keys or
 
 Ivory and graphite, light and dark themes, continuous corners and a floating translucent navigation bar. The native Compose interface uses shared design tokens and components across real screens; it does not invent traffic, devices or connection status.
 
+The navigation floats above scrolling content with live background blur on Android 12+. Android 8–11 uses a tinted fallback. Buttons share rounded corners and compact, accessible sizing.
+
 | Area | What you can do |
 | :--- | :--- |
 | **Overview** | Check router health and available capabilities; switch router profiles. |

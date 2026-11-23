@@ -62,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import ru.anisimov.keenwg.data.companion.CapabilityAccess
 import ru.anisimov.keenwg.domain.model.RouterProfile
 import ru.anisimov.keenwg.ui.navigation.TopLevelDestination
+import ru.anisimov.keenwg.ui.navigation.LocalKeenBottomClearance
 import ru.anisimov.keenwg.ui.components.KeenGlassSurface
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -133,7 +134,7 @@ fun OverviewScreen(
                     Text(if (state.health == OverviewHealth.LOCKED) stringResource(R.string.ui_overviewscreen_e1ea72a240) else stringResource(R.string.ui_overviewscreen_50a765b16f))
                 }
             }
-            Spacer(Modifier.height(KeenSpacing.inline))
+            Spacer(Modifier.height(LocalKeenBottomClearance.current + KeenSpacing.inline))
         }
     }
 }

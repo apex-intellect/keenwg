@@ -1,5 +1,9 @@
 package ru.anisimov.keenwg.ui.xkeen
 
+import ru.anisimov.keenwg.ui.navigation.LocalKeenBottomClearance
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 import ru.anisimov.keenwg.ui.theme.KeenScale
 
 import ru.anisimov.keenwg.ui.theme.KeenSize
@@ -54,7 +58,7 @@ import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import ru.anisimov.keenwg.ui.components.KeenTextButton as TextButton
 import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -144,7 +148,7 @@ private fun RouteContent(
     val status = state.status
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.group, end = KeenSpacing.screen, bottom = KeenScale.dp32),
+        contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.group, end = KeenSpacing.screen, bottom = LocalKeenBottomClearance.current + KeenSpacing.item),
         verticalArrangement = Arrangement.spacedBy(KeenScale.dp10),
     ) {
         status?.active?.takeIf { showExceptionalActiveCard(status) }?.let { active ->
@@ -452,7 +456,8 @@ private fun LoadingRoute(modifier: Modifier = Modifier) {
 @Composable
 private fun SetupRoute(onSetupCompanion: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier.fillMaxSize().padding(KeenSpacing.section),
+        modifier.fillMaxSize().padding(bottom = LocalKeenBottomClearance.current)
+            .verticalScroll(rememberScrollState()).padding(KeenSpacing.section),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

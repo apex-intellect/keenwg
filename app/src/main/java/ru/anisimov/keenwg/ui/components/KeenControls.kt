@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.style.TextAlign
 import ru.anisimov.keenwg.ui.theme.*
 
 /** Thin adapters keep native semantics, loading/disabled states and feature callbacks. */
@@ -46,10 +47,12 @@ fun KeenButton(
     colors: ButtonColors = ButtonDefaults.buttonColors(),
     elevation: ButtonElevation? = null,
     border: BorderStroke? = null,
-    contentPadding: PaddingValues = PaddingValues(horizontal = KeenSpacing.item, vertical = KeenSpacing.group),
+    contentPadding: PaddingValues = PaddingValues(horizontal = KeenSpacing.item, vertical = KeenScale.dp10),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) = Button(onClick, modifier.heightIn(min = KeenSize.touch), enabled, shape, colors, elevation, border, contentPadding, interactionSource, content)
+) = Button(onClick, modifier.heightIn(min = KeenSize.touch), enabled, shape, colors, elevation, border, contentPadding, interactionSource) {
+    ProvideTextStyle(LocalTextStyle.current.copy(textAlign = TextAlign.Center)) { content() }
+}
 
 @Composable
 fun KeenOutlinedButton(
@@ -60,10 +63,28 @@ fun KeenOutlinedButton(
     colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
     elevation: ButtonElevation? = null,
     border: BorderStroke? = BorderStroke(KeenSize.hairline, MaterialTheme.colorScheme.outline),
-    contentPadding: PaddingValues = PaddingValues(horizontal = KeenSpacing.item, vertical = KeenSpacing.group),
+    contentPadding: PaddingValues = PaddingValues(horizontal = KeenSpacing.item, vertical = KeenScale.dp10),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) = OutlinedButton(onClick, modifier.heightIn(min = KeenSize.touch), enabled, shape, colors, elevation, border, contentPadding, interactionSource, content)
+) = OutlinedButton(onClick, modifier.heightIn(min = KeenSize.touch), enabled, shape, colors, elevation, border, contentPadding, interactionSource) {
+    ProvideTextStyle(LocalTextStyle.current.copy(textAlign = TextAlign.Center)) { content() }
+}
+
+@Composable
+fun KeenTextButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    shape: Shape = ContinuousShape(KeenRadius.control),
+    colors: ButtonColors = ButtonDefaults.textButtonColors(),
+    elevation: ButtonElevation? = null,
+    border: BorderStroke? = null,
+    contentPadding: PaddingValues = PaddingValues(horizontal = KeenSpacing.group, vertical = KeenScale.dp10),
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowScope.() -> Unit,
+) = TextButton(onClick, modifier.heightIn(min = KeenSize.touch), enabled, shape, colors, elevation, border, contentPadding, interactionSource) {
+    ProvideTextStyle(LocalTextStyle.current.copy(textAlign = TextAlign.Center)) { content() }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

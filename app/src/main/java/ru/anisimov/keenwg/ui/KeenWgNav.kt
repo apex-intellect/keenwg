@@ -1,9 +1,7 @@
 package ru.anisimov.keenwg.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,7 +21,7 @@ import ru.anisimov.keenwg.ui.about.AboutViewModel
 import ru.anisimov.keenwg.ui.backup.BackupScreen
 import ru.anisimov.keenwg.ui.detail.PeerDetailScreen
 import ru.anisimov.keenwg.ui.connections.ConnectionsScreen
-import ru.anisimov.keenwg.ui.navigation.KeenBottomIsland
+import ru.anisimov.keenwg.ui.navigation.KeenFloatingNavigationHost
 import ru.anisimov.keenwg.ui.navigation.TopLevelDestination
 import ru.anisimov.keenwg.ui.navigation.preserveTopLevelDestination
 import ru.anisimov.keenwg.ui.network.NetworkScreen
@@ -56,8 +54,6 @@ import ru.anisimov.keenwg.data.companion.CapabilityAccess
 @Serializable data object AddPeerRoute
 @Serializable data class PeerDetailRoute(val publicKey: String)
 
-internal fun rootScaffoldContentInsets(): WindowInsets = WindowInsets(0)
-
 @Composable
 fun KeenWgNav() {
     val nav = rememberNavController()
@@ -89,28 +85,26 @@ fun KeenWgNav() {
         }
     }
 
-    Scaffold(
-        contentWindowInsets = rootScaffoldContentInsets(),
-        bottomBar = {
-            if (isTopLevel) {
-                KeenBottomIsland(selected = selected, destinations = overviewState.destinations, onSelect = { target ->
-                    val route: Any = when (target) {
-                        TopLevelDestination.OVERVIEW -> OverviewRoute
-                        TopLevelDestination.CONNECTIONS -> ConnectionsRoute
-                        TopLevelDestination.ROUTES -> RoutesRoute
-                        TopLevelDestination.ACCESS -> AccessRoute
-                        TopLevelDestination.SYSTEM -> SystemRoute
-                    }
-                    nav.navigate(route) {
-                        popUpTo<OverviewRoute> { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                })
+    KeenFloatingNavigationHost(
+        selected = selected,
+        destinations = overviewState.destinations,
+        showNavigation = isTopLevel,
+        onSelect = { target ->
+            val route: Any = when (target) {
+                TopLevelDestination.OVERVIEW -> OverviewRoute
+                TopLevelDestination.CONNECTIONS -> ConnectionsRoute
+                TopLevelDestination.ROUTES -> RoutesRoute
+                TopLevelDestination.ACCESS -> AccessRoute
+                TopLevelDestination.SYSTEM -> SystemRoute
+            }
+            nav.navigate(route) {
+                popUpTo<OverviewRoute> { saveState = true }
+                launchSingleTop = true
+                restoreState = true
             }
         },
-    ) { rootPadding ->
-        Box(Modifier.padding(rootPadding)) {
+    ) {
+        Box(Modifier.fillMaxSize()) {
             NavHost(navController = nav, startDestination = OverviewRoute) {
                 composable<OverviewRoute> {
                     OverviewScreen(

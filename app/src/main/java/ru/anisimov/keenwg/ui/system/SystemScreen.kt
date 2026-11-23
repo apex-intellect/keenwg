@@ -41,7 +41,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import ru.anisimov.keenwg.ui.components.KeenTextButton as TextButton
 import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,6 +61,7 @@ import ru.anisimov.keenwg.R
 import ru.anisimov.keenwg.ui.components.KeenGlassSurface
 import ru.anisimov.keenwg.ui.localization.AppLanguage
 import ru.anisimov.keenwg.ui.overview.OverviewState
+import ru.anisimov.keenwg.ui.navigation.LocalKeenBottomClearance
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +121,7 @@ fun SystemScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(KeenSpacing.tight))
+            Spacer(Modifier.height(LocalKeenBottomClearance.current + KeenSpacing.tight))
         }
     }
 
@@ -173,7 +174,7 @@ private fun RouterStatusCard(presentation: SystemPresentation) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KeenScale.dp3)) {
                 Text(
                     presentation.profileName ?: stringResource(R.string.system_router_default),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(

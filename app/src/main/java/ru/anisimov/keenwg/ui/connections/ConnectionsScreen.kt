@@ -1,5 +1,7 @@
 package ru.anisimov.keenwg.ui.connections
 
+import ru.anisimov.keenwg.ui.navigation.LocalKeenBottomClearance
+
 import ru.anisimov.keenwg.ui.theme.KeenScale
 
 import ru.anisimov.keenwg.ui.theme.KeenSize
@@ -40,6 +42,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -66,7 +69,7 @@ import ru.anisimov.keenwg.ui.components.KeenOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import ru.anisimov.keenwg.ui.components.KeenTextButton as TextButton
 import androidx.compose.material3.OutlinedTextField
 import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
@@ -129,11 +132,11 @@ fun ConnectionsScreen(
             Box(Modifier.weight(1f)) {
                 when {
                     state.loading && state.catalog == null -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { CircularProgressIndicator() }
-                    state.setupRequired -> Column(Modifier.fillMaxSize().padding(KeenSpacing.section), verticalArrangement = Arrangement.Center) {
+                    state.setupRequired -> Column(Modifier.fillMaxSize().padding(bottom = LocalKeenBottomClearance.current).verticalScroll(rememberScrollState()).padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.tight), verticalArrangement = Arrangement.Center) {
                         StatusNotice(stringResource(R.string.ui_connectionsscreen_a0fb0b600a), detail = stringResource(R.string.ui_connectionsscreen_ebac69e24e))
                         Button(onClick = onSettings, modifier = Modifier.fillMaxWidth().padding(top = KeenSpacing.item)) { Text(stringResource(R.string.ui_connectionsscreen_7c8ef82d31)) }
                     }
-                    state.catalog == null -> Column(Modifier.fillMaxSize().padding(KeenSpacing.section), verticalArrangement = Arrangement.Center) {
+                    state.catalog == null -> Column(Modifier.fillMaxSize().padding(bottom = LocalKeenBottomClearance.current).verticalScroll(rememberScrollState()).padding(horizontal = KeenSpacing.screen, vertical = KeenSpacing.tight), verticalArrangement = Arrangement.Center) {
                         StatusNotice(
                             stringResource(R.string.connections_load_failed_title),
                             detail = if (state.loadError == CatalogErrorCode.UNSUPPORTED_SCHEMA) {
@@ -241,7 +244,7 @@ private fun ConnectionsContent(state: ConnectionsUiState, viewModel: Connections
     val cards = connectionCards(catalog, state.selectedGroupId)
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.tight, end = KeenSpacing.screen, bottom = KeenScale.dp32),
+        contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.tight, end = KeenSpacing.screen, bottom = LocalKeenBottomClearance.current + KeenSpacing.item),
         verticalArrangement = Arrangement.spacedBy(KeenScale.dp10),
     ) {
         state.notice?.let { notice ->

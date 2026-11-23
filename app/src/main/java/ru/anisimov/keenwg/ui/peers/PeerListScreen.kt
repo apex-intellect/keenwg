@@ -1,5 +1,9 @@
 package ru.anisimov.keenwg.ui.peers
 
+import ru.anisimov.keenwg.ui.navigation.LocalKeenBottomClearance
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 import ru.anisimov.keenwg.ui.theme.KeenScale
 
 import ru.anisimov.keenwg.ui.theme.KeenSize
@@ -54,7 +58,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import ru.anisimov.keenwg.ui.components.KeenTextButton as TextButton
 import ru.anisimov.keenwg.ui.components.KeenTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -147,14 +151,15 @@ fun PeerListScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = LocalKeenBottomClearance.current)) },
         floatingActionButton = {
             if (writable) {
                 ExtendedFloatingActionButton(
                     onClick = onAdd,
                     icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
                     text = { Text(newAccessLabel) },
-                    modifier = Modifier.semantics { contentDescription = newAccessLabel },
+                    modifier = Modifier.padding(bottom = LocalKeenBottomClearance.current).semantics { contentDescription = newAccessLabel },
+                    shape = ContinuousShape(KeenRadius.control),
                 )
             }
         },
@@ -170,7 +175,7 @@ fun PeerListScreen(
                 state.peers.isEmpty() -> EmptyPeers(writable = writable, onAdd = onAdd)
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.inline, end = KeenSpacing.screen, bottom = KeenScale.dp104),
+                    contentPadding = PaddingValues(start = KeenSpacing.screen, top = KeenSpacing.inline, end = KeenSpacing.screen, bottom = LocalKeenBottomClearance.current + KeenScale.dp104),
                     verticalArrangement = Arrangement.spacedBy(KeenScale.dp10),
                 ) {
                     if (!writable) item {
@@ -430,7 +435,8 @@ private fun PeerListSkeleton() {
 @Composable
 private fun InitialLoadError(message: String, onRetry: () -> Unit, onSettings: () -> Unit) {
     Column(
-        Modifier.fillMaxSize().padding(KeenSpacing.section),
+        Modifier.fillMaxSize().padding(bottom = LocalKeenBottomClearance.current + KeenScale.dp104)
+            .verticalScroll(rememberScrollState()).padding(KeenSpacing.section),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -447,7 +453,8 @@ private fun InitialLoadError(message: String, onRetry: () -> Unit, onSettings: (
 @Composable
 private fun EmptyPeers(writable: Boolean, onAdd: () -> Unit) {
     Column(
-        Modifier.fillMaxSize().padding(KeenSpacing.section),
+        Modifier.fillMaxSize().padding(bottom = LocalKeenBottomClearance.current + if (writable) KeenScale.dp104 else KeenSize.zero)
+            .verticalScroll(rememberScrollState()).padding(KeenSpacing.section),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
