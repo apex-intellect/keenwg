@@ -10,6 +10,16 @@ KeenWG ist eine lokale Android-Verwaltungsoberfläche für **Keenetic- und Netcr
 
 Entwickelt von [Apex Intellect](https://apex-intellect.ru/) und Mitwirkenden. Verantwortlicher Entwickler: [@th-notorious](https://github.com/th-notorious). Dieses Repository enthält den offiziellen Quellcode und die Veröffentlichungen.
 
+## Native Oberfläche
+
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/overview-dark.png"><img src="docs/media/overview-light.png" alt="Overview — router setup required" width="31%"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/system-dark.png"><img src="docs/media/system-light.png" alt="System — local router management" width="31%"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/add-dark.png"><img src="docs/media/add-light.png" alt="WireGuard access form" width="31%"></picture>
+</p>
+
+Aufnahmen des Android-Emulators ohne gekoppelten Router. Keine privaten Schlüssel oder erfundenen Verkehrsdaten.
+
 ## Funktionen
 
 | Bereich | Möglichkeiten |

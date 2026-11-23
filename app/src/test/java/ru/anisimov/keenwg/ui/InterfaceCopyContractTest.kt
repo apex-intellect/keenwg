@@ -10,10 +10,10 @@ class InterfaceCopyContractTest {
     private val russian = String(Files.readAllBytes(Path.of("src/main/res/values-ru/strings.xml")))
 
     @Test fun `top level navigation uses task language`() {
-        listOf("Главная", "VPN", "Правила", "Доступ", "Настройки").forEach { label ->
+        listOf("Обзор", "Серверы", "Правила", "Доступ", "Система").forEach { label ->
             assertTrue("missing navigation label: $label", russian.contains(">$label<"))
         }
-        listOf("Обзор", "Связи", "Маршруты", "Система").forEach { oldLabel ->
+        listOf("Главная", "VPN", "Связи", "Маршруты", "Настройки").forEach { oldLabel ->
             val navLines = russian.lineSequence()
                 .filter { it.contains("<string name=\"nav_") }
                 .joinToString("\n")

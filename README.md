@@ -26,6 +26,16 @@ KeenWG is a local Android control panel for **Keenetic and Netcraze** routers. M
 
 Built by [Apex Intellect](https://apex-intellect.ru/) and contributors. Lead developer: [@th-notorious](https://github.com/th-notorious). This repository is the official source for code, releases and issues.
 
+## Native screens
+
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/overview-dark.png"><img src="docs/media/overview-light.png" alt="Overview — router setup required" width="31%"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/system-dark.png"><img src="docs/media/system-light.png" alt="System — local router management" width="31%"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/add-dark.png"><img src="docs/media/add-light.png" alt="WireGuard access form" width="31%"></picture>
+</p>
+
+Android emulator captures in the unpaired state. No real router, private keys or fabricated traffic are shown.
+
 ## A calmer way to manage your network
 
 Ivory and graphite, light and dark themes, continuous corners and a floating translucent navigation bar. The native Compose interface uses shared design tokens and components across real screens; it does not invent traffic, devices or connection status.

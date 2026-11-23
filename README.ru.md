@@ -17,6 +17,16 @@ KeenWG — локальная Android-панель для Keenetic и Netcraze. 
 
 Линейка 2.x оставляет только один защищённый путь управления XKeen: локальный компонент на роутере (в технической документации — Companion) по HTTPS с точным pin сертификата и отдельным отзываемым токеном каждого телефона. В приложении это называется просто «защищённый доступ». Старый самостоятельный HTTP-сервис удалён.
 
+## Экраны приложения
+
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/overview-dark.png"><img src="docs/media/overview-light.png" alt="Overview — router setup required" width="31%"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/system-dark.png"><img src="docs/media/system-light.png" alt="System — local router management" width="31%"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/add-dark.png"><img src="docs/media/add-light.png" alt="WireGuard access form" width="31%"></picture>
+</p>
+
+Снимки Android-эмулятора без подключённого роутера: без приватных ключей и выдуманной статистики.
+
 ## Возможности
 
 Обновлённый интерфейс: слоновая кость и графит, светлая и тёмная темы, плавающая полупрозрачная навигация, единые компоненты и отступы. Значения на экранах приходят из текущего состояния роутера; демонстрационные данные в приложение не добавлены.

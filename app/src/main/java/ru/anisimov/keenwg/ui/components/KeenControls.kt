@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -75,4 +76,10 @@ fun KeenTopAppBar(
         containerColor = MaterialTheme.colorScheme.background,
         scrolledContainerColor = MaterialTheme.colorScheme.background,
     ),
-) = TopAppBar(title = title, modifier = modifier, navigationIcon = navigationIcon, actions = actions, colors = colors)
+) = TopAppBar(
+    title = title,
+    modifier = modifier.padding(horizontal = KeenSpacing.tight),
+    navigationIcon = navigationIcon,
+    actions = actions,
+    colors = colors,
+)

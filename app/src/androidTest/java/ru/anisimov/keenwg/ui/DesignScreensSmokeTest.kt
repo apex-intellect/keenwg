@@ -12,6 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
@@ -21,6 +25,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import ru.anisimov.keenwg.data.ServiceLocator
+import ru.anisimov.keenwg.R
 import ru.anisimov.keenwg.ui.about.AboutScreen
 import ru.anisimov.keenwg.ui.add.AddPeerScreen
 import ru.anisimov.keenwg.ui.backup.BackupScreen
@@ -49,6 +54,25 @@ class DesignScreensSmokeTest {
 
     @Before fun initialize() { ServiceLocator.init(context) }
 
+    @Test fun largeNavigationKeepsEveryDestinationSelectable() {
+        val selected = mutableStateOf(TopLevelDestination.OVERVIEW)
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                KeenWgTheme {
+                    KeenBottomIsland(selected.value, TopLevelDestination.entries, { selected.value = it })
+                }
+            }
+        }
+        listOf(
+            R.string.nav_overview_description, R.string.nav_connections_description,
+            R.string.nav_routes_description, R.string.nav_access_description, R.string.nav_system_description,
+        ).forEach { label ->
+            compose.onNodeWithContentDescription(context.getString(label))
+                .assertIsDisplayed().performClick().assertIsSelected()
+        }
+    }
+
     @Test fun allScreensLightDarkAndLargeText() {
         val page = mutableStateOf("overview")
         val dark = mutableStateOf(false)
@@ -58,9 +82,10 @@ class DesignScreensSmokeTest {
         val pages = roots + listOf("connection", "companion", "setup", "devices", "support", "backup", "about", "settings", "add", "peer")
         compose.setContent {
             val density = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides Density(density.density, if (large.value) 1.5f else 1f)) {
+            CompositionLocalProvider(LocalDensity provides Density(density.density, if (large.value) 2f else 1f)) {
                 KeenWgTheme(darkTheme = dark.value) {
                     Scaffold(
+                        contentWindowInsets = rootScaffoldContentInsets(),
                         bottomBar = {
                             if (page.value in roots) KeenBottomIsland(
                                 TopLevelDestination.entries[roots.indexOf(page.value)],

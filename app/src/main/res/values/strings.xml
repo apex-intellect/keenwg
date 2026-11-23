@@ -611,11 +611,11 @@
     <string name="settings_advanced_title">Advanced settings</string>
     <string name="settings_privacy_notice">KeenWG checks router access before saving. Passwords and tokens remain in this phone’s protected storage.</string>
     <string name="settings_saving">Saving and checking…</string>
-    <string name="nav_overview">Home</string>
-    <string name="nav_connections">VPN</string>
+    <string name="nav_overview">Overview</string>
+    <string name="nav_connections">Servers</string>
     <string name="nav_routes">Rules</string>
     <string name="nav_access">Access</string>
-    <string name="nav_system">Settings</string>
+    <string name="nav_system">System</string>
     <string name="nav_overview_description">Open Home</string>
     <string name="nav_connections_description">Open VPN servers</string>
     <string name="nav_routes_description">Open routing rules</string>

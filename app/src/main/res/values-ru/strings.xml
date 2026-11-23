@@ -613,11 +613,11 @@
     <string name="settings_advanced_title">Расширенные настройки</string>
     <string name="settings_privacy_notice">KeenWG проверяет доступ к роутеру до сохранения. Пароли и токены остаются в защищённом хранилище этого телефона.</string>
     <string name="settings_saving">Сохраняем и проверяем…</string>
-    <string name="nav_overview">Главная</string>
-    <string name="nav_connections">VPN</string>
+    <string name="nav_overview">Обзор</string>
+    <string name="nav_connections">Серверы</string>
     <string name="nav_routes">Правила</string>
     <string name="nav_access">Доступ</string>
-    <string name="nav_system">Настройки</string>
+    <string name="nav_system">Система</string>
     <string name="nav_overview_description">Открыть главную</string>
     <string name="nav_connections_description">Открыть VPN-серверы</string>
     <string name="nav_routes_description">Открыть правила маршрутизации</string>

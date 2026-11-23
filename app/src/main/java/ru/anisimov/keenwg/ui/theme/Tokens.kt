@@ -30,11 +30,16 @@ object KeenSize {
     val touch = 48.dp
     val icon = 22.dp
     val navigationItem = 54.dp
-    val navigationShadow = 12.dp
+    val navigationShadow = 4.dp
     val zero = 0.dp
 }
 
 object KeenOpacity {
     const val glass = 0.92f
     const val glassRim = 0.55f
+}
+
+object KeenLayout {
+    const val compactWidth = 600
+    const val largeTextThreshold = 1.4f
 }
