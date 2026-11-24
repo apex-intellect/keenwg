@@ -78,10 +78,7 @@ fun KeenWgNav() {
 
     LaunchedEffect(selected, overviewState.destinations, isTopLevel) {
         if (isTopLevel && preserveTopLevelDestination(selected, overviewState.destinations) != selected) {
-            nav.navigate(OverviewRoute) {
-                popUpTo<OverviewRoute> { inclusive = false }
-                launchSingleTop = true
-            }
+            nav.openTopLevel(TopLevelDestination.OVERVIEW)
         }
     }
 
@@ -89,20 +86,7 @@ fun KeenWgNav() {
         selected = selected,
         destinations = overviewState.destinations,
         showNavigation = isTopLevel,
-        onSelect = { target ->
-            val route: Any = when (target) {
-                TopLevelDestination.OVERVIEW -> OverviewRoute
-                TopLevelDestination.CONNECTIONS -> ConnectionsRoute
-                TopLevelDestination.ROUTES -> RoutesRoute
-                TopLevelDestination.ACCESS -> AccessRoute
-                TopLevelDestination.SYSTEM -> SystemRoute
-            }
-            nav.navigate(route) {
-                popUpTo<OverviewRoute> { saveState = true }
-                launchSingleTop = true
-                restoreState = true
-            }
-        },
+        onSelect = nav::openTopLevel,
     ) {
         Box(Modifier.fillMaxSize()) {
             NavHost(navController = nav, startDestination = OverviewRoute) {
@@ -111,23 +95,14 @@ fun KeenWgNav() {
                         state = overviewState,
                         onRefresh = { overviewViewModel.refresh() },
                         onSelectProfile = { overviewViewModel.selectProfile(it) },
-                        onOpenSystem = { nav.navigate(SystemRoute) },
+                        onOpenSystem = { nav.openTopLevel(TopLevelDestination.SYSTEM) },
                         onSetup = { nav.navigate(SetupRoute) },
-                        onOpenDestination = { target ->
-                            val route: Any = when (target) {
-                                TopLevelDestination.CONNECTIONS -> ConnectionsRoute
-                                TopLevelDestination.ROUTES -> RoutesRoute
-                                TopLevelDestination.ACCESS -> AccessRoute
-                                TopLevelDestination.SYSTEM -> SystemRoute
-                                TopLevelDestination.OVERVIEW -> OverviewRoute
-                            }
-                            nav.navigate(route) { launchSingleTop = true }
-                        },
+                        onOpenDestination = nav::openTopLevel,
                     )
                 }
                 composable<AccessRoute> {
                     PeerListScreen(
-                        onSettings = { nav.navigate(SystemRoute) },
+                        onSettings = { nav.openTopLevel(TopLevelDestination.SYSTEM) },
                         onAdd = { nav.navigate(AddPeerRoute) },
                         onPeer = { publicKey -> nav.navigate(PeerDetailRoute(publicKey)) },
                         writable = wireGuardWritable,
@@ -200,16 +175,13 @@ fun KeenWgNav() {
                         onBack = { nav.popBackStack() },
                         onCompleted = {
                             overviewViewModel.refresh()
-                            nav.navigate(OverviewRoute) {
-                                popUpTo<OverviewRoute> { inclusive = false }
-                                launchSingleTop = true
-                            }
+                            nav.openTopLevel(TopLevelDestination.OVERVIEW)
                         },
                     )
                 }
                 composable<ConnectionsRoute> {
                     val hasCatalog = overviewState.capabilities?.capabilities.orEmpty().any { it.id == "connections.catalog" && it.available }
-                    if (hasCatalog) ConnectionsScreen(onSettings = { nav.navigate(SystemRoute) })
+                    if (hasCatalog) ConnectionsScreen(onSettings = { nav.openTopLevel(TopLevelDestination.SYSTEM) })
                     else XkeenScreen(onSetupCompanion = { nav.navigate(SetupRoute) })
                 }
                 composable<RoutesRoute> { NetworkScreen() }

@@ -1,6 +1,5 @@
 package ru.anisimov.keenwg.ui.navigation
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -10,6 +9,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
@@ -43,7 +47,20 @@ internal fun KeenBottomIsland(
             modifier = Modifier.fillMaxWidth().testTag("floating-navigation")
                 .shadow(KeenGlass.shadow, shape, clip = false).clip(shape)
                 .then(if (backdrop != null) Modifier.keenBackdropEffect(backdrop, glassLayer, tint) else Modifier)
-                .border(KeenSize.hairline, tint.copy(alpha = KeenOpacity.glassRim), shape),
+                .drawWithCache {
+                    val outline = shape.createOutline(size, layoutDirection, this)
+                    val rim = Brush.linearGradient(
+                        0f to KeenPalette.paper.copy(alpha = KeenGlass.rimHighlight),
+                        .35f to KeenPalette.paper.copy(alpha = KeenGlass.rimSoft),
+                        .6f to KeenPalette.graphite.copy(alpha = KeenGlass.rimShade),
+                        1f to KeenPalette.paper.copy(alpha = KeenGlass.rimHighlight),
+                        start = Offset.Zero, end = Offset(size.width, size.height),
+                    )
+                    onDrawWithContent {
+                        drawContent()
+                        drawOutline(outline, rim, style = Stroke(KeenGlass.rimWidth.toPx()))
+                    }
+                },
             shape = shape,
             color = if (backdrop != null) Color.Transparent else tint.copy(alpha = KeenGlass.fallbackTint),
             contentColor = MaterialTheme.colorScheme.onSurface,

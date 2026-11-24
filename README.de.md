@@ -32,7 +32,7 @@ Aufnahmen des Android-Emulators ohne gekoppelten Router. Keine privaten Schlüss
 
 Die Oberfläche verwendet Elfenbein- und Graphittöne, helle und dunkle Themen, weiche Ecken und eine schwebende halbtransparente Navigation. Daten stammen aus dem tatsächlichen Routerzustand, nicht aus Demo-Werten.
 
-Die Navigation liegt über dem scrollenden Inhalt und zeichnet ab Android 12 den Hintergrund weich. Android 8–11 verwendet eine getönte Oberfläche ohne Unschärfe. Schaltflächen haben einheitliche Rundungen und kompakte Abmessungen mit ausreichend großen Berührungsflächen.
+Die Navigation liegt über dem scrollenden Inhalt und zeichnet ab Android 12 den Hintergrund weich; ab Android 13 kommt eine dezente Lichtbrechung am Rand hinzu. Android 8–11 verwendet eine getönte Oberfläche ohne Unschärfe. Schaltflächen haben einheitliche Rundungen und kompakte Abmessungen mit ausreichend großen Berührungsflächen. Das neue Route-K-Symbol und das Firmenlogo passen zur Elfenbein-/Graphitpalette.
 
 > [!IMPORTANT]
 > Das Öffnen der App aktualisiert keine Abonnements und ändert weder Land noch Routingregeln. Netzwerkänderungen werden ausdrücklich ausgelöst und anhand der Geräteberechtigungen geprüft.

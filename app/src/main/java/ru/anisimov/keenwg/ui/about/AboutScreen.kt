@@ -1,5 +1,8 @@
 package ru.anisimov.keenwg.ui.about
 
+import androidx.compose.ui.graphics.graphicsLayer
+import ru.anisimov.keenwg.ui.theme.KeenBrand
+
 import ru.anisimov.keenwg.ui.theme.KeenScale
 
 import ru.anisimov.keenwg.ui.theme.KeenSpacing
@@ -181,7 +184,10 @@ private fun IdentityCard(provenance: BuildProvenance) {
                     Icon(
                         painter = painterResource(R.drawable.ic_launcher_foreground),
                         contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().graphicsLayer {
+                            scaleX = KeenBrand.inAppMarkScale
+                            scaleY = KeenBrand.inAppMarkScale
+                        },
                         tint = Color.Unspecified,
                     )
                 }
@@ -321,7 +327,7 @@ private fun CompanyCard(onOpenLink: (AboutLinkTarget) -> Unit) {
                 modifier = Modifier
                     .width(KeenScale.dp201)
                     .height(KeenScale.dp60),
-                tint = Color.Unspecified,
+                tint = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 stringResource(R.string.about_company_body),

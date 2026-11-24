@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="launcher_background">#050608</color>
+    <color name="brand_graphite">#282927</color>
+    <color name="brand_ivory">#F5F2EA</color>
+    <color name="launcher_background">@color/brand_ivory</color>
 </resources>

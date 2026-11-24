@@ -20,6 +20,7 @@ import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.IntSize
 import ru.anisimov.keenwg.ui.theme.KeenGlass
+import ru.anisimov.keenwg.ui.theme.KeenRadius
 import kotlin.math.ceil
 
 /** GPU display-list capture only: never exports or retains a screen bitmap. */
@@ -66,6 +67,8 @@ private data class EffectElement(val state: KeenBackdrop, val layer: GraphicsLay
 internal class BackdropEffectNode(var state: KeenBackdrop, var layer: GraphicsLayer, var tint: Color) :
     Modifier.Node(), DrawModifierNode, GlobalPositionAwareModifierNode {
     private var origin = Offset.Zero
+    private var lens: KeenGlassLens? = null
+    private var lensUnavailable = false
     override fun onAttach() { state.effects.add(this) }
     override fun onDetach() { state.effects.remove(this) }
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
@@ -82,6 +85,14 @@ internal class BackdropEffectNode(var state: KeenBackdrop, var layer: GraphicsLa
                 translate(margin - relative.x, margin - relative.y) { drawLayer(state.layer) }
             }
             layer.renderEffect = BlurEffect(radius, radius, TileMode.Clamp)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !lensUnavailable) {
+                // Unsupported vendor shader implementations retain the ordinary blur.
+                runCatching {
+                    val optics = lens ?: KeenGlassLens().also { lens = it }
+                    layer.renderEffect = optics.effect(size.width, size.height, margin.toFloat(),
+                        KeenRadius.navigation.toPx(), KeenGlass.refractionBand.toPx(), KeenGlass.refractionStrength.toPx(), radius)
+                }.onFailure { lensUnavailable = true }
+            }
             translate(-margin.toFloat(), -margin.toFloat()) { drawLayer(layer) }
             drawRect(Brush.verticalGradient(listOf(tint.copy(alpha = KeenGlass.tintTop), tint.copy(alpha = KeenGlass.tintBottom))))
         } else {

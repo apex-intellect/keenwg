@@ -45,10 +45,21 @@ object KeenLayout {
 }
 
 object KeenGlass {
-    val blurRadius = 22.dp
+    val blurRadius = 14.dp
     val shadow = 6.dp
-    const val tintTop = 0.56f
-    const val tintBottom = 0.72f
+    val refractionBand = 14.dp
+    val refractionStrength = 4.dp
+    val rimWidth = 1.dp
+    const val rimHighlight = 0.70f
+    const val rimSoft = 0.08f
+    const val rimShade = 0.12f
+    const val tintTop = 0.28f
+    const val tintBottom = 0.42f
     const val fallbackTint = 0.96f
-    const val selectedTint = 0.72f
+    const val selectedTint = 0.58f
+}
+
+object KeenBrand {
+    // Adaptive launchers crop the 108 dp foreground. Match that optical size in-app.
+    const val inAppMarkScale = 1.35f
 }

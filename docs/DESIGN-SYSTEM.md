@@ -28,9 +28,13 @@ Colors live in `ui/theme/Color.kt`, mapped to Material semantic roles in `Theme.
 
 `KeenGlassSurface` groups rows. `KeenFloatingNavigationHost` overlays `KeenBottomIsland` on a full-height content viewport, not a Scaffold bottom-bar slot. `LocalKeenBottomClearance` supplies extra scroll-tail and floating-action clearance; it must not become viewport padding.
 
-On Android 12+, the island samples a shared Compose GraphicsLayer display list and blurs only its own region plus the blur kernel. The source invalidates the effect when it redraws, including scrolling. No screen bitmap is exported or stored. `KeenGlass` owns blur, tint and shadow tokens. Icons, labels and native selected-tab semantics are drawn after the effect and remain sharp. Android 8–11 uses a high-contrast tinted fallback because RenderEffect is unavailable. MainActivity configures transparent system bars and matching light/dark icons without Android's opaque navigation contrast scrim.
+On Android 12+, the island samples a shared Compose GraphicsLayer display list and blurs only its own region plus the blur kernel. Android 13+ adds a static AGSL edge lens: displacement fades toward the center, with a thin diagonal rim highlight. Unsupported shader creation falls back to blur. The source invalidates the effect when it redraws, including scrolling. No screen bitmap is exported or stored. `KeenGlass` owns blur, refraction, tint, rim and shadow tokens. Icons, labels and native selected-tab semantics are drawn after the effect and remain sharp. Android 8–11 uses a high-contrast tinted fallback because RenderEffect is unavailable. MainActivity configures transparent system bars and matching light/dark icons without Android's opaque navigation contrast scrim.
 
-Main destinations retain the floating bar; nested pages retain their back action. Long text wraps and navigation items use minimum, not fixed, height. Overview links only open capabilities available on the router.
+Main destinations retain the floating bar; nested pages retain their back action. Overview shortcuts and bottom tabs share `openTopLevel`. Home pops to the live Overview entry without restoring its saved-stack alias; other tabs restore their own state. This prevents a saved section from reopening when Home is selected. Long text wraps and navigation items use minimum, not fixed, height. Overview links only open capabilities available on the router.
+
+## Identity
+
+The Route K mark is a native vector, graphite on ivory, with rounded route-like strokes. Adaptive and monochrome launcher icons share one geometry; About uses the same vector with `KeenBrand.inAppMarkScale` for optical sizing. Brand colors are Android resources so the launcher does not depend on Compose. Apex Intellect keeps its original wordmark geometry and uses the current theme's `onSurface` tint: graphite in light mode, ivory in dark mode.
 
 ## Data and safety
 
